@@ -10,7 +10,7 @@
 ;   ./installer/vox-setup.exe
 
 #define MyAppName "Vox"
-#define MyAppVersion "1.1.0"
+#define MyAppVersion "1.2.0"
 #define MyAppPublisher "Vox"
 #define MyAppExeName "vox.exe"
 
@@ -35,13 +35,112 @@ WizardStyle=modern
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 
+; Always show the "Select Setup Language" dialog so the user can pick English
+; (or any language) on every install. Without these, Inno auto-selects the
+; system language and, on re-install, silently reuses the previous one
+; (UsePreviousLanguage defaults to yes) — which hid English on Russian systems.
+ShowLanguageDialog=yes
+UsePreviousLanguage=no
+
+; ---------------------------------------------------------------------------
+; Languages — all standard Inno Setup 6 translations.
+; English first = default fallback for CustomMessages.
+; ---------------------------------------------------------------------------
 [Languages]
-Name: "russian"; MessagesFile: "compiler:Languages\Russian.isl"
-Name: "english"; MessagesFile: "compiler:Default.isl"
+Name: "english";    MessagesFile: "compiler:Default.isl"
+Name: "russian";    MessagesFile: "compiler:Languages\Russian.isl"
+Name: "ukrainian";  MessagesFile: "compiler:Languages\Ukrainian.isl"
+Name: "german";     MessagesFile: "compiler:Languages\German.isl"
+Name: "french";     MessagesFile: "compiler:Languages\French.isl"
+Name: "spanish";    MessagesFile: "compiler:Languages\Spanish.isl"
+Name: "italian";    MessagesFile: "compiler:Languages\Italian.isl"
+Name: "portuguese"; MessagesFile: "compiler:Languages\Portuguese.isl"
+Name: "brazilian";  MessagesFile: "compiler:Languages\BrazilianPortuguese.isl"
+Name: "dutch";      MessagesFile: "compiler:Languages\Dutch.isl"
+Name: "polish";     MessagesFile: "compiler:Languages\Polish.isl"
+Name: "czech";      MessagesFile: "compiler:Languages\Czech.isl"
+Name: "turkish";    MessagesFile: "compiler:Languages\Turkish.isl"
+Name: "japanese";   MessagesFile: "compiler:Languages\Japanese.isl"
+Name: "finnish";    MessagesFile: "compiler:Languages\Finnish.isl"
+Name: "danish";     MessagesFile: "compiler:Languages\Danish.isl"
+Name: "norwegian";  MessagesFile: "compiler:Languages\Norwegian.isl"
+Name: "slovenian";  MessagesFile: "compiler:Languages\Slovenian.isl"
+Name: "catalan";    MessagesFile: "compiler:Languages\Catalan.isl"
+Name: "bulgarian";  MessagesFile: "compiler:Languages\Bulgarian.isl"
+Name: "hebrew";     MessagesFile: "compiler:Languages\Hebrew.isl"
+
+; ---------------------------------------------------------------------------
+; CustomMessages — translated strings used in [Tasks] and [Run].
+; Languages without explicit entries inherit from English (first in list).
+; ---------------------------------------------------------------------------
+[CustomMessages]
+english.AutostartDescription=Start Vox with Windows
+english.AutostartGroup=Additional options:
+english.LaunchAfterInstall=Launch {#MyAppName} now
+russian.AutostartDescription=Запускать Vox при старте Windows
+russian.AutostartGroup=Дополнительно:
+russian.LaunchAfterInstall=Запустить {#MyAppName} сейчас
+ukrainian.AutostartDescription=Запускати Vox разом з Windows
+ukrainian.AutostartGroup=Додатково:
+ukrainian.LaunchAfterInstall=Запустити {#MyAppName} зараз
+german.AutostartDescription=Vox mit Windows starten
+german.AutostartGroup=Weitere Optionen:
+german.LaunchAfterInstall={#MyAppName} jetzt starten
+french.AutostartDescription=Lancer Vox au démarrage de Windows
+french.AutostartGroup=Options supplémentaires :
+french.LaunchAfterInstall=Lancer {#MyAppName} maintenant
+spanish.AutostartDescription=Iniciar Vox con Windows
+spanish.AutostartGroup=Opciones adicionales:
+spanish.LaunchAfterInstall=Ejecutar {#MyAppName} ahora
+italian.AutostartDescription=Avvia Vox con Windows
+italian.AutostartGroup=Opzioni aggiuntive:
+italian.LaunchAfterInstall=Avvia {#MyAppName} adesso
+portuguese.AutostartDescription=Iniciar o Vox com o Windows
+portuguese.AutostartGroup=Opções adicionais:
+portuguese.LaunchAfterInstall=Iniciar o {#MyAppName} agora
+brazilian.AutostartDescription=Iniciar o Vox com o Windows
+brazilian.AutostartGroup=Opções adicionais:
+brazilian.LaunchAfterInstall=Iniciar o {#MyAppName} agora
+dutch.AutostartDescription=Vox starten met Windows
+dutch.AutostartGroup=Extra opties:
+dutch.LaunchAfterInstall={#MyAppName} nu starten
+polish.AutostartDescription=Uruchamiaj Vox przy starcie Windows
+polish.AutostartGroup=Opcje dodatkowe:
+polish.LaunchAfterInstall=Uruchom {#MyAppName} teraz
+czech.AutostartDescription=Spouštět Vox při startu Windows
+czech.AutostartGroup=Další možnosti:
+czech.LaunchAfterInstall=Spustit {#MyAppName} nyní
+turkish.AutostartDescription=Vox'u Windows ile başlat
+turkish.AutostartGroup=Ek seçenekler:
+turkish.LaunchAfterInstall={#MyAppName} şimdi başlat
+japanese.AutostartDescription=Windows 起動時に Vox を開始
+japanese.AutostartGroup=追加オプション:
+japanese.LaunchAfterInstall={#MyAppName} を今すぐ起動
+finnish.AutostartDescription=Käynnistä Vox Windowsin kanssa
+finnish.AutostartGroup=Lisäasetukset:
+finnish.LaunchAfterInstall=Käynnistä {#MyAppName} nyt
+danish.AutostartDescription=Start Vox med Windows
+danish.AutostartGroup=Yderligere indstillinger:
+danish.LaunchAfterInstall=Start {#MyAppName} nu
+norwegian.AutostartDescription=Start Vox med Windows
+norwegian.AutostartGroup=Tilleggsalternativer:
+norwegian.LaunchAfterInstall=Start {#MyAppName} nå
+slovenian.AutostartDescription=Zaženi Vox ob zagonu Windows
+slovenian.AutostartGroup=Dodatne možnosti:
+slovenian.LaunchAfterInstall=Zaženi {#MyAppName} zdaj
+catalan.AutostartDescription=Iniciar Vox amb Windows
+catalan.AutostartGroup=Opcions addicionals:
+catalan.LaunchAfterInstall=Executar {#MyAppName} ara
+bulgarian.AutostartDescription=Стартиране на Vox с Windows
+bulgarian.AutostartGroup=Допълнителни опции:
+bulgarian.LaunchAfterInstall=Стартирай {#MyAppName} сега
+hebrew.AutostartDescription=הפעל את Vox עם Windows
+hebrew.AutostartGroup=:אפשרויות נוספות
+hebrew.LaunchAfterInstall=הפעל את {#MyAppName} עכשיו
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
-Name: "autostart"; Description: "Запускать Vox при старте Windows"; GroupDescription: "Дополнительно:"; Flags: unchecked
+Name: "autostart"; Description: "{cm:AutostartDescription}"; GroupDescription: "{cm:AutostartGroup}"; Flags: unchecked
 
 [Files]
 Source: "{#SourcePath}\dist\vox\vox.exe"; DestDir: "{app}"; Flags: ignoreversion
@@ -58,7 +157,7 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilen
 Root: HKA; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "Vox"; ValueData: """{app}\{#MyAppExeName}"""; Flags: uninsdeletevalue; Tasks: autostart
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "Запустить {#MyAppName} сейчас"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchAfterInstall}"; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]
 ; Kill any running vox.exe before uninstalling

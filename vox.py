@@ -5,13 +5,14 @@ Vox — Universal Voice Input (entry point).
 Push-to-talk voice recognition daemon for Windows.
 Hold a configurable hotkey → speak → release → text is pasted at the cursor.
 
-Supports multiple recognition engines (Vosk, Whisper, GigaAM v3, Parakeet,
-SenseVoice via sherpa-onnx). Model can be picked on first run and changed
-at any time from the system tray.
+Recognition runs fully offline on a single model — Parakeet TDT v3
+(25 European languages) via sherpa-onnx. The model is downloaded on first
+run and can be repaired or removed from the system tray.
 """
 
 from __future__ import annotations
 
+import contextlib
 import os
 import sys
 import threading
@@ -51,6 +52,7 @@ def _setup_logging() -> tuple[str, str]:
         class _Tee:
             def __init__(self, *streams):
                 self._streams = streams
+
             def write(self, data):
                 for s in self._streams:
                     try:
@@ -58,12 +60,11 @@ def _setup_logging() -> tuple[str, str]:
                         s.flush()
                     except Exception:
                         pass
+
             def flush(self):
                 for s in self._streams:
-                    try:
+                    with contextlib.suppress(Exception):
                         s.flush()
-                    except Exception:
-                        pass
 
         sys.stdout = _Tee(sys.__stdout__, log_fp)
         sys.stderr = _Tee(sys.__stderr__, log_fp)
@@ -102,9 +103,10 @@ def _show_first_run_wizard() -> str | None:
 
     chosen: dict[str, str] = {}
 
-    def _on_apply(model_id: str) -> None:
+    def _on_apply(model_id: str, lang: str) -> None:
         chosen["id"] = model_id
-        update_config(active_model=model_id)
+        chosen["lang"] = lang
+        update_config(active_model=model_id, language=lang)
 
     ok = run_first_run_wizard(on_apply=_on_apply)
     if not ok or "id" not in chosen:
@@ -113,8 +115,8 @@ def _show_first_run_wizard() -> str | None:
 
 
 def main() -> None:
-    log_dir, log_file = _setup_logging()
-    print(f'\n=== Vox started at {time.strftime("%Y-%m-%d %H:%M:%S")} ===')
+    log_dir, _log_file = _setup_logging()
+    print(f"\n=== Vox started at {time.strftime('%Y-%m-%d %H:%M:%S')} ===")
 
     model_id = _resolve_initial_model()
     if model_id is None:
@@ -126,18 +128,24 @@ def main() -> None:
 
     # Background worker thread (engine + mic + keyboard hook)
     from voxapp import worker
+
     t = threading.Thread(
-        target=worker.run, args=(model_id,), daemon=True, name="VoxWorker",
+        target=worker.run,
+        args=(model_id,),
+        daemon=True,
+        name="VoxWorker",
     )
     t.start()
 
     # Tray icon (blocks the main thread until the user quits)
     try:
         from voxapp.tray import setup_tray
+
         setup_tray(log_dir)
     except Exception as e:
         print(f"[FATAL] Tray failed: {e}")
         import traceback
+
         traceback.print_exc()
 
 

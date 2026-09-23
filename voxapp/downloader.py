@@ -7,17 +7,17 @@ background thread; the progress callback is invoked from that thread.
 
 from __future__ import annotations
 
+import contextlib
 import os
 import shutil
 import tarfile
 import tempfile
 import urllib.request
 import zipfile
-from typing import Callable
+from collections.abc import Callable
 
 from voxapp.config import get_models_dir
 from voxapp.registry import MODELS, model_dir
-
 
 ProgressCB = Callable[[int, int, str], None]
 # (downloaded_bytes, total_bytes_or_-1, stage_label)
@@ -42,8 +42,9 @@ def _stream_download(url: str, dest_path: str, on_progress: ProgressCB) -> None:
                 on_progress(downloaded, total, "Загрузка")
 
 
-def _extract(archive_path: str, archive_format: str, dest_dir: str,
-             on_progress: ProgressCB) -> None:
+def _extract(
+    archive_path: str, archive_format: str, dest_dir: str, on_progress: ProgressCB
+) -> None:
     os.makedirs(dest_dir, exist_ok=True)
     if archive_format == "zip":
         with zipfile.ZipFile(archive_path, "r") as zf:
@@ -54,17 +55,20 @@ def _extract(archive_path: str, archive_format: str, dest_dir: str,
                 on_progress(i + 1, total, "Распаковка")
     elif archive_format == "tar.bz2":
         with tarfile.open(archive_path, "r:bz2") as tf:
-            members = tf.getmembers()
-            total = len(members)
-            for i, m in enumerate(members):
-                tf.extract(m, dest_dir)
+            tar_members = tf.getmembers()
+            total = len(tar_members)
+            for i, tm in enumerate(tar_members):
+                tf.extract(tm, dest_dir)
                 on_progress(i + 1, total, "Распаковка")
     else:
         raise ValueError(f"Unknown archive format: {archive_format}")
 
 
-def download_model(model_id: str, on_progress: ProgressCB | None = None,
-                   on_log: Callable[[str], None] | None = None) -> str:
+def download_model(
+    model_id: str,
+    on_progress: ProgressCB | None = None,
+    on_log: Callable[[str], None] | None = None,
+) -> str:
     """
     Download and install a model. Returns the absolute path to its
     extracted directory. Safe to call if the model is already installed
@@ -87,7 +91,8 @@ def download_model(model_id: str, on_progress: ProgressCB | None = None,
 
     # Download to a temp file (alongside, so rename is atomic on same FS)
     fd, tmp_archive = tempfile.mkstemp(
-        prefix=f"{model_id}-", suffix="." + info["archive_format"],
+        prefix=f"{model_id}-",
+        suffix="." + info["archive_format"],
         dir=models_root,
     )
     os.close(fd)
@@ -108,14 +113,14 @@ def download_model(model_id: str, on_progress: ProgressCB | None = None,
                 # Some archives extract without a top-level folder (rare for
                 # our list, but handle it): treat the staging dir as the
                 # model itself.
-                candidates = [d for d in os.listdir(staging)
-                              if os.path.isdir(os.path.join(staging, d))]
+                candidates = [
+                    d for d in os.listdir(staging) if os.path.isdir(os.path.join(staging, d))
+                ]
                 if len(candidates) == 1:
                     extracted = os.path.join(staging, candidates[0])
                 else:
                     raise FileNotFoundError(
-                        f"Expected '{info['extracted_dir']}' in archive, "
-                        f"found: {candidates}"
+                        f"Expected '{info['extracted_dir']}' in archive, found: {candidates}"
                     )
 
             # Move into final location.
@@ -129,10 +134,8 @@ def download_model(model_id: str, on_progress: ProgressCB | None = None,
         on_progress(1, 1, "Готово")
         return target_dir
     finally:
-        try:
+        with contextlib.suppress(OSError):
             os.remove(tmp_archive)
-        except OSError:
-            pass
 
 
 def uninstall_model(model_id: str) -> bool:

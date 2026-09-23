@@ -2,27 +2,10 @@
 # PyInstaller spec for Vox.
 # Run via: pyinstaller vox.spec  (from any ASCII-only build directory)
 
-import os
-import importlib.util
-
 from PyInstaller.utils.hooks import collect_data_files, collect_dynamic_libs
 
 
-def _vosk_dlls():
-    """Locate Vosk's bundled DLLs in the installed package."""
-    spec = importlib.util.find_spec('vosk')
-    if not spec or not spec.origin:
-        return []
-    vosk_dir = os.path.dirname(spec.origin)
-    dlls = ['libvosk.dll', 'libgcc_s_seh-1.dll',
-            'libstdc++-6.dll', 'libwinpthread-1.dll']
-    return [(os.path.join(vosk_dir, d), 'vosk')
-            for d in dlls if os.path.exists(os.path.join(vosk_dir, d))]
-
-
 # sherpa-onnx ships native .dll files alongside its Python bindings.
-# `collect_dynamic_libs` finds them; `collect_data_files` picks up any
-# non-Python assets (e.g., type stubs) so PyInstaller doesn't drop them.
 _sherpa_binaries = collect_dynamic_libs('sherpa_onnx')
 _sherpa_datas = collect_data_files('sherpa_onnx')
 
@@ -30,13 +13,26 @@ _sherpa_datas = collect_data_files('sherpa_onnx')
 a = Analysis(
     ['vox.py'],
     pathex=[],
-    binaries=_vosk_dlls() + _sherpa_binaries,
+    binaries=_sherpa_binaries,
     datas=[('vox.ico', '.')] + _sherpa_datas,
     hiddenimports=[
         'sherpa_onnx',
-        'voxapp', 'voxapp.config', 'voxapp.terms', 'voxapp.punctuation',
-        'voxapp.registry', 'voxapp.downloader', 'voxapp.engines',
-        'voxapp.worker', 'voxapp.tray', 'voxapp.gui',
+        'voxapp',
+        'voxapp.capitalization',
+        'voxapp.config',
+        'voxapp.correction_monitor',
+        'voxapp.downloader',
+        'voxapp.engines',
+        'voxapp.fillers',
+        'voxapp.gui',
+        'voxapp.itn',
+        'voxapp.post_processor',
+        'voxapp.punctuation',
+        'voxapp.registry',
+        'voxapp.storage',
+        'voxapp.terms',
+        'voxapp.tray',
+        'voxapp.worker',
     ],
     hookspath=[],
     hooksconfig={},

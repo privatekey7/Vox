@@ -39,3 +39,8 @@ desktop.ini
 
 # --- Local agent configs ---
 .devin/config.local.json
+
+# --- Local user data (never commit: dictation history, personal config) ---
+config.json
+vox_data.db
+vox_data.db-*
