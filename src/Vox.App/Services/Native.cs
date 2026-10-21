@@ -121,6 +121,78 @@ internal static partial class Native
         return GetLastInputInfo(ref info) ? unchecked((uint)Environment.TickCount - info.dwTime) : uint.MaxValue;
     }
 
+    [LibraryImport("user32.dll")]
+    public static partial nint GetForegroundWindow();
+
+    [LibraryImport("user32.dll")]
+    public static partial uint GetWindowThreadProcessId(nint hWnd, out uint lpdwProcessId);
+
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    public static partial nint OpenProcess(uint dwDesiredAccess, [MarshalAs(UnmanagedType.Bool)] bool bInheritHandle, uint dwProcessId);
+
+    [LibraryImport("advapi32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool OpenProcessToken(nint processHandle, uint desiredAccess, out nint tokenHandle);
+
+    [LibraryImport("advapi32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool GetTokenInformation(nint tokenHandle, int tokenInformationClass, out int tokenInformation, int tokenInformationLength, out int returnLength);
+
+    [LibraryImport("kernel32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool CloseHandle(nint hObject);
+
+    /// <summary>
+    /// The app in front (process name, for the log) and whether it runs elevated. A process whose
+    /// token Vox may not even open is counted as elevated.
+    /// </summary>
+    public static (string Name, bool Elevated) ForegroundApp()
+    {
+        const uint PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
+        const uint TOKEN_QUERY = 0x0008;
+        const int TokenElevation = 20;
+        const int ERROR_ACCESS_DENIED = 5;
+
+        GetWindowThreadProcessId(GetForegroundWindow(), out var pid);
+        string name;
+        try
+        {
+            using var process = System.Diagnostics.Process.GetProcessById((int)pid);
+            name = process.ProcessName;
+        }
+        catch (Exception e) when (e is ArgumentException or InvalidOperationException)
+        {
+            return ("?", false);
+        }
+
+        var handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid);
+        if (handle == 0)
+        {
+            return (name, false);
+        }
+
+        try
+        {
+            if (!OpenProcessToken(handle, TOKEN_QUERY, out var token))
+            {
+                return (name, Marshal.GetLastPInvokeError() == ERROR_ACCESS_DENIED);
+            }
+
+            try
+            {
+                return (name, GetTokenInformation(token, TokenElevation, out var elevated, sizeof(int), out _) && elevated != 0);
+            }
+            finally
+            {
+                CloseHandle(token);
+            }
+        }
+        finally
+        {
+            CloseHandle(handle);
+        }
+    }
+
     public static INPUT Key(ushort vk, bool up) => new()
     {
         type = INPUT_KEYBOARD,

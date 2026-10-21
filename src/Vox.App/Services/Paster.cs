@@ -37,10 +37,17 @@ internal sealed class Paster(Dispatcher ui)
         keys.Add(Native.Key(Native.VK_V, up: false));
         keys.Add(Native.Key(Native.VK_V, up: true));
         keys.Add(Native.Key(Native.VK_CONTROL, up: true));
+        var (target, elevated) = Native.ForegroundApp();
         var sent = Native.SendInput((uint)keys.Count, [.. keys], Marshal.SizeOf<Native.INPUT>());
-        Log.Info(sent == keys.Count ? "[PASTE] Pasted" : $"[PASTE] SendInput sent {sent} of {keys.Count} keys");
+        Log.Info(sent == keys.Count ? $"[PASTE] Pasted into {target}" : $"[PASTE] SendInput sent {sent} of {keys.Count} keys to {target}");
+        var blocked = elevated && !Environment.IsPrivilegedProcess;
+        if (blocked)
+        {
+            // Windows drops keys sent to an admin window without any error (UIPI).
+            Log.Info($"[PASTE] {target} probably runs as administrator — Windows blocks the paste; the text stays in the clipboard");
+        }
 
-        if (previous is null || previous == body)
+        if (previous is null || previous == body || blocked)
         {
             return;
         }
