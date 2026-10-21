@@ -43,10 +43,7 @@ public partial class SettingsWindow : Window
             _micMeter.Stop();
         };
 
-        HowTo.Text =
-            $"1. Поставьте курсор туда, где нужен текст — в любой программе.\n" +
-            $"2. Зажмите {Hotkeys.Display(_app.Settings.Hotkey)} и говорите.\n" +
-            "3. Отпустите — текст появится у курсора.";
+        ShowHowTo();
         VersionText.Text = $"Vox {typeof(App).Assembly.GetName().Version?.ToString(3)} · работает без интернета";
         _loading = false;
     }
@@ -119,7 +116,7 @@ public partial class SettingsWindow : Window
         if (!_loading && HotkeyBox.SelectedItem is ComboBoxItem { Tag: string name })
         {
             _app.SetHotkey(name);
-            HowTo.Text = HowTo.Text; // keeps the help page in sync on next open
+            ShowHowTo(); // the help page names the hotkey
         }
     }
 
@@ -210,6 +207,11 @@ public partial class SettingsWindow : Window
 
         _app.Settings.Save();
     }
+
+    private void ShowHowTo() => HowTo.Text =
+        "1. Поставьте курсор туда, где нужен текст — в любой программе.\n" +
+        $"2. Зажмите {Hotkeys.Display(_app.Settings.Hotkey)} и говорите.\n" +
+        "3. Отпустите — текст появится у курсора.";
 
     // ---- History -------------------------------------------------------------------------
 
