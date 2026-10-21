@@ -72,10 +72,11 @@
 | `icons/vox.ico` | Иконка приложения и установщика (16–256 px) |
 | `icons/vox-dark.ico` | Тёмная версия (запасная) |
 | `icons/tray-light.ico`, `icons/tray-dark.ico` | Значок трея для светлой / тёмной панели задач (16–64 px) |
-| `icons/tray-recording-light.ico` | «Идёт запись», светлая панель. **Версия для тёмной панели ещё не сгенерирована** |
+| `icons/tray-recording-light.ico`, `icons/tray-recording-dark.ico` | «Идёт запись» для светлой / тёмной панели задач |
 | `brand/*.png` | Исходники 1024 px с прозрачностью |
 | `brand/vox-bg-light.jpg`, `brand/vox-bg-dark.jpg` | Фоны (волны справа, слева место под текст) |
 | `installer/wizard-{100..250}.bmp`, `installer/wizard-small-{100..250}.bmp` | Картинки Inno Setup для каждого масштаба экрана: `WizardImageFile=wizard-100.bmp,wizard-125.bmp,…` |
 
 Выбор значка трея: читать `HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize\SystemUsesLightTheme`
-(1 — светлая панель → `tray-light`, 0 — тёмная → `tray-dark`) и переключать при смене темы.
+(1 — светлая панель → `tray-light` / `tray-recording-light`, 0 — тёмная → `tray-dark` /
+`tray-recording-dark`) и переключать при смене темы.
