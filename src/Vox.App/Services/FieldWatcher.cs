@@ -39,6 +39,7 @@ internal sealed class FieldWatcher : IDisposable
                 }
                 catch (Exception e) when (e is ElementNotAvailableException or InvalidOperationException or System.Runtime.InteropServices.COMException)
                 {
+                    Log.Info($"[LEARN] Field is gone or unreadable ({e.GetType().Name})");
                     _pending = null; // the field went away — nothing to learn from it
                 }
                 catch (Exception e)
@@ -62,17 +63,35 @@ internal sealed class FieldWatcher : IDisposable
     public void AfterPaste(string inserted) => Enqueue(() =>
     {
         Thread.Sleep(300); // let the target app apply the paste
+        _pending = null;
         var element = AutomationElement.FocusedElement;
-        if (element is null || (bool)element.GetCurrentPropertyValue(AutomationElement.IsPasswordProperty))
+        if (element is null)
         {
-            _pending = null;
+            Log.Info("[LEARN] No focused field — nothing to watch");
             return;
         }
 
+        var app = AppName(element);
+        if ((bool)element.GetCurrentPropertyValue(AutomationElement.IsPasswordProperty))
+        {
+            Log.Info($"[LEARN] Password field in {app} — not read");
+            return;
+        }
+
+        // Only the reason is logged, never the field's text.
         var text = ReadText(element);
-        _pending = text is not null && text.Contains(inserted.Trim(), StringComparison.Ordinal)
-            ? new Pending(element, text, inserted, DateTime.UtcNow, text, DateTime.UtcNow)
-            : null;
+        if (text is null)
+        {
+            Log.Info($"[LEARN] {app} does not expose the field's text — cannot learn here");
+        }
+        else if (!text.Contains(inserted.Trim(), StringComparison.Ordinal))
+        {
+            Log.Info($"[LEARN] The field in {app} does not show the dictation — not watched");
+        }
+        else
+        {
+            _pending = new Pending(element, text, inserted, DateTime.UtcNow, text, DateTime.UtcNow);
+        }
     });
 
     /// <summary>Call when the next dictation starts: the user is done editing the previous one.</summary>
@@ -128,6 +147,23 @@ internal sealed class FieldWatcher : IDisposable
         {
             Log.Info($"[LEARN] Learned: \"{wrong}\" → \"{correct}\"");
             Learned?.Invoke(wrong, correct);
+        }
+        else
+        {
+            Log.Info("[LEARN] The field was edited, but not as a one-word fix — nothing learned");
+        }
+    }
+
+    private static string AppName(AutomationElement element)
+    {
+        try
+        {
+            using var process = System.Diagnostics.Process.GetProcessById(element.Current.ProcessId);
+            return process.ProcessName;
+        }
+        catch (ArgumentException)
+        {
+            return "?";
         }
     }
 
