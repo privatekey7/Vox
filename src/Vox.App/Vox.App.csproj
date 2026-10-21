@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <RootNamespace>Vox.App</RootNamespace>
+    <AssemblyName>Vox</AssemblyName>
+    <ApplicationIcon>..\..\assets\icons\vox.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- Windows-only app: P/Invoke names follow Win32 (CA1707, CA1711); platform checks are moot
+         (CA1416); App and windows dispose their resources in OnExit/Closed, the WPF lifetime
+         hooks, rather than through IDisposable (CA1001). -->
+    <NoWarn>$(NoWarn);CA1707;CA1711;CA1416;CA1001</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Vox.Core\Vox.Core.csproj" />
+    <ProjectReference Include="..\Vox.Engine\Vox.Engine.csproj" />
+    <PackageReference Include="NAudio.Wasapi" />
+    <PackageReference Include="H.NotifyIcon.Wpf" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="..\..\assets\icons\*.ico" Link="Assets\%(Filename)%(Extension)" />
+    <Resource Include="..\..\assets\brand\vox-symbol.png" Link="Assets\vox-symbol.png" />
+    <Resource Include="..\..\assets\brand\vox-icon-light.png" Link="Assets\vox-icon-light.png" />
+  </ItemGroup>
+</Project>

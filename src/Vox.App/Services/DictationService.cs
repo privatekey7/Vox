@@ -1,0 +1,278 @@
+using System.Collections.Concurrent;
+using System.Diagnostics;
+using Vox.Core;
+using Vox.Core.Models;
+using Vox.Core.Storage;
+using Vox.Core.Text;
+using Vox.Engine;
+
+namespace Vox.App.Services;
+
+public enum DictationState
+{
+    Idle,
+    Listening,
+    Recognizing,
+    Inserted,
+    NotHeard,
+    ModelLoading,
+}
+
+/// <summary>
+/// Push-to-talk: key down → record, key up → recognise, post-process, save and paste.
+/// The hook thread only flips state; all heavy work runs on one "VoxProcessor" thread, in order.
+/// </summary>
+internal sealed class DictationService : IDisposable
+{
+    private const int MinRecordMs = 250;
+    private const int ErrorSignalMinMs = 1000; // shorter presses are usually accidental
+    private const float MinPeak = 100f / 32768f; // quieter than this is silence
+    private static readonly TimeSpan Tail = TimeSpan.FromMilliseconds(150);
+
+    private readonly AudioCapture _audio;
+    private readonly Paster _paster;
+    private readonly Sounds _sounds;
+    private readonly VoxDatabase _db;
+    private readonly Settings _settings;
+    private readonly string _modelsRoot;
+    private readonly BlockingCollection<Job> _jobs = [];
+    private readonly Thread _processor;
+    private readonly Lock _engineLock = new();
+    private SpeechRecognizer? _recognizer;
+    private PostProcessor? _postProcessor;
+    private IReadOnlyDictionary<string, string> _corrections;
+    private long _startTimestamp;
+    private RecordingBuffer? _current;
+
+    public DictationService(AudioCapture audio, Paster paster, Sounds sounds, VoxDatabase db, Settings settings, string modelsRoot)
+    {
+        _audio = audio;
+        _paster = paster;
+        _sounds = sounds;
+        _db = db;
+        _settings = settings;
+        _modelsRoot = modelsRoot;
+        _corrections = db.Corrections();
+        _processor = new Thread(ProcessLoop) { IsBackground = true, Name = "VoxProcessor" };
+        _processor.Start();
+    }
+
+    /// <summary>Raised from background threads; subscribers marshal to the UI themselves.</summary>
+    public event Action<DictationState>? StateChanged;
+
+    /// <summary>A dictation was pasted (text without the leading separator).</summary>
+    public event Action<string>? Inserted;
+
+    public SpeechModel? Model
+    {
+        get
+        {
+            lock (_engineLock)
+            {
+                return _recognizer?.Model;
+            }
+        }
+    }
+
+    public string LastText { get; private set; } = "";
+
+    /// <summary>Load (or switch to) a model on a background thread. The old one keeps working until the swap.</summary>
+    public Task LoadModelAsync(SpeechModel model) => Task.Run(() =>
+    {
+        StateChanged?.Invoke(DictationState.ModelLoading);
+        var sw = Stopwatch.StartNew();
+        Log.Info($"[INIT] Loading model {model.Id}");
+        var recognizer = new SpeechRecognizer(model, _modelsRoot);
+        SpeechRecognizer? old;
+        lock (_engineLock)
+        {
+            old = _recognizer;
+            _recognizer = recognizer;
+            _postProcessor = new PostProcessor(model);
+        }
+
+        old?.Dispose();
+        Log.Info($"[INIT] Model {model.Id} loaded in {sw.ElapsedMilliseconds} ms");
+        StateChanged?.Invoke(DictationState.Idle);
+    });
+
+    public void ReloadCorrections() => _corrections = _db.Corrections();
+
+    /// <summary>Hotkey down (hook thread — must return fast).</summary>
+    public void OnPressed()
+    {
+        if (_current is not null)
+        {
+            return;
+        }
+
+        _startTimestamp = Stopwatch.GetTimestamp();
+        _current = _audio.BeginRecording();
+        _sounds.Start();
+        Log.Info("[REC] Listening...");
+        StateChanged?.Invoke(DictationState.Listening);
+    }
+
+    /// <summary>Hotkey up (hook thread — must return fast).</summary>
+    public void OnReleased(bool usedInShortcut)
+    {
+        if (_current is not { } buffer)
+        {
+            return;
+        }
+
+        _current = null;
+        var elapsed = Stopwatch.GetElapsedTime(_startTimestamp);
+        _sounds.Stop();
+        if (usedInShortcut)
+        {
+            _audio.EndRecording(buffer);
+            Log.Info("[REC] Hotkey was part of a shortcut — not a dictation, ignored");
+            StateChanged?.Invoke(DictationState.Idle);
+            return;
+        }
+
+        _jobs.Add(new Job(buffer, Stopwatch.GetTimestamp(), elapsed));
+    }
+
+    public void Dispose()
+    {
+        _jobs.CompleteAdding();
+        _processor.Join(TimeSpan.FromSeconds(3));
+        lock (_engineLock)
+        {
+            _recognizer?.Dispose();
+            _recognizer = null;
+        }
+    }
+
+    private void ProcessLoop()
+    {
+        foreach (var job in _jobs.GetConsumingEnumerable())
+        {
+            try
+            {
+                Process(job);
+            }
+            catch (Exception e)
+            {
+                // One bad dictation must not stop all later ones.
+                Log.Error("Processing dictation failed", e);
+                _sounds.Error();
+                StateChanged?.Invoke(DictationState.NotHeard);
+            }
+        }
+    }
+
+    private void Process(Job job)
+    {
+        // The audio block holding the end of the last word is still in flight at key-up.
+        var wait = Tail - Stopwatch.GetElapsedTime(job.ReleasedAt);
+        if (wait > TimeSpan.Zero)
+        {
+            Thread.Sleep(wait);
+        }
+
+        var (samples, rate) = _audio.EndRecording(job.Buffer);
+        var ms = (long)job.Elapsed.TotalMilliseconds;
+        if (ms < MinRecordMs)
+        {
+            Log.Info($"[REC] Too short ({ms}ms), ignored");
+            StateChanged?.Invoke(DictationState.Idle);
+            return;
+        }
+
+        Log.Info($"[REC] Stopped ({ms}ms), transcribing...");
+        StateChanged?.Invoke(DictationState.Recognizing);
+        var raw = Recognize(samples, rate);
+        if (raw.Length == 0)
+        {
+            Log.Info("[STT] No speech recognized");
+            if (ms >= ErrorSignalMinMs)
+            {
+                _sounds.Error();
+                StateChanged?.Invoke(DictationState.NotHeard);
+            }
+            else
+            {
+                StateChanged?.Invoke(DictationState.Idle);
+            }
+
+            return;
+        }
+
+        Log.Info($"[STT] Raw: \"{raw}\"");
+        PostProcessor? pp;
+        SpeechModel? model;
+        lock (_engineLock)
+        {
+            pp = _postProcessor;
+            model = _recognizer?.Model;
+        }
+
+        var text = pp?.Process(raw, _corrections) ?? raw;
+        Log.Info($"[STT] Final: \"{text}\"");
+        if (text.Trim().Length == 0)
+        {
+            StateChanged?.Invoke(DictationState.Idle);
+            return;
+        }
+
+        try
+        {
+            _db.AddTranscription(raw, text, model?.Id ?? "", model?.Language ?? "", ms);
+        }
+        catch (Exception e)
+        {
+            Log.Error("[DB] Failed to save", e);
+        }
+
+        _paster.Paste(text, _settings.RestoreClipboard);
+        LastText = text.TrimStart();
+        StateChanged?.Invoke(DictationState.Inserted);
+        Inserted?.Invoke(LastText);
+    }
+
+    /// <summary>Recognise, logging *why* when no text comes out.</summary>
+    private string Recognize(float[] samples, int rate)
+    {
+        if (samples.Length == 0)
+        {
+            Log.Info("[STT] No audio from microphone — reopening it");
+            _audio.Reopen();
+            return "";
+        }
+
+        var peak = samples.Max(Math.Abs);
+        if (peak < MinPeak)
+        {
+            Log.Info($"[STT] Too quiet (peak {peak * 32768:F0} < 100) — check the microphone");
+            return "";
+        }
+
+        SpeechRecognizer? recognizer;
+        lock (_engineLock)
+        {
+            recognizer = _recognizer;
+        }
+
+        if (recognizer is null)
+        {
+            Log.Info("[STT] No model loaded");
+            return "";
+        }
+
+        var sw = Stopwatch.StartNew();
+        var text = recognizer.Transcribe(samples, rate); // never under _engineLock: the UI reads Model
+
+        Log.Info($"[STT] Recognised {samples.Length / (double)rate:F1}s audio (peak {peak * 32768:F0}) in {sw.Elapsed.TotalSeconds:F1}s");
+        if (text.Length == 0)
+        {
+            Log.Info("[STT] Model returned no text");
+        }
+
+        return text;
+    }
+
+    private sealed record Job(RecordingBuffer Buffer, long ReleasedAt, TimeSpan Elapsed);
+}

@@ -1,0 +1,17 @@
+<!-- VOX 2.0 colours, Dark theme (docs/design/v2/README.md). Swapped at runtime by ThemeManager. -->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <SolidColorBrush x:Key="Vox.Accent" Color="#60CDFF"/>
+  <SolidColorBrush x:Key="Vox.AccentText" Color="#00243A"/>
+  <SolidColorBrush x:Key="Vox.WindowBackground" Color="#141D28"/>
+  <SolidColorBrush x:Key="Vox.CardBackground" Color="#1B222D"/>
+  <SolidColorBrush x:Key="Vox.CardHover" Color="#232C39"/>
+  <SolidColorBrush x:Key="Vox.CardStroke" Color="#2A3341"/>
+  <SolidColorBrush x:Key="Vox.SelectedFill" Color="#16304A"/>
+  <SolidColorBrush x:Key="Vox.NavSelectedFill" Color="#1F2C3D"/>
+  <SolidColorBrush x:Key="Vox.ProgressTrack" Color="#2A3341"/>
+  <SolidColorBrush x:Key="Vox.TextPrimary" Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="Vox.TextSecondary" Color="#B6C2D3"/>
+  <SolidColorBrush x:Key="Vox.Success" Color="#6CCB5F"/>
+  <SolidColorBrush x:Key="Vox.Warning" Color="#FCE100"/>
+</ResourceDictionary>

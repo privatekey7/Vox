@@ -1,0 +1,254 @@
+<!--
+  VOX 2.0 control styles. Colours come from Light.xaml / Dark.xaml via DynamicResource so the
+  theme follows Windows live. Every style here is self-contained (own templates) — nothing depends
+  on resource keys that only exist at runtime.
+-->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <FontFamily x:Key="Vox.FontDisplay">Segoe UI Variable Display, Segoe UI</FontFamily>
+  <FontFamily x:Key="Vox.FontText">Segoe UI Variable Text, Segoe UI</FontFamily>
+  <FontFamily x:Key="Vox.FontIcons">Segoe Fluent Icons, Segoe MDL2 Assets</FontFamily>
+  <SolidColorBrush x:Key="Vox.Recording" Color="#FF4D4F"/>
+  <SolidColorBrush x:Key="Vox.PillBackground" Color="#EB1E2636"/>
+
+  <!-- Windows -->
+  <Style x:Key="Vox.Window" TargetType="Window">
+    <Setter Property="Background" Value="{DynamicResource Vox.WindowBackground}"/>
+    <Setter Property="Foreground" Value="{DynamicResource Vox.TextPrimary}"/>
+    <Setter Property="FontFamily" Value="{StaticResource Vox.FontText}"/>
+    <Setter Property="FontSize" Value="14"/>
+    <Setter Property="UseLayoutRounding" Value="True"/>
+    <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
+  </Style>
+
+  <!-- Text -->
+  <Style x:Key="Vox.Title" TargetType="TextBlock">
+    <Setter Property="FontFamily" Value="{StaticResource Vox.FontDisplay}"/>
+    <Setter Property="FontSize" Value="28"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="Foreground" Value="{DynamicResource Vox.TextPrimary}"/>
+    <Setter Property="TextWrapping" Value="Wrap"/>
+  </Style>
+  <Style x:Key="Vox.Section" TargetType="TextBlock" BasedOn="{StaticResource Vox.Title}">
+    <Setter Property="FontSize" Value="24"/>
+  </Style>
+  <Style x:Key="Vox.Question" TargetType="TextBlock">
+    <Setter Property="FontSize" Value="16"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="Foreground" Value="{DynamicResource Vox.TextPrimary}"/>
+    <Setter Property="TextWrapping" Value="Wrap"/>
+  </Style>
+  <Style x:Key="Vox.Body" TargetType="TextBlock">
+    <Setter Property="FontSize" Value="14"/>
+    <Setter Property="Foreground" Value="{DynamicResource Vox.TextPrimary}"/>
+    <Setter Property="TextWrapping" Value="Wrap"/>
+  </Style>
+  <Style x:Key="Vox.Subtitle" TargetType="TextBlock" BasedOn="{StaticResource Vox.Body}">
+    <Setter Property="Foreground" Value="{DynamicResource Vox.TextSecondary}"/>
+  </Style>
+  <Style x:Key="Vox.Caption" TargetType="TextBlock" BasedOn="{StaticResource Vox.Subtitle}">
+    <Setter Property="FontSize" Value="12"/>
+  </Style>
+  <Style x:Key="Vox.Icon" TargetType="TextBlock">
+    <Setter Property="FontFamily" Value="{StaticResource Vox.FontIcons}"/>
+    <Setter Property="FontSize" Value="18"/>
+    <Setter Property="Foreground" Value="{DynamicResource Vox.TextSecondary}"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+
+  <!-- Card -->
+  <Style x:Key="Vox.Card" TargetType="Border">
+    <Setter Property="Background" Value="{DynamicResource Vox.CardBackground}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource Vox.CardStroke}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="8"/>
+    <Setter Property="Padding" Value="16"/>
+  </Style>
+
+  <!-- Buttons -->
+  <Style x:Key="Vox.ButtonBase" TargetType="Button">
+    <Setter Property="FontFamily" Value="{StaticResource Vox.FontText}"/>
+    <Setter Property="FontSize" Value="14"/>
+    <Setter Property="Padding" Value="20,8"/>
+    <Setter Property="MinWidth" Value="120"/>
+    <Setter Property="MinHeight" Value="36"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <Border x:Name="Root" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                  BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Root" Property="Opacity" Value="0.9"/>
+            </Trigger>
+            <Trigger Property="IsPressed" Value="True">
+              <Setter TargetName="Root" Property="Opacity" Value="0.75"/>
+            </Trigger>
+            <Trigger Property="IsKeyboardFocused" Value="True">
+              <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Vox.TextPrimary}"/>
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+              <Setter TargetName="Root" Property="Opacity" Value="0.45"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+  <Style x:Key="Vox.PrimaryButton" TargetType="Button" BasedOn="{StaticResource Vox.ButtonBase}">
+    <Setter Property="Background" Value="{DynamicResource Vox.Accent}"/>
+    <Setter Property="Foreground" Value="{DynamicResource Vox.AccentText}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource Vox.Accent}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+  </Style>
+  <Style x:Key="Vox.SecondaryButton" TargetType="Button" BasedOn="{StaticResource Vox.ButtonBase}">
+    <Setter Property="Background" Value="{DynamicResource Vox.CardBackground}"/>
+    <Setter Property="Foreground" Value="{DynamicResource Vox.TextPrimary}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource Vox.CardStroke}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+  </Style>
+  <Style x:Key="Vox.LinkButton" TargetType="Button">
+    <Setter Property="Foreground" Value="{DynamicResource Vox.Accent}"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <TextBlock x:Name="Text" Text="{TemplateBinding Content}" Foreground="{TemplateBinding Foreground}"
+                     FontSize="{TemplateBinding FontSize}" Background="Transparent"/>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Text" Property="TextDecorations" Value="Underline"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- Language choice card: RadioButton with Tag = big label ("Рус"/"Eng"), Content = title. -->
+  <Style x:Key="Vox.ChoiceCard" TargetType="RadioButton">
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="Margin" Value="0,0,0,10"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="RadioButton">
+          <Border x:Name="Root" Background="{DynamicResource Vox.CardBackground}" BorderBrush="{DynamicResource Vox.CardStroke}"
+                  BorderThickness="1" CornerRadius="8" Padding="16,14">
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <ContentPresenter VerticalAlignment="Center"/>
+              <Grid Grid.Column="1" Width="22" Height="22" Margin="12,0,0,0" VerticalAlignment="Center">
+                <Ellipse x:Name="Ring" Stroke="{DynamicResource Vox.TextSecondary}" StrokeThickness="1.5"/>
+                <Ellipse x:Name="Dot" Fill="{DynamicResource Vox.Accent}" Visibility="Collapsed"/>
+                <TextBlock x:Name="Check" Text="&#xE73E;" FontFamily="{StaticResource Vox.FontIcons}" FontSize="12"
+                           Foreground="{DynamicResource Vox.AccentText}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                           Visibility="Collapsed"/>
+              </Grid>
+            </Grid>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Root" Property="Background" Value="{DynamicResource Vox.CardHover}"/>
+            </Trigger>
+            <Trigger Property="IsChecked" Value="True">
+              <Setter TargetName="Root" Property="Background" Value="{DynamicResource Vox.SelectedFill}"/>
+              <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Vox.Accent}"/>
+              <Setter TargetName="Root" Property="BorderThickness" Value="2"/>
+              <Setter TargetName="Root" Property="Padding" Value="15,13"/>
+              <Setter TargetName="Ring" Property="Visibility" Value="Collapsed"/>
+              <Setter TargetName="Dot" Property="Visibility" Value="Visible"/>
+              <Setter TargetName="Check" Property="Visibility" Value="Visible"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- On/off switch (CheckBox) -->
+  <Style x:Key="Vox.Toggle" TargetType="CheckBox">
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="CheckBox">
+          <Border x:Name="Track" Width="40" Height="20" CornerRadius="10" BorderThickness="1"
+                  BorderBrush="{DynamicResource Vox.TextSecondary}" Background="Transparent">
+            <Ellipse x:Name="Thumb" Width="12" Height="12" Margin="3,0" HorizontalAlignment="Left"
+                     Fill="{DynamicResource Vox.TextSecondary}"/>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsChecked" Value="True">
+              <Setter TargetName="Track" Property="Background" Value="{DynamicResource Vox.Accent}"/>
+              <Setter TargetName="Track" Property="BorderBrush" Value="{DynamicResource Vox.Accent}"/>
+              <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
+              <Setter TargetName="Thumb" Property="Fill" Value="{DynamicResource Vox.AccentText}"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- Left navigation item (RadioButton, Tag = icon glyph) -->
+  <Style x:Key="Vox.NavItem" TargetType="RadioButton">
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="Margin" Value="0,0,0,4"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="RadioButton">
+          <Border x:Name="Root" CornerRadius="6" Padding="12,9" Background="Transparent">
+            <Grid>
+              <Border x:Name="Bar" Width="3" Height="16" CornerRadius="2" Margin="-12,0,0,0" HorizontalAlignment="Left"
+                      Background="{DynamicResource Vox.Accent}" Visibility="Collapsed"/>
+              <StackPanel Orientation="Horizontal">
+                <TextBlock Text="{TemplateBinding Tag}" Style="{StaticResource Vox.Icon}" FontSize="16" Margin="0,0,12,0"/>
+                <ContentPresenter VerticalAlignment="Center"/>
+              </StackPanel>
+            </Grid>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Root" Property="Background" Value="{DynamicResource Vox.CardHover}"/>
+            </Trigger>
+            <Trigger Property="IsChecked" Value="True">
+              <Setter TargetName="Root" Property="Background" Value="{DynamicResource Vox.NavSelectedFill}"/>
+              <Setter TargetName="Bar" Property="Visibility" Value="Visible"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- Progress bar -->
+  <Style x:Key="Vox.Progress" TargetType="ProgressBar">
+    <Setter Property="Height" Value="6"/>
+    <Setter Property="Foreground" Value="{DynamicResource Vox.Accent}"/>
+    <Setter Property="Background" Value="{DynamicResource Vox.ProgressTrack}"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ProgressBar">
+          <Border CornerRadius="3" Background="{TemplateBinding Background}" ClipToBounds="True">
+            <Grid>
+              <Border x:Name="PART_Track"/>
+              <Border x:Name="PART_Indicator" HorizontalAlignment="Left" CornerRadius="3" Background="{TemplateBinding Foreground}"/>
+            </Grid>
+          </Border>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+</ResourceDictionary>

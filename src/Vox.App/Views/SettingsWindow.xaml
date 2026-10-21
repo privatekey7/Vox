@@ -1,0 +1,195 @@
+<Window x:Class="Vox.App.Views.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Vox — настройки" Width="900" Height="640" MinWidth="720" MinHeight="480"
+        WindowStartupLocation="CenterScreen" Style="{StaticResource Vox.Window}"
+        Icon="pack://application:,,,/Assets/vox.ico">
+  <!-- docs/design/v2/ui-5-settings.jpg, ui-6-history-dark.jpg -->
+  <Grid>
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="220"/>
+      <ColumnDefinition Width="*"/>
+    </Grid.ColumnDefinitions>
+
+    <!-- Navigation -->
+    <StackPanel Margin="12,16,12,16">
+      <RadioButton x:Name="NavGeneral" Content="Основное" Tag="&#xE713;" Style="{StaticResource Vox.NavItem}" GroupName="nav" Checked="OnNav"/>
+      <RadioButton x:Name="NavHistory" Content="История" Tag="&#xE81C;" Style="{StaticResource Vox.NavItem}" GroupName="nav" Checked="OnNav"/>
+      <RadioButton x:Name="NavDictionary" Content="Словарь" Tag="&#xE82D;" Style="{StaticResource Vox.NavItem}" GroupName="nav" Checked="OnNav"/>
+      <RadioButton x:Name="NavHelp" Content="Помощь" Tag="&#xE897;" Style="{StaticResource Vox.NavItem}" GroupName="nav" Checked="OnNav"/>
+    </StackPanel>
+
+    <!-- General -->
+    <ScrollViewer x:Name="PageGeneral" Grid.Column="1" VerticalScrollBarVisibility="Auto" Padding="24,20,32,24">
+      <StackPanel>
+        <TextBlock Text="Основное" Style="{StaticResource Vox.Section}" Margin="0,0,0,16"/>
+        <Border Style="{StaticResource Vox.Card}" Padding="0">
+          <StackPanel>
+            <Grid Margin="16,12">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="200"/>
+              </Grid.ColumnDefinitions>
+              <TextBlock Text="&#xE765;" Style="{StaticResource Vox.Icon}" Margin="0,0,16,0"/>
+              <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                <TextBlock Text="Клавиша для записи" Style="{StaticResource Vox.Body}"/>
+                <TextBlock Text="Зажмите и говорите" Style="{StaticResource Vox.Caption}"/>
+              </StackPanel>
+              <ComboBox x:Name="HotkeyBox" Grid.Column="2" VerticalAlignment="Center" SelectionChanged="OnHotkeyChanged"/>
+            </Grid>
+            <Border Height="1" Background="{DynamicResource Vox.CardStroke}"/>
+            <Grid Margin="16,12">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="200"/>
+              </Grid.ColumnDefinitions>
+              <TextBlock Text="&#xE774;" Style="{StaticResource Vox.Icon}" Margin="0,0,16,0"/>
+              <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                <TextBlock Text="Язык речи" Style="{StaticResource Vox.Body}"/>
+                <TextBlock x:Name="LanguageHint" Text="Модель скачается автоматически" Style="{StaticResource Vox.Caption}"/>
+                <ProgressBar x:Name="LanguageProgress" Style="{StaticResource Vox.Progress}" Maximum="1" Margin="0,6,24,0"
+                             Visibility="Collapsed"/>
+              </StackPanel>
+              <ComboBox x:Name="LanguageBox" Grid.Column="2" VerticalAlignment="Center" SelectionChanged="OnLanguageChanged"/>
+            </Grid>
+            <Border Height="1" Background="{DynamicResource Vox.CardStroke}"/>
+            <Grid Margin="16,12">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="200"/>
+              </Grid.ColumnDefinitions>
+              <TextBlock Text="&#xE720;" Style="{StaticResource Vox.Icon}" Margin="0,0,16,0"/>
+              <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                <TextBlock Text="Микрофон" Style="{StaticResource Vox.Body}"/>
+                <TextBlock x:Name="MicHint" Text="Скажите что-нибудь — проверю, слышно ли вас" Style="{StaticResource Vox.Caption}"/>
+              </StackPanel>
+              <ComboBox x:Name="MicBox" Grid.Column="2" VerticalAlignment="Center" SelectionChanged="OnMicChanged"/>
+            </Grid>
+          </StackPanel>
+        </Border>
+
+        <Border Style="{StaticResource Vox.Card}" Padding="0" Margin="0,12,0,0">
+          <StackPanel>
+            <Grid Margin="16,14">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <TextBlock Text="Звуки начала и конца записи" Style="{StaticResource Vox.Body}" VerticalAlignment="Center"/>
+              <CheckBox x:Name="SoundsToggle" Grid.Column="1" Style="{StaticResource Vox.Toggle}" Click="OnToggle"/>
+            </Grid>
+            <Border Height="1" Background="{DynamicResource Vox.CardStroke}"/>
+            <Grid Margin="16,14">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <TextBlock Text="Запускать вместе с Windows" Style="{StaticResource Vox.Body}" VerticalAlignment="Center"/>
+              <CheckBox x:Name="AutostartToggle" Grid.Column="1" Style="{StaticResource Vox.Toggle}" Click="OnToggle"/>
+            </Grid>
+            <Border Height="1" Background="{DynamicResource Vox.CardStroke}"/>
+            <Grid Margin="16,14">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="Сохранять мой буфер обмена" Style="{StaticResource Vox.Body}"/>
+                <TextBlock Text="После вставки вернуть то, что я копировал" Style="{StaticResource Vox.Caption}"/>
+              </StackPanel>
+              <CheckBox x:Name="ClipboardToggle" Grid.Column="1" Style="{StaticResource Vox.Toggle}" Click="OnToggle"/>
+            </Grid>
+          </StackPanel>
+        </Border>
+      </StackPanel>
+    </ScrollViewer>
+
+    <!-- History -->
+    <Grid x:Name="PageHistory" Grid.Column="1" Margin="24,20,32,24" Visibility="Collapsed">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="*"/>
+      </Grid.RowDefinitions>
+      <Grid>
+        <TextBlock Text="История" Style="{StaticResource Vox.Section}"/>
+        <Button Content="Очистить" Style="{StaticResource Vox.LinkButton}" HorizontalAlignment="Right" VerticalAlignment="Center"
+                Click="OnClearHistory"/>
+      </Grid>
+      <Grid Grid.Row="1" Margin="0,16,0,12">
+        <TextBox x:Name="SearchBox" FontSize="14" Padding="34,8,8,8" TextChanged="OnSearchChanged"/>
+        <TextBlock Text="&#xE721;" Style="{StaticResource Vox.Icon}" FontSize="14" Margin="12,0,0,0" IsHitTestVisible="False"/>
+        <TextBlock x:Name="SearchPlaceholder" Text="Найти в диктовках…" Style="{StaticResource Vox.Subtitle}" Margin="35,0,0,0"
+                   VerticalAlignment="Center" IsHitTestVisible="False"/>
+      </Grid>
+      <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+        <StackPanel x:Name="HistoryList"/>
+      </ScrollViewer>
+    </Grid>
+
+    <!-- Dictionary -->
+    <Grid x:Name="PageDictionary" Grid.Column="1" Margin="24,20,32,24" Visibility="Collapsed">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="*"/>
+      </Grid.RowDefinitions>
+      <TextBlock Text="Словарь" Style="{StaticResource Vox.Section}"/>
+      <TextBlock Grid.Row="1" Style="{StaticResource Vox.Subtitle}" Margin="0,8,0,16"
+                 Text="Если Vox пишет слово неправильно, добавьте замену — дальше он будет писать его как нужно."/>
+      <Border Grid.Row="2" Style="{StaticResource Vox.Card}" Margin="0,0,0,12">
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+          </Grid.ColumnDefinitions>
+          <StackPanel>
+            <TextBlock Text="Vox пишет" Style="{StaticResource Vox.Caption}" Margin="0,0,0,4"/>
+            <TextBox x:Name="WrongBox" FontSize="14" Padding="8,6"/>
+          </StackPanel>
+          <TextBlock Grid.Column="1" Text="&#xE72A;" Style="{StaticResource Vox.Icon}" Margin="12,18,12,0"/>
+          <StackPanel Grid.Column="2">
+            <TextBlock Text="Как надо" Style="{StaticResource Vox.Caption}" Margin="0,0,0,4"/>
+            <TextBox x:Name="CorrectBox" FontSize="14" Padding="8,6"/>
+          </StackPanel>
+          <Button Grid.Column="3" Content="Добавить" Style="{StaticResource Vox.PrimaryButton}" Margin="12,18,0,0"
+                  VerticalAlignment="Top" Click="OnAddWord"/>
+        </Grid>
+      </Border>
+      <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto">
+        <StackPanel x:Name="DictionaryList"/>
+      </ScrollViewer>
+    </Grid>
+
+    <!-- Help -->
+    <ScrollViewer x:Name="PageHelp" Grid.Column="1" VerticalScrollBarVisibility="Auto" Padding="24,20,32,24" Visibility="Collapsed">
+      <StackPanel>
+        <TextBlock Text="Помощь" Style="{StaticResource Vox.Section}" Margin="0,0,0,16"/>
+        <Border Style="{StaticResource Vox.Card}" Padding="20">
+          <StackPanel>
+            <TextBlock Text="Как пользоваться" Style="{StaticResource Vox.Question}" Margin="0,0,0,8"/>
+            <TextBlock x:Name="HowTo" Style="{StaticResource Vox.Body}" LineHeight="22"/>
+          </StackPanel>
+        </Border>
+        <Border Style="{StaticResource Vox.Card}" Padding="20" Margin="0,12,0,0">
+          <StackPanel>
+            <TextBlock Text="Если что-то не работает" Style="{StaticResource Vox.Question}" Margin="0,0,0,8"/>
+            <TextBlock Style="{StaticResource Vox.Body}" LineHeight="22"
+                       Text="• Текст не вставился — нажмите Ctrl+V или возьмите его в «Истории».&#10;• «Не расслышал» — говорите ближе к микрофону или выберите другой микрофон в «Основном».&#10;• Клавиша не срабатывает в программе, запущенной от администратора, — Windows запрещает это обычным программам."/>
+            <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+              <Button Content="Открыть логи" Style="{StaticResource Vox.SecondaryButton}" Click="OnOpenLogs"/>
+              <Button Content="Папка с моделями" Style="{StaticResource Vox.SecondaryButton}" Margin="10,0,0,0" Click="OnOpenModels"/>
+            </StackPanel>
+          </StackPanel>
+        </Border>
+        <TextBlock x:Name="VersionText" Style="{StaticResource Vox.Caption}" Margin="4,16,0,0"/>
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
+</Window>
