@@ -15,9 +15,10 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "10.0.x"
-      # Builds the whole solution (the WPF app too, via EnableWindowsTargeting) and runs the
-      # tests that need no speech models.
-      - run: dotnet test Vox.sln -c Release --filter "Category!=Models"
+      # The whole solution, the WPF app included (EnableWindowsTargeting): `dotnet test` alone
+      # only builds what the tests reference.
+      - run: dotnet build Vox.sln -c Release
+      - run: dotnet test Vox.sln -c Release --no-build --filter "Category!=Models"
 
   windows-installer:
     needs: test

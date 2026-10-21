@@ -23,6 +23,7 @@ public sealed class SpeechRecognizer : ISpeechRecognizer
 
     private readonly OfflineRecognizer _recognizer;
     private readonly Lock _lock = new();
+    private bool _disposed;
 
     public SpeechRecognizer(SpeechModel model, string modelsRoot, int? threads = null)
     {
@@ -65,6 +66,7 @@ public sealed class SpeechRecognizer : ISpeechRecognizer
 
         lock (_lock)
         {
+            ObjectDisposedException.ThrowIf(_disposed, this);
             var streams = pieces.Select(piece =>
             {
                 var stream = _recognizer.CreateStream();
@@ -84,5 +86,18 @@ public sealed class SpeechRecognizer : ISpeechRecognizer
         }
     }
 
-    public void Dispose() => _recognizer.Dispose();
+    /// <summary>Waits for a running <see cref="Transcribe"/> to finish before freeing native memory.</summary>
+    public void Dispose()
+    {
+        lock (_lock)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+            _recognizer.Dispose();
+        }
+    }
 }

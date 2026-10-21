@@ -1,33 +1,21 @@
-# --- Python ---
-__pycache__/
-*.py[cod]
-*$py.class
-*.egg-info/
-.pytest_cache/
-.mypy_cache/
+# --- .NET ---
+bin/
+obj/
+*.user
+TestResults/
+publish/
 
-# Virtual envs
-.venv/
-venv/
-env/
+# --- Installer output ---
+installer/
+vox-setup.exe
 
-# --- PyInstaller ---
-build/
-dist/
-*.spec
-!vox.spec
-
-# --- Vox runtime ---
-# Downloaded speech model (~45 MB, auto-downloaded on first run)
+# --- Vox runtime data (never commit: models, logs, dictation history, personal config) ---
 models/
-# Runtime logs
 logs/
 *.log
-
-# --- Build artifacts ---
-# Compiled exe and installer (built into %TEMP%\VoxBuild — not committed)
-vox.exe
-vox-setup.exe
+config.json
+vox_data.db
+vox_data.db-*
 
 # --- OS / IDE ---
 .DS_Store
@@ -35,21 +23,9 @@ Thumbs.db
 desktop.ini
 .idea/
 .vscode/
+.vs/
 *.swp
 
-# --- Local agent configs ---
-.devin/config.local.json
-
-# --- Local user data (never commit: dictation history, personal config) ---
-config.json
-vox_data.db
-vox_data.db-*
-# Inno Setup output (CI)
-installer/
-
-# --- .NET ---
-bin/
-obj/
-*.user
-TestResults/
-publish/
+# --- Leftovers from Vox 1.x (Python) checkouts ---
+__pycache__/
+.venv/

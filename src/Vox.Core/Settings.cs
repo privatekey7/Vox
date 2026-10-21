@@ -60,6 +60,13 @@ public sealed class Settings
         set => _json["language"] = value;
     }
 
+    /// <summary>Microphone device id; null = the Windows default microphone.</summary>
+    public string? Microphone
+    {
+        get => GetString("microphone");
+        set => _json["microphone"] = value;
+    }
+
     public bool Sounds
     {
         get => GetBool("sounds", true);
