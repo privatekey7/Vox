@@ -3,10 +3,10 @@ bin/
 obj/
 *.user
 TestResults/
-publish/
+/publish/
 
 # --- Installer output ---
-installer/
+/installer/
 vox-setup.exe
 
 # --- Vox runtime data (never commit: models, logs, dictation history, personal config) ---
