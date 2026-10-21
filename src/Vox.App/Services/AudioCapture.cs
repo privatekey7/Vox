@@ -1,5 +1,7 @@
+using System.Diagnostics;
 using NAudio.CoreAudioApi;
 using NAudio.Wave;
+using Vox.Core.Audio;
 
 // debt: WasapiCapture is marked obsolete in NAudio 3 in favour of WasapiRecorder (new in 3.x,
 // untested here). Kept on the long-proven capture path; migrate once WasapiRecorder is verified
@@ -97,7 +99,7 @@ internal sealed class AudioCapture : IDisposable
                 _recording = null;
             }
 
-            return (buffer.Samples.ToArray(), buffer.SampleRate);
+            return (buffer.ToArray(), buffer.SampleRate);
         }
     }
 
@@ -201,7 +203,7 @@ internal sealed class AudioCapture : IDisposable
 
         lock (_bufferLock)
         {
-            _recording?.Samples.AddRange(mono);
+            _recording?.Append(mono, Stopwatch.GetTimestamp());
         }
 
         Level?.Invoke(peak);
@@ -236,12 +238,4 @@ internal sealed class AudioCapture : IDisposable
 
         return mono;
     }
-}
-
-/// <summary>Audio of one push-to-talk press.</summary>
-internal sealed class RecordingBuffer
-{
-    public List<float> Samples { get; } = new(48000 * 30);
-
-    public int SampleRate { get; set; }
 }

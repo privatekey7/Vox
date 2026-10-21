@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using Vox.Core;
+using Vox.Core.Audio;
 using Vox.Core.Models;
 using Vox.Core.Storage;
 using Vox.Core.Text;
@@ -142,6 +143,8 @@ internal sealed class DictationService : IDisposable
 
         _current = null;
         var elapsed = Stopwatch.GetElapsedTime(_startTimestamp);
+        var releasedAt = Stopwatch.GetTimestamp();
+        buffer.StopAt(releasedAt + (long)(Tail.TotalSeconds * Stopwatch.Frequency)); // even if processing lags
         _sounds.Stop();
         if (usedInShortcut)
         {
@@ -151,7 +154,7 @@ internal sealed class DictationService : IDisposable
             return;
         }
 
-        _jobs.Add(new Job(buffer, Stopwatch.GetTimestamp(), elapsed));
+        _jobs.Add(new Job(buffer, releasedAt, elapsed));
     }
 
     public void Dispose()
