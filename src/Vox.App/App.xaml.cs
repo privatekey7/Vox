@@ -77,6 +77,11 @@ public partial class App : Application
             Log.Info($"[INIT] Hotkey: {Hotkeys.Display(Settings.Hotkey)}; models: {Paths.Models}");
 
             var model = InstalledModel();
+            if (model is not null && !await TryLoadModelAsync(model))
+            {
+                model = null;
+            }
+
             if (model is null)
             {
                 Log.Info("[INIT] No model installed — showing first-run wizard");
@@ -88,10 +93,6 @@ public partial class App : Application
                     Shutdown();
                     return;
                 }
-            }
-            else
-            {
-                await _dictation.LoadModelAsync(model);
             }
 
             _tray = new TrayController(this);
@@ -128,6 +129,37 @@ public partial class App : Application
         }
 
         return ModelCatalog.All.FirstOrDefault(m => ModelCatalog.IsInstalled(m, Paths.Models));
+    }
+
+    /// <summary>
+    /// Load the installed model. A model that fails to load (damaged files) is removed, so the
+    /// first-run wizard can download it again instead of Vox failing on every start.
+    /// </summary>
+    private async Task<bool> TryLoadModelAsync(SpeechModel model)
+    {
+        try
+        {
+            await _dictation!.LoadModelAsync(model);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"[INIT] Model {model.Id} failed to load — removing it", ex);
+            try
+            {
+                new ModelDownloader(Http, Paths.Models).Uninstall(model);
+            }
+            catch (IOException e)
+            {
+                Log.Error("[INIT] Could not remove the model", e);
+            }
+            catch (UnauthorizedAccessException e)
+            {
+                Log.Error("[INIT] Could not remove the model", e);
+            }
+
+            return false;
+        }
     }
 
     internal void SetHotkey(string name)
