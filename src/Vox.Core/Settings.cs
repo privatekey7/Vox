@@ -135,7 +135,6 @@ public static class Hotkeys
         ("alt", "Левый Alt", 0xA4),
         ("caps lock", "Caps Lock", 0x14),
         ("scroll lock", "Scroll Lock", 0x91),
-        ("pause", "Pause", 0x13),
         .. Enumerable.Range(1, 12).Select(i => ($"f{i}", $"F{i}", 0x70 + i - 1)),
     ];
 
