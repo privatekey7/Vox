@@ -27,4 +27,16 @@ public sealed class RecordingBufferTests
 
         Assert.Equal([0.1f, 0.2f], buffer.ToArray());
     }
+
+    [Fact]
+    public void Stops_growing_at_the_length_limit()
+    {
+        // Regression: a key-up lost to the secure desktop (UAC, Win+L) kept recording without end.
+        var buffer = new RecordingBuffer { SampleRate = 10 };
+        var limit = (int)(RecordingBuffer.MaxLength.TotalSeconds * 10);
+        buffer.Append(new float[limit - 1], timestamp: 1);
+        buffer.Append([1f, 1f, 1f], timestamp: 2);
+
+        Assert.Equal(limit, buffer.ToArray().Length);
+    }
 }
