@@ -43,7 +43,7 @@ internal sealed class DictationService : IDisposable
     private PostProcessor? _postProcessor;
     private IReadOnlyDictionary<string, string> _corrections;
     private long _startTimestamp;
-    private RecordingBuffer? _current;
+    private volatile RecordingBuffer? _current;
 
     private readonly FieldWatcher _watcher = new();
 
@@ -98,7 +98,7 @@ internal sealed class DictationService : IDisposable
     /// <summary>Load (or switch to) a model on a background thread. The old one keeps working until the swap.</summary>
     public Task LoadModelAsync(SpeechModel model) => Task.Run(() =>
     {
-        StateChanged?.Invoke(DictationState.ModelLoading);
+        Report(DictationState.ModelLoading);
         var sw = Stopwatch.StartNew();
         Log.Info($"[INIT] Loading model {model.Id}");
         var recognizer = new SpeechRecognizer(model, _modelsRoot);
@@ -112,7 +112,7 @@ internal sealed class DictationService : IDisposable
 
         old?.Dispose();
         Log.Info($"[INIT] Model {model.Id} loaded in {sw.ElapsedMilliseconds} ms");
-        StateChanged?.Invoke(DictationState.Idle);
+        Report(DictationState.Idle);
     });
 
     public void ReloadCorrections() => _corrections = _db.Corrections();
@@ -182,7 +182,7 @@ internal sealed class DictationService : IDisposable
                 // One bad dictation must not stop all later ones.
                 Log.Error("Processing dictation failed", e);
                 _sounds.Error();
-                StateChanged?.Invoke(DictationState.NotHeard);
+                Report(DictationState.NotHeard);
             }
         }
     }
@@ -201,12 +201,12 @@ internal sealed class DictationService : IDisposable
         if (ms < MinRecordMs)
         {
             Log.Info($"[REC] Too short ({ms}ms), ignored");
-            StateChanged?.Invoke(DictationState.Idle);
+            Report(DictationState.Idle);
             return;
         }
 
         Log.Info($"[REC] Stopped ({ms}ms), transcribing...");
-        StateChanged?.Invoke(DictationState.Recognizing);
+        Report(DictationState.Recognizing);
         var raw = Recognize(samples, rate);
         if (raw.Length == 0)
         {
@@ -214,11 +214,11 @@ internal sealed class DictationService : IDisposable
             if (ms >= ErrorSignalMinMs)
             {
                 _sounds.Error();
-                StateChanged?.Invoke(DictationState.NotHeard);
+                Report(DictationState.NotHeard);
             }
             else
             {
-                StateChanged?.Invoke(DictationState.Idle);
+                Report(DictationState.Idle);
             }
 
             return;
@@ -237,7 +237,7 @@ internal sealed class DictationService : IDisposable
         Log.Info($"[STT] Final: \"{text}\"");
         if (text.Trim().Length == 0)
         {
-            StateChanged?.Invoke(DictationState.Idle);
+            Report(DictationState.Idle);
             return;
         }
 
@@ -250,11 +250,28 @@ internal sealed class DictationService : IDisposable
             Log.Error("[DB] Failed to save", e);
         }
 
+        while (_current is not null)
+        {
+            Thread.Sleep(20); // the next dictation's key is held: Ctrl+V now would become Alt+Ctrl+V etc.
+        }
+
         _paster.Paste(text, _settings.RestoreClipboard);
         LastText = text.TrimStart();
         _watcher.AfterPaste(LastText);
-        StateChanged?.Invoke(DictationState.Inserted);
+        Report(DictationState.Inserted);
         Inserted?.Invoke(LastText);
+    }
+
+    /// <summary>
+    /// Progress of earlier work (a previous dictation, a model switch). Not shown while the next
+    /// dictation is being recorded: the pill and the tray keep showing "listening".
+    /// </summary>
+    private void Report(DictationState state)
+    {
+        if (_current is null)
+        {
+            StateChanged?.Invoke(state);
+        }
     }
 
     /// <summary>Recognise, logging *why* when no text comes out.</summary>
