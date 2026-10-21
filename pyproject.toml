@@ -1,6 +1,6 @@
 [project]
 name = "vox"
-version = "1.2.0"
+version = "1.3.0"
 description = "Offline push-to-talk voice-to-text for Windows"
 requires-python = ">=3.12"
 license = "MIT"

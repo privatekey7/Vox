@@ -10,7 +10,7 @@
 ;   ./installer/vox-setup.exe
 
 #define MyAppName "Vox"
-#define MyAppVersion "1.2.0"
+#define MyAppVersion "1.3.0"
 #define MyAppPublisher "Vox"
 #define MyAppExeName "vox.exe"
 

@@ -1,0 +1,51 @@
+name: build
+
+on:
+  push:
+    branches: [main, "feat/**", "fix/**"]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --frozen --extra dev
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run pytest
+
+  windows-installer:
+    needs: test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+      - name: Install dependencies
+        run: |
+          uv sync --frozen
+          uv pip install pyinstaller pyinstaller-hooks-contrib
+      - name: PyInstaller
+        run: uv run pyinstaller --noconfirm vox.spec
+      - name: Inno Setup
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) {
+            choco install innosetup --no-progress -y
+          }
+          & $iscc vox.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: SHA-256
+        shell: pwsh
+        run: (Get-FileHash installer\vox-setup.exe -Algorithm SHA256).Hash | Tee-Object installer\vox-setup.exe.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vox-setup-${{ github.sha }}
+          path: |
+            installer/vox-setup.exe
+            installer/vox-setup.exe.sha256
+          retention-days: 14

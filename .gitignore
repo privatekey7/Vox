@@ -44,3 +44,5 @@ desktop.ini
 config.json
 vox_data.db
 vox_data.db-*
+# Inno Setup output (CI)
+installer/
