@@ -164,6 +164,11 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilen
 ; "Запускать вместе с Windows" switch in the app can turn it on and off.
 Root: HKLM; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueName: "Vox"; Flags: deletevalue dontcreatekey
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "Vox"; ValueData: """{app}\{#MyAppExeName}"""; Flags: uninsdeletevalue; Tasks: autostart
+; Crash dumps for native crashes (speech engine) that the app cannot log itself: Windows Error
+; Reporting writes up to 3 minidumps of Vox.exe to %LOCALAPPDATA%\vox\crashes.
+Root: HKLM; Subkey: "SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps\Vox.exe"; ValueType: expandsz; ValueName: "DumpFolder"; ValueData: "%LOCALAPPDATA%\vox\crashes"; Flags: uninsdeletekey; Check: IsAdminInstallMode
+Root: HKLM; Subkey: "SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps\Vox.exe"; ValueType: dword; ValueName: "DumpCount"; ValueData: "3"; Check: IsAdminInstallMode
+Root: HKLM; Subkey: "SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps\Vox.exe"; ValueType: dword; ValueName: "DumpType"; ValueData: "1"; Check: IsAdminInstallMode
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchAfterInstall}"; Flags: nowait postinstall skipifsilent
