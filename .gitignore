@@ -46,3 +46,10 @@ vox_data.db
 vox_data.db-*
 # Inno Setup output (CI)
 installer/
+
+# --- .NET ---
+bin/
+obj/
+*.user
+TestResults/
+publish/
