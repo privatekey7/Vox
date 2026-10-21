@@ -2,7 +2,7 @@ name: build
 
 on:
   push:
-    branches: [main, "feat/**", "fix/**"]
+    branches: [main, csharp, "feat/**", "fix/**"]
     tags: ["v*"]
   pull_request:
   workflow_dispatch:
@@ -12,24 +12,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: astral-sh/setup-uv@v6
-      - run: uv sync --frozen --extra dev
-      - run: uv run ruff check .
-      - run: uv run ruff format --check .
-      - run: uv run pytest
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      # Builds the whole solution (the WPF app too, via EnableWindowsTargeting) and runs the
+      # tests that need no speech models.
+      - run: dotnet test Vox.sln -c Release --filter "Category!=Models"
 
   windows-installer:
     needs: test
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: astral-sh/setup-uv@v6
-      - name: Install dependencies
-        run: |
-          uv sync --frozen
-          uv pip install pyinstaller pyinstaller-hooks-contrib
-      - name: PyInstaller
-        run: uv run pyinstaller --noconfirm vox.spec
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      - name: Publish
+        run: dotnet publish src/Vox.App -c Release -r win-x64 --self-contained -p:PublishReadyToRun=true -o publish
       - name: Inno Setup
         shell: pwsh
         run: |

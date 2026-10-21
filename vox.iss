@@ -1,18 +1,19 @@
 ; Inno Setup script for Vox — Voice Input
 ; Builds a Windows installer with optional desktop shortcut and autostart.
 ;
-; Paths are resolved relative to this .iss file (SourcePath), so the script
-; works from any ASCII-only build directory. Expected layout next to vox.iss:
-;   ./vox.ico
-;   ./dist/vox/vox.exe
-;   ./dist/vox/_internal/...
+; Paths are relative to this .iss file (SourcePath). Expected layout:
+;   ./publish/...                    dotnet publish output of src/Vox.App (Vox.exe + DLLs)
+;   ./assets/icons/vox.ico
+;   ./assets/installer/wizard-*.bmp
 ; Output:
 ;   ./installer/vox-setup.exe
+;
+; Vox 2.0 keeps the AppId of 1.x, so it installs over the Python version as an upgrade.
 
 #define MyAppName "Vox"
-#define MyAppVersion "1.3.0"
+#define MyAppVersion "2.0.0"
 #define MyAppPublisher "Vox"
-#define MyAppExeName "vox.exe"
+#define MyAppExeName "Vox.exe"
 
 [Setup]
 AppId={{8D2A1B3F-4E5C-4D7A-9F8B-1E2C3D4A5B6C}
@@ -27,7 +28,10 @@ PrivilegesRequired=admin
 PrivilegesRequiredOverridesAllowed=commandline dialog
 OutputDir={#SourcePath}\installer
 OutputBaseFilename=vox-setup
-SetupIconFile={#SourcePath}\vox.ico
+SetupIconFile={#SourcePath}\assets\icons\vox.ico
+WizardImageFile={#SourcePath}\assets\installer\wizard-100.bmp,{#SourcePath}\assets\installer\wizard-125.bmp,{#SourcePath}\assets\installer\wizard-150.bmp,{#SourcePath}\assets\installer\wizard-175.bmp,{#SourcePath}\assets\installer\wizard-200.bmp,{#SourcePath}\assets\installer\wizard-250.bmp
+WizardSmallImageFile={#SourcePath}\assets\installer\wizard-small-100.bmp,{#SourcePath}\assets\installer\wizard-small-125.bmp,{#SourcePath}\assets\installer\wizard-small-150.bmp,{#SourcePath}\assets\installer\wizard-small-175.bmp,{#SourcePath}\assets\installer\wizard-small-200.bmp,{#SourcePath}\assets\installer\wizard-small-250.bmp
+CloseApplications=force
 UninstallDisplayIcon={app}\{#MyAppExeName}
 Compression=lzma2/ultra64
 SolidCompression=yes
@@ -142,9 +146,13 @@ hebrew.LaunchAfterInstall=הפעל את {#MyAppName} עכשיו
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 Name: "autostart"; Description: "{cm:AutostartDescription}"; GroupDescription: "{cm:AutostartGroup}"; Flags: unchecked
 
+[InstallDelete]
+; Vox 1.x (Python/PyInstaller) files
+Type: filesandordirs; Name: "{app}\_internal"
+Type: files; Name: "{app}\vox.exe"
+
 [Files]
-Source: "{#SourcePath}\dist\vox\vox.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#SourcePath}\dist\vox\_internal\*"; DestDir: "{app}\_internal"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#SourcePath}\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\{#MyAppExeName}"
@@ -152,13 +160,24 @@ Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Registry]
-; Autostart entry (only if user checked the autostart task)
-; HKA = HKLM for admin install (all users), HKCU for per-user install
-Root: HKA; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "Vox"; ValueData: """{app}\{#MyAppExeName}"""; Flags: uninsdeletevalue; Tasks: autostart
+; Vox 1.x wrote autostart for all users (HKLM); 2.0 keeps it per user (HKCU) so the
+; "Запускать вместе с Windows" switch in the app can turn it on and off.
+Root: HKLM; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueName: "Vox"; Flags: deletevalue dontcreatekey
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "Vox"; ValueData: """{app}\{#MyAppExeName}"""; Flags: uninsdeletevalue; Tasks: autostart
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchAfterInstall}"; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]
-; Kill any running vox.exe before uninstalling
+; Kill any running Vox before uninstalling
 Filename: "{sys}\taskkill.exe"; Parameters: "/F /IM vox.exe"; Flags: runhidden; RunOnceId: "KillVox"
+
+[Code]
+// Close a running Vox (1.x or 2.0) so its files can be replaced.
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  ResultCode: Integer;
+begin
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /IM vox.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Result := '';
+end;
