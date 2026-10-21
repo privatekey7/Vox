@@ -21,7 +21,7 @@ public enum DictationState
 
 /// <summary>
 /// Push-to-talk: key down → record, key up → recognise, post-process, save and paste.
-/// The hook thread only flips state; all heavy work runs on one "VoxProcessor" thread, in order.
+/// The hotkey thread only flips state; all heavy work runs on one "VoxProcessor" thread, in order.
 /// </summary>
 internal sealed class DictationService : IDisposable
 {
@@ -117,7 +117,7 @@ internal sealed class DictationService : IDisposable
 
     public void ReloadCorrections() => _corrections = _db.Corrections();
 
-    /// <summary>Hotkey down (hook thread — must return fast).</summary>
+    /// <summary>Hotkey down (hotkey thread).</summary>
     public void OnPressed()
     {
         if (_current is not null)
@@ -133,7 +133,7 @@ internal sealed class DictationService : IDisposable
         StateChanged?.Invoke(DictationState.Listening);
     }
 
-    /// <summary>Hotkey up (hook thread — must return fast).</summary>
+    /// <summary>Hotkey up (hotkey thread).</summary>
     public void OnReleased(bool usedInShortcut)
     {
         if (_current is not { } buffer)

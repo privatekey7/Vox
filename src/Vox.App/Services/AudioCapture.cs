@@ -68,7 +68,7 @@ internal sealed class AudioCapture : IDisposable
         Reopen();
     }
 
-    /// <summary>Start collecting audio into a new buffer. Never blocks (called from the hook thread).</summary>
+    /// <summary>Start collecting audio into a new buffer. Never blocks (called from the hotkey thread).</summary>
     public RecordingBuffer BeginRecording()
     {
         var buffer = new RecordingBuffer();

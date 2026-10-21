@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 
 namespace Vox.App.Services;
@@ -6,13 +7,16 @@ namespace Vox.App.Services;
 /// Global push-to-talk key via a low-level keyboard hook on its own thread.
 /// </summary>
 /// <remarks>
-/// The hook callback only compares a key code and raises an event, so it never comes close to
-/// Windows' LowLevelHooksTimeout (a slow hook is silently removed). Key presses Vox injects itself
+/// The hook callback only compares a key code and queues the event; handlers run on their own
+/// thread, so slow work (first sound, log I/O, GC) never hits Windows' LowLevelHooksTimeout —
+/// a slow hook is silently removed for good. Key presses Vox injects itself
 /// (the Ctrl+V paste) carry LLKHF_INJECTED and are ignored, so they cannot re-trigger recording.
 /// </remarks>
 internal sealed class KeyboardHook : IDisposable
 {
     private readonly Thread _thread;
+    private readonly Thread _dispatcher;
+    private readonly BlockingCollection<Action> _events = [];
     private readonly Native.LowLevelKeyboardProc _proc; // kept alive: the OS holds only a pointer
     private uint _threadId;
     private nint _hook;
@@ -28,6 +32,8 @@ internal sealed class KeyboardHook : IDisposable
         _thread = new Thread(() => Run(started)) { IsBackground = true, Name = "VoxKeyboardHook" };
         _thread.Start();
         started.Wait();
+        _dispatcher = new Thread(Dispatch) { IsBackground = true, Name = "VoxHotkeyEvents" };
+        _dispatcher.Start();
     }
 
     /// <summary>The hotkey went down (repeats while held are filtered out).</summary>
@@ -42,6 +48,7 @@ internal sealed class KeyboardHook : IDisposable
     {
         Native.PostThreadMessageW(_threadId, Native.WM_QUIT, 0, 0);
         _thread.Join(TimeSpan.FromSeconds(2));
+        _events.CompleteAdding();
     }
 
     private void Run(ManualResetEventSlim started)
@@ -96,19 +103,21 @@ internal sealed class KeyboardHook : IDisposable
         return Native.CallNextHookEx(_hook, nCode, wParam, lParam);
     }
 
-    /// <summary>
-    /// Handlers run on the hook thread, in order (press is always handled before its release), and
-    /// must return quickly — they only flip state and hand work to other threads.
-    /// </summary>
-    private static void Raise(Action handler)
+    /// <summary>Queue a handler; they run one at a time, in order (a press before its release).</summary>
+    private void Raise(Action handler) => _events.TryAdd(handler);
+
+    private void Dispatch()
     {
-        try
+        foreach (var handler in _events.GetConsumingEnumerable())
         {
-            handler();
-        }
-        catch (Exception e)
-        {
-            Log.Error("[HOOK] Handler failed", e);
+            try
+            {
+                handler();
+            }
+            catch (Exception e)
+            {
+                Log.Error("[HOOK] Handler failed", e);
+            }
         }
     }
 }
