@@ -143,4 +143,10 @@ public static class Hotkeys
     public static string Display(string name) => All.FirstOrDefault(h => h.Name == name).Display ?? name;
 
     public static int VirtualKey(string name) => All.First(h => h.Name == name).VirtualKey;
+
+    /// <summary>
+    /// Whether the hotkey should be hidden from other apps. Ctrl/Shift/Alt pass through — they are
+    /// part of the user's shortcuts; the rest (Caps Lock toggling, F5 reloading a page) are not.
+    /// </summary>
+    public static bool Swallow(int virtualKey) => virtualKey is < 0xA0 or > 0xA5;
 }

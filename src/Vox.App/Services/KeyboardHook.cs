@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
+using Vox.Core;
 
 namespace Vox.App.Services;
 
@@ -84,6 +85,7 @@ internal sealed class KeyboardHook : IDisposable
                     {
                         _hotkeyDown = true;
                         _chord = false;
+                        MaskAltTap(info.vkCode);
                         Raise(() => Pressed?.Invoke());
                     }
                     else if (up && _hotkeyDown)
@@ -91,6 +93,11 @@ internal sealed class KeyboardHook : IDisposable
                         _hotkeyDown = false;
                         var chord = _chord;
                         Raise(() => Released?.Invoke(chord));
+                    }
+
+                    if (Hotkeys.Swallow((int)info.vkCode))
+                    {
+                        return 1; // the focused app never sees the key
                     }
                 }
                 else if (down && _hotkeyDown)
@@ -101,6 +108,19 @@ internal sealed class KeyboardHook : IDisposable
         }
 
         return Native.CallNextHookEx(_hook, nCode, wParam, lParam);
+    }
+
+    /// <summary>
+    /// A lone Alt press-and-release opens the focused app's menu, which then swallows the Ctrl+V
+    /// paste. A dummy key while Alt is down makes the release an ordinary one.
+    /// </summary>
+    private static void MaskAltTap(uint vk)
+    {
+        if (vk is Native.VK_LMENU or Native.VK_RMENU)
+        {
+            Native.INPUT[] mask = [Native.Key(Native.VK_MASK, up: false), Native.Key(Native.VK_MASK, up: true)];
+            Native.SendInput((uint)mask.Length, mask, Marshal.SizeOf<Native.INPUT>());
+        }
     }
 
     /// <summary>Queue a handler; they run one at a time, in order (a press before its release).</summary>

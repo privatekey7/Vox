@@ -9,4 +9,18 @@ public sealed class HotkeysTests
         Assert.False(Hotkeys.IsKnown("pause"));
     }
 
+    [Theory]
+    [InlineData("caps lock", true)]
+    [InlineData("scroll lock", true)]
+    [InlineData("f5", true)]
+    [InlineData("f12", true)]
+    [InlineData("right ctrl", false)]
+    [InlineData("ctrl", false)]
+    [InlineData("shift", false)]
+    [InlineData("right alt", false)]
+    public void Only_keys_without_their_own_shortcuts_are_hidden_from_apps(string name, bool swallowed)
+    {
+        // Regression: the hotkey reached the focused app too — F5 reloaded the page, Caps Lock toggled.
+        Assert.Equal(swallowed, Hotkeys.Swallow(Hotkeys.VirtualKey(name)));
+    }
 }

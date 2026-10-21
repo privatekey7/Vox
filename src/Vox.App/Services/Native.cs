@@ -21,6 +21,9 @@ internal static partial class Native
     public const ushort VK_SPACE = 0x20;
     public const ushort VK_CONTROL = 0x11;
     public const ushort VK_V = 0x56;
+    public const ushort VK_LMENU = 0xA4;
+    public const ushort VK_RMENU = 0xA5;
+    public const ushort VK_MASK = 0xE8; // unassigned: tells Windows an Alt press was not a lone tap
     public const uint KEYEVENTF_KEYUP = 0x0002;
     public const uint INPUT_KEYBOARD = 1;
 
