@@ -100,7 +100,7 @@ internal sealed class KeyboardHook : IDisposable
                         return 1; // the focused app never sees the key
                     }
                 }
-                else if (down && _hotkeyDown)
+                else if (down && _hotkeyDown && info.scanCode != Native.AltGrFakeCtrlScanCode)
                 {
                     _chord = true; // a shortcut, not a dictation
                 }

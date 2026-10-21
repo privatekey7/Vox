@@ -12,6 +12,7 @@ internal static partial class Native
     public const int WM_SYSKEYUP = 0x0105;
     public const int WM_QUIT = 0x0012;
     public const uint LLKHF_INJECTED = 0x10;
+    public const uint AltGrFakeCtrlScanCode = 0x21D; // the left Ctrl Windows adds to each AltGr press
 
     public const int GWL_EXSTYLE = -20;
     public const int WS_EX_TRANSPARENT = 0x00000020;
