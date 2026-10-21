@@ -85,6 +85,20 @@ public partial class RecordingPill : Window
         PlaceAtBottom();
     }
 
+    internal void ShowLearned(string wrong, string correct)
+    {
+        _hide.Stop();
+        SetMessage("\uE82D", "#60CDFF", $"Запомнил: {wrong} → {correct}", "отменить — в Настройки → Словарь");
+        if (!IsVisible)
+        {
+            base.Show();
+        }
+
+        UpdateLayout();
+        PlaceAtBottom();
+        HideAfter(TimeSpan.FromSeconds(4));
+    }
+
     private void SetMessage(string glyph, string color, string text, string hint)
     {
         _tick.Stop();

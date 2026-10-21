@@ -139,8 +139,23 @@
         <RowDefinition Height="*"/>
       </Grid.RowDefinitions>
       <TextBlock Text="Словарь" Style="{StaticResource Vox.Section}"/>
-      <TextBlock Grid.Row="1" Style="{StaticResource Vox.Subtitle}" Margin="0,8,0,16"
-                 Text="Если Vox пишет слово неправильно, добавьте замену — дальше он будет писать его как нужно."/>
+      <StackPanel Grid.Row="1" Margin="0,8,0,16">
+        <TextBlock Style="{StaticResource Vox.Subtitle}"
+                   Text="Если Vox пишет слово неправильно, добавьте замену — дальше он будет писать его как нужно."/>
+        <Border Style="{StaticResource Vox.Card}" Margin="0,12,0,0">
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel VerticalAlignment="Center">
+              <TextBlock Text="Учиться на моих исправлениях" Style="{StaticResource Vox.Body}"/>
+              <TextBlock Text="Исправьте слово сразу после диктовки — Vox запомнит замену сам" Style="{StaticResource Vox.Caption}"/>
+            </StackPanel>
+            <CheckBox x:Name="LearnToggle" Grid.Column="1" Style="{StaticResource Vox.Toggle}" Click="OnToggle"/>
+          </Grid>
+        </Border>
+      </StackPanel>
       <Border Grid.Row="2" Style="{StaticResource Vox.Card}" Margin="0,0,0,12">
         <Grid>
           <Grid.ColumnDefinitions>

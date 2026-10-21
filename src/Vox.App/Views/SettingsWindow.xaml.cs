@@ -111,6 +111,7 @@ public partial class SettingsWindow : Window
         SoundsToggle.IsChecked = _app.Settings.Sounds;
         AutostartToggle.IsChecked = Autostart.IsEnabled;
         ClipboardToggle.IsChecked = _app.Settings.RestoreClipboard;
+        LearnToggle.IsChecked = _app.Settings.LearnCorrections;
     }
 
     private void OnHotkeyChanged(object sender, SelectionChangedEventArgs e)
@@ -200,6 +201,11 @@ public partial class SettingsWindow : Window
         else if (sender == AutostartToggle)
         {
             Autostart.Set(AutostartToggle.IsChecked == true);
+        }
+        else if (sender == LearnToggle)
+        {
+            _app.Settings.LearnCorrections = LearnToggle.IsChecked == true;
+            _app.Dictation.LearnCorrections = _app.Settings.LearnCorrections;
         }
 
         _app.Settings.Save();

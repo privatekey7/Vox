@@ -44,6 +44,8 @@ internal sealed class DictationService : IDisposable
     private long _startTimestamp;
     private RecordingBuffer? _current;
 
+    private readonly FieldWatcher _watcher = new();
+
     public DictationService(AudioCapture audio, Paster paster, Sounds sounds, VoxDatabase db, Settings settings, string modelsRoot)
     {
         _audio = audio;
@@ -55,6 +57,22 @@ internal sealed class DictationService : IDisposable
         _corrections = db.Corrections();
         _processor = new Thread(ProcessLoop) { IsBackground = true, Name = "VoxProcessor" };
         _processor.Start();
+        _watcher.Enabled = settings.LearnCorrections;
+        _watcher.Learned += (wrong, correct) =>
+        {
+            _db.AddDictionaryEntry(wrong, correct, "", "auto");
+            ReloadCorrections();
+            CorrectionLearned?.Invoke(wrong, correct);
+        };
+    }
+
+    /// <summary>A dictionary entry was learned from the user's fix: (wrong, correct).</summary>
+    public event Action<string, string>? CorrectionLearned;
+
+    public bool LearnCorrections
+    {
+        get => _watcher.Enabled;
+        set => _watcher.Enabled = value;
     }
 
     /// <summary>Raised from background threads; subscribers marshal to the UI themselves.</summary>
@@ -108,6 +126,7 @@ internal sealed class DictationService : IDisposable
 
         _startTimestamp = Stopwatch.GetTimestamp();
         _current = _audio.BeginRecording();
+        _watcher.BeforeNextDictation();
         _sounds.Start();
         Log.Info("[REC] Listening...");
         StateChanged?.Invoke(DictationState.Listening);
@@ -137,6 +156,7 @@ internal sealed class DictationService : IDisposable
 
     public void Dispose()
     {
+        _watcher.Dispose();
         _jobs.CompleteAdding();
         _processor.Join(TimeSpan.FromSeconds(3));
         lock (_engineLock)
@@ -229,6 +249,7 @@ internal sealed class DictationService : IDisposable
 
         _paster.Paste(text, _settings.RestoreClipboard);
         LastText = text.TrimStart();
+        _watcher.AfterPaste(LastText);
         StateChanged?.Invoke(DictationState.Inserted);
         Inserted?.Invoke(LastText);
     }

@@ -73,6 +73,13 @@ public sealed class Settings
         set => _json["sounds"] = value;
     }
 
+    /// <summary>Learn dictionary entries from the user's own fixes after a dictation.</summary>
+    public bool LearnCorrections
+    {
+        get => GetBool("learn_corrections", true);
+        set => _json["learn_corrections"] = value;
+    }
+
     /// <summary>Put the user's own clipboard back after pasting a dictation.</summary>
     public bool RestoreClipboard
     {
