@@ -55,8 +55,42 @@ def setup_tray(log_dir: str) -> None:
             print(f"[TRAY] Failed to open models: {e}")
 
     def _active_model_id() -> str:
-        """The single recognition model Vox runs on."""
+        """The recognition model Vox currently runs on."""
         return worker.get_active_model_id() or DEFAULT_MODEL_ID
+
+    def on_select_model(icon, model_id: str):
+        """Switch recognition model, downloading it first if needed."""
+        if model_id == _active_model_id():
+            return
+
+        def _activate():
+            print(f"[TRAY] Switching active model to {model_id}")
+            try:
+                worker.set_engine(model_id)
+            except Exception as e:
+                print(f"[TRAY] Failed to load {model_id}: {e}")
+                return
+            update_config(active_model=model_id, language=MODELS[model_id]["language"])
+            _refresh_menu()
+
+        def _run():
+            if is_installed(model_id):
+                _activate()
+                return
+            from voxapp.gui import run_model_download
+
+            if run_model_download(model_id):
+                _activate()
+
+        threading.Thread(target=_run, daemon=True, name="VoxModelSwitch").start()
+
+    def on_copy_last(icon, item):
+        """Put the last dictation on the clipboard (it is restored after pasting)."""
+        import pyperclip
+
+        text = worker.get_last_text()
+        if text:
+            pyperclip.copy(text)
 
     def on_redownload_model(icon, item):
         """Re-download (repair) the recognition model in its own thread."""
@@ -165,7 +199,23 @@ def setup_tray(log_dir: str) -> None:
         mark = "✓" if is_installed(mid) else "⏳ не загружена"
         return f"Модель: {name} {mark}"
 
+    def make_model_item(model_id: str, info: dict):
+        def _action(icon, item):
+            on_select_model(icon, model_id)
+
+        def _checked(item):
+            return model_id == _active_model_id()
+
+        return pystray.MenuItem(
+            lambda item: info["name"] + ("" if is_installed(model_id) else " — скачать"),
+            _action,
+            radio=True,
+            checked=_checked,
+        )
+
     model_submenu = pystray.Menu(
+        *[make_model_item(mid, info) for mid, info in MODELS.items()],
+        pystray.Menu.SEPARATOR,
         pystray.MenuItem("Перекачать модель…", on_redownload_model),
         pystray.MenuItem("Удалить модель…", on_delete_model),
     )
@@ -181,6 +231,7 @@ def setup_tray(log_dir: str) -> None:
         pystray.MenuItem(model_status_label, None, enabled=False),
         pystray.MenuItem("Модель распознавания", model_submenu),
         pystray.Menu.SEPARATOR,
+        pystray.MenuItem("Скопировать последнюю диктовку", on_copy_last),
         pystray.MenuItem("История…", on_history),
         pystray.MenuItem("Открыть логи", on_open_logs),
         pystray.MenuItem("Открыть папку с моделями", on_open_models),

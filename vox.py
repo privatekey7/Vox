@@ -5,9 +5,9 @@ Vox — Universal Voice Input (entry point).
 Push-to-talk voice recognition daemon for Windows.
 Hold a configurable hotkey → speak → release → text is pasted at the cursor.
 
-Recognition runs fully offline on a single model — Parakeet TDT v3
-(25 European languages) via sherpa-onnx. The model is downloaded on first
-run and can be repaired or removed from the system tray.
+Recognition runs fully offline via sherpa-onnx on GigaAM v3 (Russian,
+default) or Parakeet TDT v3 (English + 24 European languages). The model is
+chosen and downloaded on first run and can be switched from the system tray.
 """
 
 from __future__ import annotations

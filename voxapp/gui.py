@@ -1,12 +1,9 @@
 """
 Tkinter UI for Vox:
-  - First-run wizard (download the single bundled model).
+  - First-run wizard (pick GigaAM v3 for Russian or Parakeet for English,
+    then download it).
   - Model manager (download / delete / reinstall).
   - History window (browse / search transcription history).
-
-Since D028 Vox ships a single STT model (Parakeet TDT v3), so the
-first-run wizard is one step: it just downloads that model. There is no
-language or model choice to make.
 """
 
 from __future__ import annotations
@@ -21,12 +18,10 @@ from typing import TYPE_CHECKING, Any
 
 from voxapp.downloader import download_model, uninstall_model
 from voxapp.registry import (
+    DEFAULT_MODEL_ID,
     MODELS,
     is_installed,
 )
-
-# D028: Vox ships a single STT model; the wizard always downloads this one.
-WIZARD_MODEL_ID = "parakeet-tdt-0.6b-v3"
 
 if TYPE_CHECKING:
     from voxapp.storage import VoxDB
@@ -141,23 +136,19 @@ def _set_icon(window: tk.Tk) -> None:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# First-run wizard (2-step: language → model)
+# First-run wizard (pick a model → download)
 # ═══════════════════════════════════════════════════════════════════════════
 
 
 class FirstRunWizard:
     """
-    Single-step first-run wizard (D028: Parakeet-only).
+    First-run wizard: choose the recognition model, then download it.
 
-    Shows a welcome screen and downloads the single bundled model
-    (Parakeet TDT v3). There is no language or model choice — Vox ships
-    one model.
+    GigaAM v3 (Russian) is preselected; Parakeet TDT v3 is offered for
+    English and other European languages (D030).
 
     ``on_apply`` receives ``(model_id, lang)`` on successful completion.
     """
-
-    MODEL_ID = WIZARD_MODEL_ID
-    LANG = "multi"
 
     def __init__(self, on_apply: Callable[[str, str], None]):
         self.on_apply = on_apply
@@ -165,7 +156,8 @@ class FirstRunWizard:
 
         self.root = tk.Tk()
         self.root.title("Vox — Первый запуск")
-        self.root.geometry("560x420")
+        self.root.geometry("600x520")
+        self._choice = tk.StringVar(value=DEFAULT_MODEL_ID)
         self.root.resizable(False, False)
         _set_icon(self.root)
 
@@ -181,10 +173,6 @@ class FirstRunWizard:
         frame = tk.Frame(self._container)
         frame.pack(fill="both", expand=True, padx=32, pady=28)
 
-        info = MODELS.get(self.MODEL_ID, {})
-        name = info.get("name", self.MODEL_ID)
-        size = _human_size(info.get("size_mb", 0))
-
         tk.Label(
             frame,
             text="Добро пожаловать в Vox!",
@@ -194,21 +182,27 @@ class FirstRunWizard:
             frame,
             text=(
                 "Vox — голосовой ввод, который работает полностью офлайн.\n"
-                "Чтобы распознавать речь, нужно один раз скачать модель."
+                "Выберите модель по языку, на котором говорите. "
+                "Сменить её можно потом в меню трея."
             ),
-            wraplength=480,
+            wraplength=520,
             justify="left",
         ).pack(anchor="w", pady=(8, 16))
 
-        box = tk.Frame(frame, bd=1, relief="solid", padx=12, pady=10)
-        box.pack(fill="x")
-        tk.Label(box, text=name, font=("Segoe UI", 11, "bold")).pack(anchor="w")
-        tk.Label(box, text=f"Размер: {size}", fg="#666", anchor="w").pack(fill="x", pady=(2, 0))
-        desc = info.get("description", "")
-        if desc:
-            tk.Label(box, text=desc, wraplength=460, anchor="w", justify="left").pack(
-                fill="x", pady=(6, 0)
-            )
+        for model_id, info in MODELS.items():
+            box = tk.Frame(frame, bd=1, relief="solid", padx=12, pady=8)
+            box.pack(fill="x", pady=(0, 8))
+            tk.Radiobutton(
+                box,
+                text=f"{info['name']} — {_human_size(info.get('size_mb', 0))}",
+                variable=self._choice,
+                value=model_id,
+                font=("Segoe UI", 11, "bold"),
+                anchor="w",
+            ).pack(fill="x")
+            tk.Label(
+                box, text=info.get("description", ""), wraplength=470, anchor="w", justify="left"
+            ).pack(fill="x", padx=(24, 0))
 
         # Spacer
         tk.Frame(frame).pack(expand=True)
@@ -239,7 +233,7 @@ class FirstRunWizard:
         if getattr(self, "_downloading", False):
             return
 
-        mid = self.MODEL_ID
+        mid = self._choice.get()
         model_name = MODELS.get(mid, {}).get("name", mid)
 
         if is_installed(mid):
@@ -280,7 +274,7 @@ class FirstRunWizard:
 
     def _apply_and_close(self, model_id: str) -> None:
         try:
-            self.on_apply(model_id, self.LANG)
+            self.on_apply(model_id, MODELS[model_id].get("language", "multi"))
             self._cancelled = False
             self.root.destroy()
         except Exception as e:
@@ -568,7 +562,7 @@ class HistoryWindow:
 
 def run_first_run_wizard(on_apply: Callable[[str, str], None]) -> bool:
     """
-    Show the 2-step first-run wizard (language → model).
+    Show the first-run wizard (pick a model → download).
 
     ``on_apply`` receives ``(model_id, lang)`` on success.
     Returns True if user picked & confirmed a model.
@@ -584,7 +578,7 @@ def run_history(db: VoxDB) -> None:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# Model (re)download dialog — opened from the tray to repair the single model
+# Model (re)download dialog — opened from the tray
 # ═══════════════════════════════════════════════════════════════════════════
 
 
@@ -592,9 +586,8 @@ class ModelDownloadWindow:
     """
     Standalone window that downloads (or re-downloads) the speech model.
 
-    Vox ships with a single mandatory model (D028: Parakeet-only), so there is
-    no catalog — just a small progress window used to repair a corrupt install
-    or fetch the model again after it was deleted.
+    Used from the tray to fetch a model before switching to it, to repair a
+    corrupt install, or to fetch the model again after it was deleted.
     """
 
     def __init__(

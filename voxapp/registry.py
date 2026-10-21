@@ -1,9 +1,8 @@
 """
 Catalog of speech-to-text models available to Vox.
 
-Since D028 Vox ships a single model — Parakeet TDT v3 (25 EU languages,
-one model). The multi-model catalog (Vosk / GigaAM / Whisper / SenseVoice)
-was removed.
+Two models (D030): GigaAM v3 for Russian (default) and Parakeet TDT v3 for
+English / other European languages. Both run on sherpa-onnx.
 
 Each entry describes:
 
@@ -17,6 +16,8 @@ Each entry describes:
                           named by the engine factory (see engines.py)
     needs_term_replace:   apply TERM_REPLACEMENTS post-processing
     needs_punctuation:    apply add_punctuation post-processing
+    needs_itn:            convert number-words to digits (False when the
+                          model already writes numbers as digits)
 """
 
 from __future__ import annotations
@@ -30,13 +31,41 @@ _SHERPA_BASE = "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-mode
 
 
 MODELS: dict[str, dict[str, Any]] = {
-    # ---------------- Parakeet TDT v3 (25 EU languages) — the only model ----------------
+    # ---------------- GigaAM v3 RNNT + punctuation (Russian) — default ----------------
+    "gigaam-v3-rnnt-punct": {
+        "name": "GigaAM v3 (русский)",
+        "engine": "sherpa-onnx",
+        "engine_subtype": "nemo-transducer",
+        "language": "ru",
+        "size_mb": 162,
+        "url": f"{_SHERPA_BASE}/sherpa-onnx-nemo-transducer-punct-giga-am-v3-russian-2025-12-16.tar.bz2",
+        "archive_format": "tar.bz2",
+        "extracted_dir": "sherpa-onnx-nemo-transducer-punct-giga-am-v3-russian-2025-12-16",
+        "files": {
+            "encoder": "encoder.int8.onnx",
+            "decoder": "decoder.onnx",
+            "joiner": "joiner.onnx",
+            "tokens": "tokens.txt",
+        },
+        "needs_term_replace": True,
+        "needs_punctuation": False,
+        # GigaAM writes "11:30", "150 000 ₽" itself; our ITN would only
+        # damage that ("Один из" → "1 из").
+        "needs_itn": False,
+        "description": (
+            "Лучший выбор, если говорите по-русски. Модель от Сбера: "
+            "точнее понимает русскую речь, сама ставит знаки препинания "
+            "и пишет числа цифрами. Английские слова пишет кириллицей, "
+            "IT-термины исправляет словарь Vox."
+        ),
+    },
+    # ---------------- Parakeet TDT v3 (25 EU languages) ----------------
     "parakeet-tdt-0.6b-v3": {
         "name": "Parakeet TDT v3 (25 EU языков)",
         "engine": "sherpa-onnx",
         "engine_subtype": "nemo-transducer",
         "language": "multi",
-        "size_mb": 670,
+        "size_mb": 465,
         "url": f"{_SHERPA_BASE}/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8.tar.bz2",
         "archive_format": "tar.bz2",
         "extracted_dir": "sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8",
@@ -48,17 +77,18 @@ MODELS: dict[str, dict[str, Any]] = {
         },
         "needs_term_replace": True,
         "needs_punctuation": False,
+        "needs_itn": True,
         "description": (
-            "Универсальная модель от NVIDIA: английский + 24 европейских "
-            "языка, включая русский. Быстрая, очень точная. Числа пишет "
-            "словами."
+            "Выбирайте, если говорите в основном по-английски или на другом "
+            "европейском языке. Модель от NVIDIA: английский + 24 европейских "
+            "языка, включая русский. Английские термины пишет латиницей."
         ),
     },
 }
 
 
-DEFAULT_MODEL_ID = "parakeet-tdt-0.6b-v3"
-RECOMMENDED_MODEL_ID = "parakeet-tdt-0.6b-v3"
+DEFAULT_MODEL_ID = "gigaam-v3-rnnt-punct"
+RECOMMENDED_MODEL_ID = "gigaam-v3-rnnt-punct"
 
 
 def model_dir(model_id: str) -> str:

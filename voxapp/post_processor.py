@@ -4,7 +4,7 @@ Unified post-processing pipeline for Vox transcriptions.
 Replaces scattered inline processing in the worker with a single
 configurable pipeline:
 
-    raw STT text → terms → fillers → ITN → sentence-spacing → punctuation
+    raw STT text → terms → fillers → ITN → currency → sentence-spacing → punctuation
     → capitalization → leading-space
 
 Each step can be toggled on/off. Model-specific flags from the registry
@@ -24,6 +24,7 @@ from dataclasses import dataclass, field
 
 from voxapp.capitalization import apply_capitalization
 from voxapp.config import CURSOR_CONTEXT_ENABLED, LEADING_SPACE_ALWAYS
+from voxapp.currency import spell_out_currency
 from voxapp.fillers import remove_fillers
 from voxapp.itn import apply_itn
 from voxapp.punctuation import add_punctuation, replace_terms
@@ -110,7 +111,7 @@ class PostProcessor:
             lang=lang,
             enable_terms=model_config.get("needs_term_replace", True),
             enable_fillers=True,
-            enable_itn=True,
+            enable_itn=model_config.get("needs_itn", True),
             # Runs for every model: punctuation-aware models (needs_punctuation
             # False) emit glued sentences like "Привет.Что" that still need
             # separator spaces.
@@ -159,6 +160,13 @@ class PostProcessor:
         if self.enable_itn:
             current = apply_itn(current, lang=self.lang)
             result.steps["itn"] = current
+
+        # 3a. Currency sign → word ("500 ₽" → "500 рублей"); a no-op without "₽".
+        if self.lang == "ru":
+            spelled = spell_out_currency(current)
+            if spelled != current:
+                current = spelled
+                result.steps["currency"] = current
 
         # 3b. Sentence spacing — split glued sentences from punctuation-aware
         #     models ("Привет.Что" → "Привет. Что"). Runs before add_punctuation
