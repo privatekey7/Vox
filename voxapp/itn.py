@@ -15,6 +15,7 @@ Usage:
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 # ---------------------------------------------------------------------------
@@ -172,35 +173,145 @@ def _multiplier_value(word: str, vocab: _LangVocab) -> int:
     return vocab.multipliers[word.lower()]
 
 
-def _parse_number_words_ru(words: list[str]) -> str:
-    """
-    Parse a sequence of Russian number-words into a digit string.
+# ---------------------------------------------------------------------------
+# Russian: slot-based parser that also understands digit tokens
+# ---------------------------------------------------------------------------
+#
+# Parakeet often emits half-normalised numbers ("30 шесть", "2 тысячи двадцать
+# пять"), so digits and number-words must be parsed together. Each element
+# occupies decimal slots (1 = ones, 2 = tens, 3 = hundreds); an element may
+# only extend the current number if its highest slot is below the lowest slot
+# already filled. Otherwise a new number starts — "одиннадцать тридцать" is
+# 11 and 30, not 41.
 
-    Algorithm: accumulate sub-1000 groups, multiply by multipliers,
-    and sum everything.  E.g. "две тысячи триста сорок пять" →
-    (2 × 1000) + 300 + 40 + 5 = 2345.
-    """
-    vocab = _VOCABS["ru"]
-    total = 0
-    current = 0  # accumulator for the current sub-group
+_TRAILING_PUNCT = ".,!?;:…"
+_RU_PRONOUN_ONES = {"один", "одна", "одно"}
+_RU_LONE_MULTIPLIERS = {"тысяча"}
+_RU_ORDINAL_RE = re.compile(
+    r"^(перв|втор|трет|четв[её]рт|пят|шест|седьм|восьм|девят|десят|\w+надцат|двадцат"
+    r"|тридцат|сороков|\w+десят|девяност|\w*сот|тысячн|миллионн)"
+    r"(ый|ой|ий|ая|ое|ья|ье|ьи|ого|ему|ому|ым|ом|ую|ых|ыми|ые|ьего|ьему|ьим|ьем|ью|ьей|ьих)$"
+)
 
-    for w in words:
-        wl = w.lower()
-        if wl in vocab.hundreds:
-            current += vocab.hundreds[wl]
-        elif wl in vocab.tens:
-            current += vocab.tens[wl]
-        elif wl in vocab.ones:
-            current += vocab.ones[wl]
-        elif wl in vocab.multipliers:
-            mult = vocab.multipliers[wl]
-            if current == 0:
-                current = 1  # "тысяча" alone = 1 × 1000
-            total += current * mult
+
+@dataclass
+class _RuPiece:
+    token: str  # original token, including any trailing punctuation
+    value: int
+    hi: int  # highest decimal slot occupied (0 for multipliers)
+    lo: int  # lowest decimal slot occupied
+    is_digit: bool
+    is_multiplier: bool
+
+
+def _split_trailing_punct(token: str) -> tuple[str, str]:
+    core = token.rstrip(_TRAILING_PUNCT)
+    return core, token[len(core) :]
+
+
+def _slots(value: int) -> tuple[int, int]:
+    """(highest, lowest) decimal slot of a sub-1000 value; teens fill both tens and ones."""
+    if value == 0:
+        return 1, 1
+    digits = [value // 100, (value // 10) % 10, value % 10]  # slots 3, 2, 1
+    hi = 3 - next(i for i, d in enumerate(digits) if d)
+    lo = 1 + next(i for i, d in enumerate(reversed(digits)) if d)
+    if digits[1] == 1:  # 10..19 is a single word occupying tens + ones
+        lo = 1
+    return hi, lo
+
+
+def _ru_piece(token: str) -> _RuPiece | None:
+    core, _ = _split_trailing_punct(token)
+    word = core.lower()
+    if word.isdigit() and len(word) <= 3 and (word == "0" or not word.startswith("0")):
+        hi, lo = _slots(int(word))
+        return _RuPiece(token, int(word), hi, lo, is_digit=True, is_multiplier=False)
+    if word in _RU_MULTIPLIERS:
+        return _RuPiece(token, _RU_MULTIPLIERS[word], 0, 0, is_digit=False, is_multiplier=True)
+    for table in (_RU_ONES, _RU_TENS, _RU_HUNDREDS):
+        if word in table:
+            hi, lo = _slots(table[word])
+            return _RuPiece(token, table[word], hi, lo, is_digit=False, is_multiplier=False)
+    return None
+
+
+def _render_ru_number(pieces: list[_RuPiece]) -> list[str]:
+    """Digits for a parsed number, or the original tokens when converting would hurt."""
+    words = [p for p in pieces if not p.is_digit]
+    plain_words = [p for p in words if not p.is_multiplier]
+    first = _split_trailing_punct(pieces[0].token)[0].lower()
+    keep_original = (
+        not words  # pure digit run, e.g. a phone number
+        or (not plain_words and any(p.is_digit for p in pieces))  # "150 тысяч"
+        or (len(pieces) == 1 and first in _RU_PRONOUN_ONES)  # "один из"
+        or (len(pieces) == 1 and pieces[0].is_multiplier and first not in _RU_LONE_MULTIPLIERS)
+    )
+    if keep_original:
+        return [p.token for p in pieces]
+
+    total = current = 0
+    for p in pieces:
+        if p.is_multiplier:
+            total += (current or 1) * p.value
             current = 0
+        else:
+            current += p.value
+    trailing = _split_trailing_punct(pieces[-1].token)[1]
+    return [f"{total + current}{trailing}"]
 
-    total += current
-    return str(total)
+
+def _group_ru_numbers(pieces: list[_RuPiece]) -> list[list[_RuPiece]]:
+    """Split one contiguous run of number tokens into separate numbers."""
+    numbers: list[list[_RuPiece]] = []
+    cur: list[_RuPiece] = []
+    free_below = 4  # next element's highest slot must be below this
+    last_mult = float("inf")
+
+    for p in pieces:
+        if p.is_multiplier:
+            joins = p.value < last_mult and not (cur and cur[-1].is_multiplier)
+        else:
+            joins = (
+                bool(cur)
+                and p.hi < free_below
+                and not (p.is_digit and cur[-1].is_digit)  # never merge "900 55"
+            )
+        if cur and not joins:
+            numbers.append(cur)
+            cur, free_below, last_mult = [], 4, float("inf")
+        cur.append(p)
+        if p.is_multiplier:
+            free_below, last_mult = 4, p.value
+        else:
+            free_below = p.lo
+    if cur:
+        numbers.append(cur)
+    return numbers
+
+
+def _apply_itn_ru(text: str) -> str:
+    tokens = text.split()
+    out: list[str] = []
+    i = 0
+    while i < len(tokens):
+        span: list[_RuPiece] = []
+        while i < len(tokens) and (piece := _ru_piece(tokens[i])) is not None:
+            span.append(piece)
+            i += 1
+            if _split_trailing_punct(piece.token)[1]:
+                break  # punctuation closes the number
+        if not span:
+            out.append(tokens[i])
+            i += 1
+            continue
+        next_word = _split_trailing_punct(tokens[i])[0].lower() if i < len(tokens) else ""
+        if _RU_ORDINAL_RE.match(next_word):
+            out.extend(p.token for p in span)  # "двадцать шестой" stays words
+            continue
+        for number in _group_ru_numbers(span):
+            out.extend(_render_ru_number(number))
+    return " ".join(out)
 
 
 def _parse_number_words_en(words: list[str]) -> str:
@@ -302,6 +413,9 @@ def apply_itn(text: str, lang: str = "ru") -> str:
     if not text or not text.strip():
         return text
 
+    if lang == "ru":
+        return _apply_itn_ru(text)
+
     vocab = _VOCABS.get(lang)
     if vocab is None:
         return text
@@ -316,7 +430,7 @@ def apply_itn(text: str, lang: str = "ru") -> str:
     result_parts: list[str] = []
     prev_end = 0
 
-    parser = _parse_number_words_ru if lang == "ru" else _parse_number_words_en
+    parser = _parse_number_words_en
 
     for start, end in spans:
         # Add non-number tokens before this span
