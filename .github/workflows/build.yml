@@ -45,6 +45,29 @@ jobs:
             $out | Select-Object -Last 8 | ForEach-Object { Write-Output "::error title=ISCC::$_" }
             exit $code
           }
+      # Release tags only: SignPath Foundation (free for open source) signs the installer once the
+      # project is accepted and the repository variables/secret below exist (docs/adr/032).
+      # Until then this is skipped and the installer stays unsigned.
+      - name: Upload unsigned installer for signing
+        id: unsigned
+        if: startsWith(github.ref, 'refs/tags/v') && vars.SIGNPATH_ORGANIZATION_ID != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: vox-setup-unsigned-${{ github.sha }}
+          path: installer/vox-setup.exe
+          retention-days: 1
+      - name: Sign installer (SignPath)
+        if: steps.unsigned.outcome == 'success'
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: vox
+          signing-policy-slug: release-signing
+          github-artifact-id: ${{ steps.unsigned.outputs.artifact-id }}
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 21600 # approved by hand; 6 h is the job limit
+          output-artifact-directory: installer
       - name: SHA-256
         shell: pwsh
         run: (Get-FileHash installer\vox-setup.exe -Algorithm SHA256).Hash | Tee-Object installer\vox-setup.exe.sha256
