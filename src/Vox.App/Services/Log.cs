@@ -19,6 +19,7 @@ internal static class Log
     public static void Init(string path)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        var crashed = PreviousRunCrashed(path);
         if (File.Exists(path) && new FileInfo(path).Length > MaxBytes)
         {
             File.Move(path, path + ".1", overwrite: true);
@@ -26,6 +27,33 @@ internal static class Log
 
         _path = path;
         Write($"\n=== Vox {typeof(Log).Assembly.GetName().Version?.ToString(3)} started at {DateTime.Now:yyyy-MM-dd HH:mm:ss} ===");
+        if (crashed)
+        {
+            Info("[INIT] The previous run ended without a normal exit (crash, kill or power loss) — see its last lines in vox.log (or vox.log.1); "
+                + @"crash dumps, if any: %LOCALAPPDATA%\vox\crashes");
+        }
+    }
+
+    /// <summary>A run that ended normally logged "[EXIT] Bye" after its start banner.</summary>
+    private static bool PreviousRunCrashed(string path)
+    {
+        if (!File.Exists(path))
+        {
+            return false;
+        }
+
+        try
+        {
+            using var file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            file.Seek(Math.Max(0, file.Length - 64 * 1024), SeekOrigin.Begin);
+            var tail = new StreamReader(file, Encoding.UTF8).ReadToEnd();
+            var start = tail.LastIndexOf("=== Vox", StringComparison.Ordinal);
+            return start >= 0 && !tail.AsSpan(start).Contains("[EXIT] Bye", StringComparison.Ordinal);
+        }
+        catch (IOException)
+        {
+            return false;
+        }
     }
 
     public static void Info(string message) =>
