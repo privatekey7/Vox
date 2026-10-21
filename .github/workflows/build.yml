@@ -37,8 +37,14 @@ jobs:
           if (-not (Test-Path $iscc)) {
             choco install innosetup --no-progress -y
           }
-          & $iscc vox.iss
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $out = & $iscc vox.iss 2>&1
+          $code = $LASTEXITCODE
+          $out | Write-Output
+          if ($code -ne 0) {
+            # Surface the compiler's error as annotations (readable without downloading logs).
+            $out | Select-Object -Last 8 | ForEach-Object { Write-Output "::error title=ISCC::$_" }
+            exit $code
+          }
       - name: SHA-256
         shell: pwsh
         run: (Get-FileHash installer\vox-setup.exe -Algorithm SHA256).Hash | Tee-Object installer\vox-setup.exe.sha256
