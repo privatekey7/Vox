@@ -4,6 +4,10 @@ Push-to-talk worker: keyboard hook + microphone capture + transcription.
 The engine is held behind a lock so loading/unloading it never races
 the transcribe path.
 
+The keyboard hook only starts/stops a recording; recognition, post-processing
+and pasting run on a separate "VoxProcessor" thread so a slow (long)
+dictation never blocks the next key press.
+
 Phase 2 integration:
 - Full PostProcessor pipeline (terms → fillers → ITN → punctuation → capitalization)
 - SQLite storage (every transcription saved to vox_data.db)
@@ -27,10 +31,17 @@ import pyperclip
 import sounddevice as sd
 
 from voxapp.config import (
+    AUDIO_BLOCK_SIZE,
+    AUDIO_TAIL_SEC,
     AUTO_PASTE,
+    CLIPBOARD_ATTEMPTS,
+    CLIPBOARD_RESTORE_DELAY_SEC,
     CURSOR_CONTEXT_ENABLED,
     ENABLE_BEEPS,
+    ERROR_BEEP_MIN_MS,
+    MIN_AUDIO_PEAK,
     MIN_RECORD_MS,
+    RESTORE_CLIPBOARD,
     SAMPLE_RATE,
     get_db_path,
     get_hotkey_display,
@@ -53,10 +64,22 @@ _engine_lock = threading.Lock()
 _active_model_id: str | None = None
 _post_processor: PostProcessor | None = None
 
-_audio_queue: queue.Queue = queue.Queue()
+# Chunks of the recording in progress. The key-press creates a fresh list, the
+# audio callback appends to whichever list is current, and the processor
+# thread detaches it AUDIO_TAIL_SEC after the key-release so the last words
+# are not cut off.
+_active_chunks: list[np.ndarray] | None = None
 _recording = False
+_chord_used = False  # another key was pressed while the hotkey was held
 _record_start_time = 0.0
 _suppress_until = 0.0  # timestamp until which keyboard events are ignored
+
+# Finished recordings waiting for recognition: (chunks, released_at, elapsed_ms);
+# None stops the processor thread.
+_jobs: queue.Queue = queue.Queue()
+
+_stream: sd.InputStream | None = None
+_stream_lock = threading.Lock()
 
 # Fallback cursor context: remember our own last pasted output so that the
 # join-space + capitalization still work in windows where reading the screen
@@ -134,11 +157,54 @@ def _beep_stop() -> None:
         winsound.Beep(500, 80)  # type: ignore[attr-defined]
 
 
+def _beep_error() -> None:
+    """Low double beep: the dictation produced no text."""
+    if ENABLE_BEEPS:
+        winsound.Beep(300, 120)  # type: ignore[attr-defined]
+        winsound.Beep(250, 160)  # type: ignore[attr-defined]
+
+
 def _audio_callback(indata, frames, time_info, status):
     if status:
         print(f"[AUDIO] {status}", file=sys.stderr)
-    if _recording:
-        _audio_queue.put(indata.copy())
+    chunks = _active_chunks
+    if chunks is not None:
+        chunks.append(indata.copy())
+
+
+def _open_microphone() -> None:
+    """Open the default input device and start streaming into _audio_callback."""
+    global _stream
+    stream = sd.InputStream(
+        samplerate=SAMPLE_RATE,
+        blocksize=AUDIO_BLOCK_SIZE,
+        dtype="int16",
+        channels=1,
+        callback=_audio_callback,
+    )
+    stream.start()
+    _stream = stream
+    print(f"[AUDIO] Microphone open: {sd.query_devices(kind='input')['name']}")
+
+
+def _reopen_microphone() -> None:
+    """Restart audio capture, picking up a new default device if it changed."""
+    global _stream
+    with _stream_lock:
+        old, _stream = _stream, None
+        if old is not None:
+            with contextlib.suppress(Exception):
+                old.abort()
+                old.close()
+        # PortAudio caches the device list; re-initialising refreshes it
+        # (e.g. after a headset was plugged in or the default mic changed).
+        with contextlib.suppress(Exception):
+            sd._terminate()
+            sd._initialize()
+        try:
+            _open_microphone()
+        except Exception as e:
+            print(f"[AUDIO] Failed to reopen microphone: {e}")
 
 
 # ---------------------------------------------------------------------------
@@ -146,31 +212,32 @@ def _audio_callback(indata, frames, time_info, status):
 # ---------------------------------------------------------------------------
 
 
-def _drain_audio() -> np.ndarray | None:
-    chunks = []
-    while not _audio_queue.empty():
-        try:
-            chunks.append(_audio_queue.get_nowait())
-        except queue.Empty:
-            break
+def _transcribe(chunks: list[np.ndarray]) -> str:
+    """Recognise one recording; logs *why* when no text comes out."""
     if not chunks:
-        return None
+        # The stream delivered nothing at all: the device stalled or vanished.
+        print("[STT] No audio from microphone — reopening it")
+        _reopen_microphone()
+        return ""
     audio = np.concatenate(chunks).flatten()
-    if np.max(np.abs(audio)) < 100:
-        return None
-    return audio
-
-
-def _transcribe() -> str:
-    audio = _drain_audio()
-    if audio is None:
+    peak = int(np.max(np.abs(audio)))
+    if peak < MIN_AUDIO_PEAK:
+        print(f"[STT] Too quiet (peak {peak} < {MIN_AUDIO_PEAK}) — check the microphone")
         return ""
     with _engine_lock:
         engine = _engine
     if engine is None:
         print("[STT] No engine loaded")
         return ""
-    return engine.transcribe(audio)
+    started = time.time()
+    text = engine.transcribe(audio)
+    print(
+        f"[STT] Recognised {len(audio) / SAMPLE_RATE:.1f}s audio (peak {peak}) "
+        f"in {time.time() - started:.1f}s"
+    )
+    if not text:
+        print("[STT] Model returned no text")
+    return text
 
 
 # ---------------------------------------------------------------------------
@@ -283,9 +350,14 @@ def _on_correction_confirmed(correction) -> None:
 
 def _on_event(event):
     """Dispatch only when event.name matches the configured HOTKEY."""
+    global _chord_used
     if time.time() < _suppress_until:
         return
     if event.name != HOTKEY:
+        # Another key while the hotkey is held: it is a shortcut (Ctrl+C…),
+        # not a dictation.
+        if _recording and event.event_type == keyboard.KEY_DOWN:
+            _chord_used = True
         return
     if event.event_type == keyboard.KEY_DOWN:
         _on_key_press(event)
@@ -294,37 +366,69 @@ def _on_event(event):
 
 
 def _on_key_press(event):
-    global _recording, _record_start_time
+    global _recording, _record_start_time, _active_chunks, _chord_used
     if _recording:
         return
-    # Drop stale audio
-    while not _audio_queue.empty():
-        try:
-            _audio_queue.get_nowait()
-        except queue.Empty:
-            break
+    _chord_used = False
+    _active_chunks = []
     _record_start_time = time.time()
     _recording = True
     _beep_start()
-    print("[REC] Listening...")
+    print(f"[REC] Listening... ({time.strftime('%H:%M:%S')})")
 
 
 def _on_key_release(event):
-    global _recording, _suppress_until, _last_output_text, _last_output_ts
+    """Hand the recording to the processor thread; never blocks the hook."""
+    global _recording, _active_chunks
     if not _recording:
         return
     _recording = False
     elapsed_ms = (time.time() - _record_start_time) * 1000
     _beep_stop()
+    if _chord_used:
+        _active_chunks = None
+        print("[REC] Hotkey was part of a shortcut — not a dictation, ignored")
+        return
+    _jobs.put((_active_chunks, time.time(), elapsed_ms))
+
+
+def _processor_loop() -> None:
+    """Recognise and paste finished recordings, one at a time, in order."""
+    while True:
+        job = _jobs.get()
+        if job is None:  # stop signal
+            return
+        chunks, released_at, elapsed_ms = job
+        try:
+            _finish_recording(chunks, released_at, elapsed_ms)
+        except Exception as e:
+            # Never let one bad dictation kill the thread (and all later ones).
+            print(f"[ERROR] Processing dictation failed: {e}")
+            import traceback
+
+            traceback.print_exc()
+            _beep_error()
+
+
+def _finish_recording(chunks: list[np.ndarray] | None, released_at: float, elapsed_ms: float):
+    global _active_chunks, _last_output_text, _last_output_ts
+    # Keep capturing briefly after the release: the last audio block is
+    # still in flight and holds the end of the final word.
+    time.sleep(max(0.0, released_at + AUDIO_TAIL_SEC - time.time()))
+    if _active_chunks is chunks:
+        _active_chunks = None
+    chunks = list(chunks or [])
 
     if elapsed_ms < MIN_RECORD_MS:
         print(f"[REC] Too short ({elapsed_ms:.0f}ms), ignored")
         return
 
     print(f"[REC] Stopped ({elapsed_ms:.0f}ms), transcribing...")
-    raw_text = _transcribe()
+    raw_text = _transcribe(chunks)
     if not raw_text:
         print("[STT] No speech recognized")
+        if elapsed_ms >= ERROR_BEEP_MIN_MS:  # shorter presses are usually accidental
+            _beep_error()
         return
 
     print(f'[STT] Raw: "{raw_text}"')
@@ -354,6 +458,36 @@ def _on_key_release(event):
 
     print(f'[STT] Final: "{text}"')
 
+    _deliver(text)
+
+    # Remember what we just emitted so the next dictation can use it as cursor
+    # context when the screen can't be read (terminals, address bars).
+    if text:
+        _last_output_text = text
+        _last_output_ts = time.monotonic()
+
+
+# ---------------------------------------------------------------------------
+# Clipboard + paste
+# ---------------------------------------------------------------------------
+
+
+def _clipboard_call(fn, *args):
+    """Run a pyperclip call, retrying while another app holds the clipboard."""
+    for attempt in range(CLIPBOARD_ATTEMPTS):
+        try:
+            return fn(*args)
+        except pyperclip.PyperclipException as e:
+            if attempt == CLIPBOARD_ATTEMPTS - 1:
+                raise
+            print(f"[CLIP] Clipboard busy ({e}), retrying")
+            time.sleep(0.05)
+    return None
+
+
+def _deliver(text: str) -> None:
+    """Paste ``text`` at the cursor, then give the user their clipboard back."""
+    global _suppress_until
     # Split off any contextual leading separator. Some targets — most notably
     # the Chrome/Edge address bar (omnibox) — strip leading whitespace from
     # pasted clipboard content (base::CollapseWhitespace), which glues
@@ -364,29 +498,55 @@ def _on_key_release(event):
     # included — stays on the clipboard.
     separator, body = split_leading_separator(text) if AUTO_PASTE else ("", text)
 
+    previous: str | None = None
+    if AUTO_PASTE and RESTORE_CLIPBOARD:
+        try:
+            previous = _clipboard_call(pyperclip.paste)
+        except pyperclip.PyperclipException as e:
+            print(f"[CLIP] Could not read clipboard, it will not be restored: {e}")
+
     # Mark our clipboard write so CorrectionMonitor skips it
     if _monitor is not None:
         _monitor.mark_own_clipboard(body)
 
-    pyperclip.copy(body)
+    _clipboard_call(pyperclip.copy, body)
     print("[CLIP] Copied to clipboard")
 
-    if AUTO_PASTE:
-        # Don't let the synthetic ctrl+v re-trigger PTT when HOTKEY is ctrl
-        _suppress_until = time.time() + 0.2
-        time.sleep(0.05)
-        if separator:
-            # Typed, not pasted, so the address-bar whitespace-trim can't eat
-            # it. In normal fields a typed space is identical to a pasted one.
-            keyboard.send("space")
-        keyboard.send("ctrl+v")
-        print("[PASTE] Pasted")
+    if not AUTO_PASTE:
+        return
 
-    # Remember what we just emitted so the next dictation can use it as cursor
-    # context when the screen can't be read (terminals, address bars).
-    if text:
-        _last_output_text = text
-        _last_output_ts = time.monotonic()
+    # Don't let the synthetic ctrl+v re-trigger PTT when HOTKEY is ctrl
+    _suppress_until = time.time() + 0.2
+    time.sleep(0.05)
+    if separator:
+        # Typed, not pasted, so the address-bar whitespace-trim can't eat
+        # it. In normal fields a typed space is identical to a pasted one.
+        keyboard.send("space")
+    keyboard.send("ctrl+v")
+    print("[PASTE] Pasted")
+
+    if previous is None or previous == body:
+        return
+    # The target app reads the clipboard asynchronously after Ctrl+V; wait
+    # before putting the user's own content back.
+    # debt: fixed delay; a very busy app could still read after the restore.
+    # Upgrade path: delayed clipboard rendering (WM_RENDERFORMAT) to learn
+    # exactly when the paste happened.
+    time.sleep(CLIPBOARD_RESTORE_DELAY_SEC)
+    try:
+        if _clipboard_call(pyperclip.paste) != body:
+            return  # the user copied something new meanwhile — keep it
+        if _monitor is not None:
+            _monitor.mark_own_clipboard(previous)
+        _clipboard_call(pyperclip.copy, previous)
+        print("[CLIP] Restored previous clipboard")
+    except pyperclip.PyperclipException as e:
+        print(f"[CLIP] Could not restore clipboard: {e}")
+
+
+def get_last_text() -> str:
+    """The most recent dictation (for the tray's "copy last dictation")."""
+    return _last_output_text.lstrip()
 
 
 # ---------------------------------------------------------------------------
@@ -430,33 +590,32 @@ def run(initial_model_id: str) -> None:
         traceback.print_exc()
         return
 
+    threading.Thread(target=_processor_loop, daemon=True, name="VoxProcessor").start()
     keyboard.hook(_on_event)
     print(f"[INIT] Opening microphone ({SAMPLE_RATE} Hz)")
+    try:
+        _open_microphone()
+    except Exception as e:
+        # Keep running: the next dictation retries via _reopen_microphone().
+        print(f"[AUDIO] Could not open microphone: {e}")
 
     try:
-        with sd.InputStream(
-            samplerate=SAMPLE_RATE,
-            blocksize=4000,
-            dtype="int16",
-            channels=1,
-            callback=_audio_callback,
-        ):
-            print("=" * 50)
-            print(" Vox — Voice Input")
-            print("=" * 50)
-            print(f" Model:      {initial_model_id}")
-            print(f" Hotkey:     [{get_hotkey_display(HOTKEY).upper()}] (hold to record)")
-            print(f" Auto-paste: {AUTO_PASTE}")
-            print(f" Beeps:      {ENABLE_BEEPS}")
-            print(" Pipeline:   PostProcessor (full)")
-            if _db is not None:
-                print(f" Database:   {_db.path}")
-            if _user_corrections:
-                print(f" Dictionary: {len(_user_corrections)} correction(s)")
-            print(" Monitor:    CorrectionMonitor (clipboard)")
-            print("=" * 50)
-            print("Ready. Hold the hotkey and speak.")
-            keyboard.wait()  # blocks forever
+        print("=" * 50)
+        print(" Vox — Voice Input")
+        print("=" * 50)
+        print(f" Model:      {initial_model_id}")
+        print(f" Hotkey:     [{get_hotkey_display(HOTKEY).upper()}] (hold to record)")
+        print(f" Auto-paste: {AUTO_PASTE}")
+        print(f" Beeps:      {ENABLE_BEEPS}")
+        print(" Pipeline:   PostProcessor (full)")
+        if _db is not None:
+            print(f" Database:   {_db.path}")
+        if _user_corrections:
+            print(f" Dictionary: {len(_user_corrections)} correction(s)")
+        print(" Monitor:    CorrectionMonitor (clipboard)")
+        print("=" * 50)
+        print("Ready. Hold the hotkey and speak.")
+        keyboard.wait()  # blocks forever
     except Exception as e:
         print(f"[ERROR] {e}")
         import traceback

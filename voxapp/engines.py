@@ -1,9 +1,9 @@
 """
 Speech recognition engines.
 
-One backend: sherpa-onnx, running the bundled NeMo transducer model
-(Parakeet TDT v3). Since D028 Vox ships a single model; the legacy
-Vosk / Whisper / SenseVoice / Moonshine paths were removed.
+One backend: sherpa-onnx, running a NeMo transducer model — GigaAM v3
+(Russian) or Parakeet TDT v3 (English + 24 European languages). Long
+recordings are split at pauses before decoding (see segmenter.py).
 
 The engine takes int16 PCM mono at SAMPLE_RATE Hz and returns text.
 """
@@ -21,8 +21,9 @@ from urllib.request import Request, urlopen
 
 import numpy as np
 
-from voxapp.config import SAMPLE_RATE
+from voxapp.config import MAX_SEGMENT_SEC, SAMPLE_RATE
 from voxapp.registry import MODELS, model_dir
+from voxapp.segmenter import split_on_pauses
 
 # ---------------------------------------------------------------------------
 # DLL preload (Windows only)
@@ -312,12 +313,20 @@ class SherpaEngine(Engine):
         print(f"[INIT] sherpa-onnx model loaded ({subtype})")
 
     def transcribe(self, pcm_int16: np.ndarray) -> str:
-        # sherpa-onnx expects float32 normalised to [-1, 1]
-        samples = pcm_int16.astype(np.float32) / 32768.0
-        stream = self._recognizer.create_stream()
-        stream.accept_waveform(SAMPLE_RATE, samples)
-        self._recognizer.decode_stream(stream)
-        return (stream.result.text or "").strip()
+        # Long input degrades both models (empty text, dropped words), so
+        # recognise pause-separated pieces and join them.
+        pieces = split_on_pauses(pcm_int16, SAMPLE_RATE, max_seconds=MAX_SEGMENT_SEC)
+        streams = []
+        for piece in pieces:
+            stream = self._recognizer.create_stream()
+            # sherpa-onnx expects float32 normalised to [-1, 1]
+            stream.accept_waveform(SAMPLE_RATE, piece.astype(np.float32) / 32768.0)
+            streams.append(stream)
+        self._recognizer.decode_streams(streams)
+        texts = [(s.result.text or "").strip() for s in streams]
+        if len(pieces) > 1:
+            print(f"[STT] Split into {len(pieces)} pieces; empty: {texts.count('')}")
+        return " ".join(t for t in texts if t)
 
     def unload(self) -> None:
         self._recognizer = None

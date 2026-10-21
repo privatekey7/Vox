@@ -17,8 +17,28 @@ import sys
 DEFAULT_HOTKEY = "right ctrl"
 SAMPLE_RATE = 16000
 MIN_RECORD_MS = 250
+# Longest piece of audio sent to the model at once; longer dictations are
+# split at pauses (see segmenter.py). Empty results start at ~15 s in vox.log.
+MAX_SEGMENT_SEC = 12
 ENABLE_BEEPS = True
 AUTO_PASTE = True
+
+# Microphone capture. Small blocks keep the post-release tail short; the tail
+# wait makes sure the block holding the last word arrives before we stop.
+AUDIO_BLOCK_SIZE = 1600  # 100 ms at 16 kHz
+AUDIO_TAIL_SEC = 0.15
+# A recording whose loudest sample is below this is treated as silence.
+MIN_AUDIO_PEAK = 100
+# Signal "not recognised" only for presses at least this long; shorter ones
+# are usually accidental taps.
+ERROR_BEEP_MIN_MS = 1000
+
+# Put the user's own clipboard back after pasting a dictation, so a copied
+# link is not replaced by dictated text. The delay lets the target app read
+# the clipboard first.
+RESTORE_CLIPBOARD = True
+CLIPBOARD_RESTORE_DELAY_SEC = 0.5
+CLIPBOARD_ATTEMPTS = 3
 
 # Read the text before the cursor (via Shift+Home → Ctrl+C → Right) to drive
 # contextual capitalization and the leading separator space. Disabled by
