@@ -16,6 +16,12 @@ namespace Vox.App.Services;
 /// </remarks>
 internal sealed class KeyboardHook : IDisposable
 {
+    // Windows removes a hook that timed out without telling anyone. If no key reached the hook for
+    // a while although the user is active, log it and install the hook again.
+    private static readonly TimeSpan WatchdogEvery = TimeSpan.FromMinutes(1);
+    private const long SilentForMs = 5 * 60 * 1000;
+    private const uint UserActiveWithinMs = 60 * 1000;
+
     private readonly Thread _thread;
     private readonly Thread _dispatcher;
     private readonly BlockingCollection<Action> _events = [];
@@ -25,6 +31,8 @@ internal sealed class KeyboardHook : IDisposable
     private volatile int _hotkeyVk;
     private bool _hotkeyDown;
     private bool _chord;
+    private long _lastEventTick = Environment.TickCount64;
+    private readonly Timer _watchdog;
 
     public KeyboardHook(int hotkeyVirtualKey)
     {
@@ -36,6 +44,7 @@ internal sealed class KeyboardHook : IDisposable
         started.Wait();
         _dispatcher = new Thread(Dispatch) { IsBackground = true, Name = "VoxHotkeyEvents" };
         _dispatcher.Start();
+        _watchdog = new Timer(_ => CheckAlive(), null, WatchdogEvery, WatchdogEvery);
     }
 
     /// <summary>The hotkey went down (repeats while held are filtered out).</summary>
@@ -48,6 +57,7 @@ internal sealed class KeyboardHook : IDisposable
 
     public void Dispose()
     {
+        _watchdog.Dispose();
         Native.PostThreadMessageW(_threadId, Native.WM_QUIT, 0, 0);
         _thread.Join(TimeSpan.FromSeconds(2));
         _events.CompleteAdding();
@@ -56,23 +66,41 @@ internal sealed class KeyboardHook : IDisposable
     private void Run(ManualResetEventSlim started)
     {
         _threadId = Native.GetCurrentThreadId();
-        _hook = Native.SetWindowsHookExW(Native.WH_KEYBOARD_LL, _proc, Native.GetModuleHandleW(null), 0);
-        if (_hook == 0)
-        {
-            Log.Info($"[HOOK] SetWindowsHookEx failed: {Marshal.GetLastPInvokeError()}");
-        }
-
+        Install();
         started.Set();
-        while (Native.GetMessageW(out _, 0, 0, 0) > 0)
+        while (Native.GetMessageW(out var msg, 0, 0, 0) > 0)
         {
-            // Low-level hooks are dispatched by this message loop; nothing else to do.
+            // Low-level hooks are dispatched by this message loop; the watchdog may ask to reinstall.
+            if (msg.message == Native.WM_APP)
+            {
+                Native.UnhookWindowsHookEx(_hook);
+                Install();
+            }
         }
 
         Native.UnhookWindowsHookEx(_hook);
     }
 
+    private void Install()
+    {
+        _hook = Native.SetWindowsHookExW(Native.WH_KEYBOARD_LL, _proc, Native.GetModuleHandleW(null), 0);
+        Log.Info(_hook == 0 ? $"[HOOK] SetWindowsHookEx failed: {Marshal.GetLastPInvokeError()}" : "[HOOK] Keyboard hook installed");
+    }
+
+    private void CheckAlive()
+    {
+        var now = Environment.TickCount64;
+        if (now - Volatile.Read(ref _lastEventTick) > SilentForMs && Native.MillisecondsSinceLastInput() < UserActiveWithinMs)
+        {
+            Log.Info("[HOOK] No keys for 5 min while the user is active (or only the mouse is used) — reinstalling the hook");
+            Volatile.Write(ref _lastEventTick, now);
+            Native.PostThreadMessageW(_threadId, Native.WM_APP, 0, 0);
+        }
+    }
+
     private nint Callback(int nCode, nint wParam, nint lParam)
     {
+        Volatile.Write(ref _lastEventTick, Environment.TickCount64);
         if (nCode >= 0)
         {
             var info = Marshal.PtrToStructure<Native.KBDLLHOOKSTRUCT>(lParam);

@@ -11,6 +11,7 @@ internal static partial class Native
     public const int WM_SYSKEYDOWN = 0x0104;
     public const int WM_SYSKEYUP = 0x0105;
     public const int WM_QUIT = 0x0012;
+    public const int WM_APP = 0x8000;
     public const nint VoxInputMarker = 0x564F58; // "VOX": tags the keys Vox sends itself
     public const uint AltGrFakeCtrlScanCode = 0x21D; // the left Ctrl Windows adds to each AltGr press
 
@@ -50,6 +51,13 @@ internal static partial class Native
         public uint time;
         public int ptX;
         public int ptY;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct LASTINPUTINFO
+    {
+        public uint cbSize;
+        public uint dwTime;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -101,6 +109,17 @@ internal static partial class Native
 
     [LibraryImport("user32.dll", EntryPoint = "SetWindowLongPtrW")]
     public static partial nint SetWindowLongPtr(nint hWnd, int nIndex, nint dwNewLong);
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool GetLastInputInfo(ref LASTINPUTINFO plii);
+
+    /// <summary>Time since the last keyboard or mouse input anywhere in the session.</summary>
+    public static uint MillisecondsSinceLastInput()
+    {
+        var info = new LASTINPUTINFO { cbSize = (uint)Marshal.SizeOf<LASTINPUTINFO>() };
+        return GetLastInputInfo(ref info) ? unchecked((uint)Environment.TickCount - info.dwTime) : uint.MaxValue;
+    }
 
     public static INPUT Key(ushort vk, bool up) => new()
     {
