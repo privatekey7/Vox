@@ -11,7 +11,8 @@ namespace Vox.App.Services;
 /// The hook callback only compares a key code and queues the event; handlers run on their own
 /// thread, so slow work (first sound, log I/O, GC) never hits Windows' LowLevelHooksTimeout —
 /// a slow hook is silently removed for good. Key presses Vox injects itself
-/// (the Ctrl+V paste) carry LLKHF_INJECTED and are ignored, so they cannot re-trigger recording.
+/// (the Ctrl+V paste) carry <see cref="Native.VoxInputMarker"/> and are ignored, so they cannot
+/// re-trigger recording; keys remapped by other tools (PowerToys, AutoHotkey) still count.
 /// </remarks>
 internal sealed class KeyboardHook : IDisposable
 {
@@ -75,7 +76,7 @@ internal sealed class KeyboardHook : IDisposable
         if (nCode >= 0)
         {
             var info = Marshal.PtrToStructure<Native.KBDLLHOOKSTRUCT>(lParam);
-            if ((info.flags & Native.LLKHF_INJECTED) == 0)
+            if (info.dwExtraInfo != Native.VoxInputMarker)
             {
                 var down = wParam is Native.WM_KEYDOWN or Native.WM_SYSKEYDOWN;
                 var up = wParam is Native.WM_KEYUP or Native.WM_SYSKEYUP;

@@ -11,7 +11,7 @@ internal static partial class Native
     public const int WM_SYSKEYDOWN = 0x0104;
     public const int WM_SYSKEYUP = 0x0105;
     public const int WM_QUIT = 0x0012;
-    public const uint LLKHF_INJECTED = 0x10;
+    public const nint VoxInputMarker = 0x564F58; // "VOX": tags the keys Vox sends itself
     public const uint AltGrFakeCtrlScanCode = 0x21D; // the left Ctrl Windows adds to each AltGr press
 
     public const int GWL_EXSTYLE = -20;
@@ -105,6 +105,6 @@ internal static partial class Native
     public static INPUT Key(ushort vk, bool up) => new()
     {
         type = INPUT_KEYBOARD,
-        ki = new KEYBDINPUT { wVk = vk, dwFlags = up ? KEYEVENTF_KEYUP : 0 },
+        ki = new KEYBDINPUT { wVk = vk, dwFlags = up ? KEYEVENTF_KEYUP : 0, dwExtraInfo = VoxInputMarker },
     };
 }
