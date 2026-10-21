@@ -115,9 +115,8 @@ internal sealed class AudioCapture : IDisposable
             Close();
             try
             {
-                var device = _deviceId is null
-                    ? _enumerator.GetDefaultAudioEndpoint(DataFlow.Capture, Role.Console)
-                    : _enumerator.GetDevice(_deviceId);
+                var device = (_deviceId is null ? null : ChosenDevice(_deviceId))
+                    ?? _enumerator.GetDefaultAudioEndpoint(DataFlow.Capture, Role.Console);
                 var capture = new WasapiCapture(device, true, 50);
                 lock (_bufferLock)
                 {
@@ -150,6 +149,26 @@ internal sealed class AudioCapture : IDisposable
 
         _notifications.Dispose();
         _enumerator.Dispose();
+    }
+
+    /// <summary>The microphone picked in settings, or null when it is unplugged or disabled.</summary>
+    private MMDevice? ChosenDevice(string id)
+    {
+        try
+        {
+            var device = _enumerator.GetDevice(id);
+            if (device.State == DeviceState.Active)
+            {
+                return device;
+            }
+        }
+        catch (Exception e) when (e is System.Runtime.InteropServices.COMException or ArgumentException)
+        {
+            // gone for good — fall through to the default microphone
+        }
+
+        Log.Info("[AUDIO] Chosen microphone is not available — using the Windows default");
+        return null;
     }
 
     private void Close()
