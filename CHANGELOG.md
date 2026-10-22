@@ -36,6 +36,8 @@ Vox переписан на C# (.NET 10, WPF) с новым дизайном VOX
   «джемини два и пять про» → Gemini 2.5 Pro, «дипсик эр один» → DeepSeek R1 — и для GigaAM, и для Parakeet.
 - Для русской модели «Cloud», «клауд», «клот» → Claude («Cloud Code» → Claude Code, «клаудн хром» →
   Claude in Chrome); Google Cloud, Яндекс Клауд, Cloud Run, Cloudflare не трогаются.
+- Соцсети латиницей (решение владельца): YouTube, Telegram, Instagram, TikTok, VK, WhatsApp,
+  Twitter, Facebook, Pinterest, Twitch, Spotify, Netflix; «VSL», «вээсэл» → WSL.
 - Термины из диктовок владельца: OpenCode, OpenVid, Harness CLI, Remotion, Mixamo, vidIQ, Clipchamp,
   Hermes Agent, LongCat, GPT Image, git pull/push/commit, Google Drive / Google Диск, VPS, крипто
   (Rabby Wallet, Bitget, DeBank, DeFi, Arbitrum, MetaMask), «силай» → CLI, «закомитить» → «закоммитить».
