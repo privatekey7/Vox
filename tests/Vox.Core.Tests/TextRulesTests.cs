@@ -110,3 +110,34 @@ public class UserCorrectionsTests
     public void Apply_replaces_whole_words_and_keeps_punctuation_and_capital(string text, string expected) =>
         Assert.Equal(expected, UserCorrections.Apply(text, Corrections));
 }
+
+/// <summary>Owner: GigaAM's long dash reads as machine text; people type a hyphen.</summary>
+public class DashesTests
+{
+    [Theory]
+    [InlineData("словарь на полторы тысячи терминов — это маловато", "словарь на полторы тысячи терминов - это маловато")]
+    [InlineData("займёт 1—2 минуты, страницы 10 – 12", "займёт 1-2 минуты, страницы 10-12")]
+    [InlineData("Москва—Петербург и что–то", "Москва-Петербург и что-то")]
+    [InlineData("без тире", "без тире")]
+    public void Long_dashes_become_hyphens(string text, string expected) => Assert.Equal(expected, Dashes.Normalize(text));
+
+    [Theory]
+    [InlineData("Э-э — ну да.", " Ну да.")] // a filler before the dash: no stray "-" at the start
+    [InlineData("Это — тест.", " Это - тест.")]
+    public void Pipeline_writes_hyphens(string raw, string expected) =>
+        Assert.Equal(expected, new PostProcessor(Vox.Core.Models.ModelCatalog.GigaAm).Process(raw));
+}
+
+/// <summary>Owner's log: Parakeet left "&lt;unk&gt;" in the text.</summary>
+public class UnknownTokenTests
+{
+    [Theory]
+    [InlineData("команду <unk>Поговорим", "команду Поговорим")]
+    [InlineData("<unk> привет <unk>", "привет")]
+    [InlineData("раз<unk>два", "раз два")]
+    public void Unk_is_removed(string text, string expected) => Assert.Equal(expected, UnknownToken.Remove(text));
+
+    [Fact]
+    public void Only_unk_gives_nothing() =>
+        Assert.Equal("", new PostProcessor(Vox.Core.Models.ModelCatalog.Parakeet).Process("<unk>"));
+}

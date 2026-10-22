@@ -169,9 +169,9 @@ public static partial class Fillers
     private const string Marker = "\u2063";
 
     // Only at a sentence start: "…стоит. А-а, ещё" → "…стоит. Ещё"; mid-sentence fillers do not count.
-    [GeneratedRegex(@"(?<=(?:^|[.!?…])\s*)\u2063[\s,;:]*(\p{Ll})")] private static partial Regex CapitalAfterMarker();
+    [GeneratedRegex(@"(?<=(?:^|[.!?…])\s*)\u2063[\s,;:—–-]*(\p{Ll})")] private static partial Regex CapitalAfterMarker();
 
-    [GeneratedRegex(@"^[\s,;:]+")] private static partial Regex LeadingPunct();
+    [GeneratedRegex(@"^[\s,;:—–-]+")] private static partial Regex LeadingPunct();
     [GeneratedRegex(@"[,;]\s*[,;]")] private static partial Regex DoubledComma();
     [GeneratedRegex(@"\s[,;]\s")] private static partial Regex LoneComma();
     [GeneratedRegex(@"\s+([.!?…])")] private static partial Regex SpaceBeforeEnd();
@@ -257,6 +257,29 @@ public static partial class Currency
             _ => "рублей",
         };
     }
+}
+
+/// <summary>
+/// Long dashes become hyphens (owner: people do not type "—", it reads as machine text):
+/// "1—2" → "1-2", " — " → " - ", any other "—"/"–" → "-".
+/// </summary>
+public static partial class Dashes
+{
+    [GeneratedRegex(@"(?<=\d)\s*[—–]\s*(?=\d)")] private static partial Regex BetweenDigits();
+    [GeneratedRegex(@"[—–]")] private static partial Regex AnyDash();
+
+    public static string Normalize(string text) =>
+        text.AsSpan().IndexOfAny('—', '–') < 0 ? text : AnyDash().Replace(BetweenDigits().Replace(text, "-"), "-");
+}
+
+/// <summary>Drops the "&lt;unk&gt;" token Parakeet sometimes leaves in the text ("команду &lt;unk&gt;Поговорим").</summary>
+public static partial class UnknownToken
+{
+    [GeneratedRegex(@"\s*<unk>\s*")] private static partial Regex Token();
+
+    public static string Remove(string text) =>
+        !text.Contains("<unk>", StringComparison.Ordinal) ? text
+            : Token().Replace(text, m => m.Index == 0 || m.Index + m.Length == text.Length ? "" : " ").Trim();
 }
 
 /// <summary>Inserts the space a punctuation-aware model glues away: "Привет.Что" → "Привет. Что".</summary>

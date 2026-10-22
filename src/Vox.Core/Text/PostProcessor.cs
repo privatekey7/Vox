@@ -4,7 +4,8 @@ namespace Vox.Core.Text;
 
 /// <summary>
 /// Turns raw model output into the text that is pasted:
-/// user dictionary → terms → model versions → key shortcuts → fillers → ITN (if the model needs it) → currency → sentence spacing
+/// &lt;unk&gt; → user dictionary → terms → model versions → key shortcuts → fillers → ITN (if the model needs it)
+/// → dashes → currency → sentence spacing
 /// → one leading space.
 /// </summary>
 public sealed class PostProcessor(SpeechModel model)
@@ -19,7 +20,8 @@ public sealed class PostProcessor(SpeechModel model)
             return "";
         }
 
-        var text = corrections is null ? raw : UserCorrections.Apply(raw, corrections);
+        var text = UnknownToken.Remove(raw);
+        text = corrections is null ? text : UserCorrections.Apply(text, corrections);
         text = Terms.Replace(text);
         text = ModelVersions.Apply(text);
         text = KeyCombos.Apply(text);
@@ -29,6 +31,7 @@ public sealed class PostProcessor(SpeechModel model)
             text = Itn.Apply(text, _lang);
         }
 
+        text = Dashes.Normalize(text);
         if (_lang == "ru")
         {
             text = Currency.SpellOut(text);
