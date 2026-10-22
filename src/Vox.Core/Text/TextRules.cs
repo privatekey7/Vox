@@ -189,6 +189,7 @@ public static partial class Fillers
     [GeneratedRegex(@"^[\s,;:—–-]+")] private static partial Regex LeadingPunct();
     [GeneratedRegex(@"[,;]\s*[,;]")] private static partial Regex DoubledComma();
     [GeneratedRegex(@"\s[,;]\s")] private static partial Regex LoneComma();
+    [GeneratedRegex(@"[,;]\s*([.!?…]|$)")] private static partial Regex CommaBeforeEnd();
     [GeneratedRegex(@"\s+([.!?…])")] private static partial Regex SpaceBeforeEnd();
     [GeneratedRegex(@"\s{2,}")] private static partial Regex ManySpaces();
     [GeneratedRegex("[а-яёa-z0-9]", RegexOptions.IgnoreCase)] private static partial Regex AnyWordChar();
@@ -243,7 +244,8 @@ public static partial class Fillers
 
         // Tidy punctuation left behind: "Э-э, запусти" → ", запусти" → "запусти".
         result = LeadingPunct().Replace(result, "");
-        result = DoubledComma().Replace(result, ",");
+        result = DoubledComma().Replace(result, " "); // "если мы, а-а, уменьшим" → "если мы уменьшим"
+        result = CommaBeforeEnd().Replace(result, "$1"); // "если мы, а-а." → "если мы."
         result = LoneComma().Replace(result, " ");
         result = SpaceBeforeEnd().Replace(result, "$1");
         result = ManySpaces().Replace(result, " ").Trim();

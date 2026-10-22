@@ -21,7 +21,7 @@ internal sealed class FieldWatcher : IDisposable
 {
     private const int MaxChars = 20_000;
     private const uint WindowTextTimeoutMs = 150;
-    private static readonly TimeSpan StableFor = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan StableFor = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan GiveUpAfter = TimeSpan.FromMinutes(10);
 
     private readonly BlockingCollection<Action> _work = new(boundedCapacity: 16);

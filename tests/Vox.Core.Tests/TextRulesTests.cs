@@ -35,12 +35,12 @@ public class FillersTests
     [Theory]
     [InlineData("Э-э, запусти сборку", "Запусти сборку")]
     [InlineData("ммм давай так", "давай так")]
-    [InlineData("Мы, э, решили", "Мы, решили")]
+    [InlineData("Мы, э, решили", "Мы решили")]
     [InlineData("Mmm.", "")]
     [InlineData("ну вот этот файл", "ну вот этот файл")]
     [InlineData("um so hello world", "so hello world")]
     // Regression (owner's log): longer hesitations were left behind or broke the text.
-    [InlineData("Надо сказать, э-э-э, вот так", "Надо сказать, вот так")]
+    [InlineData("Надо сказать, э-э-э, вот так", "Надо сказать вот так")]
     [InlineData("Тестовые Ааа, тестируйте", "Тестовые тестируйте")]
     [InlineData("м-м-м, хммм, да", "да")]
     [InlineData("Мама мыла раму", "Мама мыла раму")]
@@ -64,6 +64,11 @@ public class FillersTests
     [InlineData("Ну. А потом", "Ну. А потом")]
     [InlineData("сделал а потом ушёл", "сделал а потом ушёл")]
     [InlineData("план А и план Б", "план А и план Б")]
+    // Owner's log: a hesitation between commas leaves no comma behind.
+    [InlineData("если мы, а-а, уменьшим в два раза", "если мы уменьшим в два раза")]
+    [InlineData("Ну, э-э, давай", "Ну давай")]
+    [InlineData("если мы, э-э.", "если мы.")]
+    [InlineData("Э-э, запусти, ммм, тесты", "Запусти тесты")]
     public void Remove_strips_hesitation_sounds_only(string text, string expected) =>
         Assert.Equal(expected, Fillers.Remove(text));
 }
