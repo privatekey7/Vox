@@ -1,4 +1,4 @@
-using System.Text.RegularExpressions;
+using Vox.Core.Diagnostics;
 using Vox.Core.Models;
 using Vox.Core.Text;
 
@@ -42,45 +42,12 @@ if (files.Count == 0)
 
 Console.OutputEncoding = System.Text.Encoding.UTF8;
 var processor = new PostProcessor(model);
-var logLine = new Regex(@"\[STT\] (Raw|Final): ""(.*)""\s*$");
-var otherLogLine = new Regex(@"^(\d\d:\d\d:\d\d\.\d{3} |\s*===)");
 int total = 0, changed = 0;
 foreach (var file in files)
 {
-    string? raw = null;
-    foreach (var line in File.ReadLines(file))
+    foreach (var d in DictationLog.Read(File.ReadLines(file)))
     {
-        var m = logLine.Match(line);
-        if (!m.Success)
-        {
-            if (!otherLogLine.IsMatch(line) && line.Trim().Length > 0)
-            {
-                var fields = line.Split('\t'); // a plain line: Raw[<TAB>Final]
-                Emit(fields[0].Trim(), fields.Length > 1 ? fields[1] : null);
-            }
-
-            continue;
-        }
-
-        if (m.Groups[1].Value == "Raw")
-        {
-            if (raw is not null)
-            {
-                Emit(raw, null);
-            }
-
-            raw = m.Groups[2].Value;
-        }
-        else if (raw is not null)
-        {
-            Emit(raw, m.Groups[2].Value);
-            raw = null;
-        }
-    }
-
-    if (raw is not null)
-    {
-        Emit(raw, null);
+        Emit(d.Raw, d.Final);
     }
 }
 
