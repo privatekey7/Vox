@@ -106,6 +106,13 @@ internal sealed class KeyboardHook : IDisposable
     /// </summary>
     public static long LastUserKeyTick => Volatile.Read(ref _lastUserKeyTick);
 
+    // Last user key per foreground window: self-learning only learns what the user typed there.
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<nint, long> LastKeyByWindow = new();
+
+    /// <summary>Did the user press a key (not Vox's own Ctrl+V) in this window after <paramref name="sinceTick"/>?</summary>
+    public static bool UserTypedIn(nint window, long sinceTick) =>
+        LastKeyByWindow.TryGetValue(window, out var tick) && tick > sinceTick;
+
     private static bool IsModifier(uint vk) => vk is >= 0x10 and <= 0x12 or >= 0xA0 and <= 0xA5 or 0x5B or 0x5C or 0x14;
 
     private nint Callback(int nCode, nint wParam, nint lParam)
@@ -120,7 +127,9 @@ internal sealed class KeyboardHook : IDisposable
                 var up = wParam is Native.WM_KEYUP or Native.WM_SYSKEYUP;
                 if (down && info.vkCode != _hotkeyVk && !IsModifier(info.vkCode))
                 {
-                    Volatile.Write(ref _lastUserKeyTick, Environment.TickCount64);
+                    var now = Environment.TickCount64;
+                    Volatile.Write(ref _lastUserKeyTick, now);
+                    LastKeyByWindow[Native.GetForegroundWindow()] = now;
                 }
 
                 if (info.vkCode == _hotkeyVk)

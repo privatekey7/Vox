@@ -64,12 +64,20 @@ internal sealed class DictationService : IDisposable
         _processor = new Thread(ProcessLoop) { IsBackground = true, Name = "VoxProcessor" };
         _processor.Start();
         _watcher.Enabled = settings.LearnCorrections;
-        _watcher.Learned += (shown, correct) =>
+        _watcher.Learned += (shown, correct, userTyped) =>
         {
-            var (result, wrong, target) = _learning.Learn(shown, correct);
-            if (result == LearnResult.CommonWord)
+            var (result, wrong, target) = _learning.Learn(shown, correct, userTyped);
+            var why = result switch
             {
-                Log.Info("[LEARN] The fixed word is an ordinary Russian word: not learned (add it in the dictionary by hand)");
+                LearnResult.CommonWord => "the fixed word is an ordinary Russian word: not learned (add it in the dictionary by hand)",
+                LearnResult.NotTyped => "the text changed without your typing (autocorrect?): nothing learned",
+                LearnResult.TooShort => "too short to learn automatically",
+                LearnResult.Pinned => "this entry went back and forth twice: it is pinned, change it in the dictionary by hand",
+                _ => null,
+            };
+            if (why is not null)
+            {
+                Log.Info($"[LEARN] {char.ToUpperInvariant(why[0])}{why[1..]}");
                 return;
             }
 

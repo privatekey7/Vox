@@ -57,7 +57,8 @@ internal sealed class FieldWatcher : IDisposable
     }
 
     /// <summary>The user fixed a dictated word: (wrong, correct).</summary>
-    public event Action<string, string>? Learned;
+    /// <remarks>The third value: the user typed in that window since the paste (not autocorrect).</remarks>
+    public event Action<string, string, bool>? Learned;
 
     public bool Enabled { get; set; } = true;
 
@@ -121,7 +122,7 @@ internal sealed class FieldWatcher : IDisposable
         else
         {
             Log.Info($"[LEARN] Watching the field in {app} via {(source == FieldSource.Uia ? "uia" : "wm_gettext")}");
-            _pending = new Pending(read, text, inserted, DateTime.UtcNow, text, DateTime.UtcNow);
+            _pending = new Pending(read, text, inserted, DateTime.UtcNow, text, DateTime.UtcNow, Native.GetForegroundWindow(), Environment.TickCount64);
         }
     });
 
@@ -177,7 +178,7 @@ internal sealed class FieldWatcher : IDisposable
         if (CorrectionDetector.Detect(p.Before, now, p.Inserted) is var (wrong, correct))
         {
             Log.Info($"[LEARN] Correction: \"{wrong}\" → \"{correct}\"");
-            Learned?.Invoke(wrong, correct);
+            Learned?.Invoke(wrong, correct, KeyboardHook.UserTypedIn(p.Window, p.PastedTick));
         }
         else
         {
@@ -230,5 +231,6 @@ internal sealed class FieldWatcher : IDisposable
     }
 
     private sealed record Pending(
-        Func<string?> Read, string Before, string Inserted, DateTime PastedAt, string LastSeen, DateTime LastChange);
+        Func<string?> Read, string Before, string Inserted, DateTime PastedAt, string LastSeen, DateTime LastChange,
+        nint Window, long PastedTick);
 }

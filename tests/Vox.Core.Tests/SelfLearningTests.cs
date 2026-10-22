@@ -84,4 +84,34 @@ public sealed class SelfLearningTests : IDisposable
 
         Assert.Equal(("кубер", "Kubernets", "manual"), _db.DictionaryEntries().Select(e => (e.Wrong, e.Correct, e.Source)).Single());
     }
+
+    [Fact]
+    public void A_change_without_the_user_typing_is_not_learned()
+    {
+        // Autocorrect (Word, Grammarly, a messenger) changed the text, not the user.
+        Assert.Equal(LearnResult.NotTyped, _learning.Learn("гитхап", "GitHub", userTyped: false).Result);
+        Assert.Empty(_db.Corrections());
+    }
+
+    [Theory]
+    [InlineData("ик", "IK")]
+    [InlineData("в а", "VA")] // a merged phrase counts its letters
+    public void Too_short_to_learn_automatically(string wrong, string correct)
+    {
+        Assert.Equal(LearnResult.TooShort, _learning.Learn(wrong, correct).Result);
+        Assert.Empty(_db.Corrections());
+    }
+
+    [Fact]
+    public void An_entry_that_flips_back_and_forth_gets_pinned()
+    {
+        _learning.Learn("гитхап", "GitHub");
+        Assert.Equal(LearnResult.TargetFixed, _learning.Learn("GitHub", "Github").Result); // A → B
+        Assert.Equal(LearnResult.TargetFixed, _learning.Learn("Github", "GitHub").Result); // back: flip 1
+        Assert.Equal(LearnResult.TargetFixed, _learning.Learn("GitHub", "Github").Result); // back: flip 2, pinned
+
+        Assert.Equal(LearnResult.Pinned, _learning.Learn("Github", "GitHub").Result);
+        Assert.Equal(LearnResult.Pinned, _learning.Learn("гитхап", "GitHab").Result); // a new pair for the same word too
+        Assert.Equal("Github", _db.Corrections()["гитхап"]);
+    }
 }

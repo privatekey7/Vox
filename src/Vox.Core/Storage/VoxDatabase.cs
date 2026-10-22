@@ -50,6 +50,13 @@ public sealed class VoxDatabase : IDisposable
             UNIQUE(wrong, lang)
         );
         CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS target_history (
+            wrong   TEXT    NOT NULL,
+            lang    TEXT    NOT NULL DEFAULT '',
+            targets TEXT    NOT NULL,
+            flips   INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (wrong, lang)
+        );
         CREATE INDEX IF NOT EXISTS idx_transcriptions_created ON transcriptions(created_at DESC);
         CREATE INDEX IF NOT EXISTS idx_transcriptions_model ON transcriptions(model);
         CREATE INDEX IF NOT EXISTS idx_dictionary_wrong ON dictionary(wrong);
@@ -144,6 +151,25 @@ public sealed class VoxDatabase : IDisposable
     /// <summary>{wrong → correct} for <see cref="Text.UserCorrections.Apply"/>.</summary>
     public IReadOnlyDictionary<string, string> Corrections() =>
         DictionaryEntries().GroupBy(e => e.Wrong).ToDictionary(g => g.Key, g => g.First().Correct);
+
+    /// <summary>Targets a dictionary entry had (oldest first) and how often it went back to an earlier one.</summary>
+    public (IReadOnlyList<string> Targets, int Flips) TargetHistory(string wrong, string lang)
+    {
+        lock (_lock)
+        {
+            using var cmd = _connection.CreateCommand();
+            cmd.CommandText = "SELECT targets, flips FROM target_history WHERE wrong = $w AND lang = $l";
+            cmd.Parameters.AddWithValue("$w", wrong);
+            cmd.Parameters.AddWithValue("$l", lang);
+            using var r = cmd.ExecuteReader();
+            return r.Read() ? (r.GetString(0).Split('\n'), r.GetInt32(1)) : ([], 0);
+        }
+    }
+
+    public void SaveTargetHistory(string wrong, string lang, IEnumerable<string> targets, int flips) => Execute("""
+        INSERT INTO target_history (wrong, lang, targets, flips) VALUES ($w, $l, $t, $f)
+        ON CONFLICT(wrong, lang) DO UPDATE SET targets = excluded.targets, flips = excluded.flips
+        """, ("$w", wrong), ("$l", lang), ("$t", string.Join('\n', targets)), ("$f", flips));
 
     public void Dispose() => _connection.Dispose();
 
