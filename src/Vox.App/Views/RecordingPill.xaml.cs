@@ -65,8 +65,8 @@ public partial class RecordingPill : Window
                 HideAfter(TimeSpan.FromSeconds(0.5));
                 break;
             case DictationState.NotHeard:
-                SetMessage("", "#FCE100", "Не расслышал, скажите ещё раз", "или проверьте микрофон");
-                HideAfter(TimeSpan.FromSeconds(3));
+                SetMessage("", "#FCE100", "Не расслышал", "");
+                HideAfter(TimeSpan.FromSeconds(0.5)); // owner: as quick as "Вставлено"
                 break;
             case DictationState.ModelNotReady:
                 SetMessage("\uE916", "#60CDFF", "Модель ещё загружается…", "подождите немного");
@@ -156,9 +156,7 @@ public partial class RecordingPill : Window
     private void PlaceAtBottom()
     {
         var area = SystemParameters.WorkArea;
-        // Whole device pixels: a window at a fractional position blurs the text it draws.
-        var dpi = VisualTreeHelper.GetDpi(this);
-        Left = Math.Round((area.Left + (area.Width - ActualWidth) / 2) * dpi.DpiScaleX) / dpi.DpiScaleX;
-        Top = Math.Round((area.Bottom - ActualHeight - 24) * dpi.DpiScaleY) / dpi.DpiScaleY;
+        Left = area.Left + (area.Width - ActualWidth) / 2;
+        Top = area.Bottom - ActualHeight - 24;
     }
 }
