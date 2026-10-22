@@ -33,6 +33,7 @@ public sealed class PostProcessor(SpeechModel model)
         text = FileExtensions.FixGlued(text);
         text = Terms.Replace(text);
         text = FuzzyTerms.Apply(text, fuzzy, screen);
+        text = Networks.Fix(text);
         text = ModelVersions.Apply(text);
         text = FileExtensions.Apply(text);
         text = KeyCombos.Apply(text);

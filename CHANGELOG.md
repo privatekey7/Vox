@@ -41,6 +41,10 @@ Vox переписан на C# (.NET 10, WPF) с новым дизайном VOX
   «.gson»/«.джейсон» после имени файла → «.json»; Джимини/Гемени → Gemini, Гиминиаргон → Gemini Argon,
   Джесон/Джей Сон → JSON, Рэбби Воллетт → Rabby Wallet, Фантом Воллет → Phantom Wallet, Пубитер →
   Puppeteer, HDmell → HTML, rast → Rust, Jumper X Change → Jumper Exchange.
+- Тест на Parakeet: «нотпад плюс-плюс» больше не даёт «Notepad++ плюс-плюс»; «Сити Arbitrum» → «сети Arbitrum»
+  (перед названием сети); «Термс точка Джесон» → «Термс.json» (имя с заглавной); PostgreSQL, Redis, XML, XMP,
+  TypeScript, LM Studio, Hugging Face, ChatGPT, MCP, Claude Code, Firefox, «в OBS», DaVinci Resolve, DeBank,
+  Claude Opus в новых записях.
 - Новый интерфейс в стиле Windows 11 (светлая и тёмная тема): мастер первого запуска из трёх шагов
   (язык → загрузка → «попробуйте»), настройки с историей, словарём и помощью.
 - Плашка записи внизу экрана: «Слушаю…» с уровнем звука, «Распознаю…», «Вставлено», «Не расслышал».

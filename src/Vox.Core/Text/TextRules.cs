@@ -23,6 +23,9 @@ public static partial class Terms
     [GeneratedRegex(@"[\p{L}\p{Nd}_]+(?:-[\p{L}\p{Nd}_]+)*")]
     private static partial Regex Word();
 
+    [GeneratedRegex(@"\G[  ]+плюс[-  ]плюс(?![\p{L}\p{Nd}])", RegexOptions.IgnoreCase)]
+    private static partial Regex SpokenPlus();
+
     /// <summary>Replace terms in one pass, the longest phrase first ("гитхаб экшенс" before "гитхаб").</summary>
     public static string Replace(string text)
     {
@@ -46,6 +49,13 @@ public static partial class Terms
                         while (copied < text.Length && text[copied] == '+')
                         {
                             copied++;
+                        }
+
+                        // "нотпад плюс-плюс": the source took "нотпад", the rest is the "++" said aloud.
+                        if (SpokenPlus().Match(text, copied) is { Success: true } plus)
+                        {
+                            copied += plus.Length;
+                            i = words.Count(w => w.Index < copied) - n;
                         }
                     }
 
@@ -290,6 +300,22 @@ public static partial class Fillers
 }
 
 /// <summary>"1600 МГ" → "1600 МГц": the model drops "ц" after a number; lower-case "мг" (milligrams) stays.</summary>
+/// <summary>"Сити Arbitrum" → "сети Arbitrum": the model hears "сети" before a blockchain as "Сити".</summary>
+public static partial class Networks
+{
+    [GeneratedRegex(@"(?<![\p{L}\p{Nd}])[Сс]ити(?=[  ]+(?:Arbitrum|Optimism|Polygon|Solana|Ethereum|Base|TON|TRON|Cardano|Celestia|Monad|Avalanche|BNB|Bitcoin|Sui|Aptos|Linea|zkSync|Scroll|Blast|Starknet|Evmos|Cosmos|Near|NEAR)(?![\p{L}\p{Nd}]))")]
+    private static partial Regex City();
+
+    public static string Fix(string text) =>
+        text.Contains("ити", StringComparison.Ordinal) ? City().Replace(text, m => m.Value[0] == 'С' && IsSentenceStart(text, m.Index) ? "Сети" : "сети") : text;
+
+    private static bool IsSentenceStart(string text, int index)
+    {
+        var before = text.AsSpan(0, index).TrimEnd();
+        return before.IsEmpty || ".!?…".Contains(before[^1]);
+    }
+}
+
 public static partial class Frequency
 {
     [GeneratedRegex(@"(?<=\d)\s*([МГ]Г)(?!\p{L})")]
@@ -347,7 +373,7 @@ public static partial class Currency
 /// </summary>
 public static partial class FileExtensions
 {
-    [GeneratedRegex(@"(?<![\p{L}\p{Nd}])(?<name>[A-Za-z][\w-]*\s+)?точка\s+\.?(?<ext>mp4|mp3|html|js|ts|py|json|md|txt|exe|png|jpg|pdf|docx|xlsx|csv|zip|log)(?![\p{L}\p{Nd}])",
+    [GeneratedRegex(@"(?<![\p{L}\p{Nd}])(?<name>(?:[A-Za-z]|(?<=[\p{L}\p{Nd},;:]\s+)(?-i:[А-ЯЁ])(?=[а-яё]))[\w-]*\s+)?точка\s+\.?(?<ext>mp4|mp3|html|js|ts|py|json|md|txt|exe|png|jpg|pdf|docx|xlsx|csv|zip|log)(?![\p{L}\p{Nd}])",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex Spoken();
 

@@ -156,6 +156,29 @@ public class ScreenNamesTests
     [InlineData("Новый дисплей и дисплеем.", "Новый дисплей и дисплеем.")]
     public void Third_live_test_spellings(string raw, string expected) => Assert.Equal(expected, Fix(raw, null));
 
+    // Owner's live test on Parakeet (30 phrases): both models.
+    [Theory]
+    [InlineData("Открой Термс точка Джесон и config точка json.", "Открой Термс.json и config.json.")]
+    [InlineData("Подними контейнер спостгрыс Кью и постгрес кью эль, Рэдис.", "Подними контейнер с PostgreSQL и PostgreSQL, Redis.")]
+    [InlineData("Формат Иксмл, икс эм эль, профиль Иксэмп и икс эм пи.", "Формат XML, XML, профиль XMP и XMP.")]
+    [InlineData("Пишу на тайскрипт, запусти Вм Студио.", "Пишу на TypeScript, запусти LM Studio.")]
+    [InlineData("Модели на Хьюджин Фэйс и Hugging face.", "Модели на Hugging Face и Hugging Face.")]
+    [InlineData("Спроси Чартжи Пити, Чатжи Пити. Ch ChatGPT.", "Спроси ChatGPT, ChatGPT. Ch ChatGPT.")]
+    [InlineData("Подключи Мсеп сервер. Пишу в лодкоду, клодкоду.", "Подключи MCP сервер. Пишу в Claude Code, Claude Code.")]
+    [InlineData("Открой Фаерфос. Запиши в Обс, Da Vinci Resolve. Обс.", "Открой Firefox. Запиши в OBS, DaVinci Resolve. Обс.")]
+    [InlineData("В Сити Arbitrum и Д банк.", "В сети Arbitrum и DeBank.")]
+    [InlineData("Москва-Сити и Сити банк.", "Москва-Сити и Сити банк.")]
+    [InlineData("Работаю на Claude Опус.", "Работаю на Claude Opus.")]
+    [InlineData("Открой нотпад плюс-плюс и нотпад плюс плюс.", "Открой Notepad++ и Notepad++.")]
+    [InlineData("Сони пришла, комет, пром, Фантом.", "Сони пришла, комет, пром, Фантом.")]
+    public void Parakeet_live_test_spellings(string raw, string expected)
+    {
+        foreach (var model in ModelCatalog.All)
+        {
+            Assert.Equal(expected, new PostProcessor(model).Process(raw).Trim());
+        }
+    }
+
     [Fact]
     public void A_capitalised_spelling_wins()
     {
