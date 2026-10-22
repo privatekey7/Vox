@@ -12,6 +12,10 @@ public sealed class DeclensionTests
     [InlineData("Запусти в докере.", "Запусти в Docker.")]
     [InlineData("Нет докера.", "Нет Docker.")]
     [InlineData("На гитхаб.", "На GitHub.")] // the base form, as before
+    // Multi-word sources decline their last word.
+    [InlineData("Подними в докер компоузе.", "Подними в docker-compose.")]
+    [InlineData("Сборка в гитхаб экшенсах.", "Сборка в GitHub Actions.")]
+    [InlineData("Настрой с гитхаб экшенсом.", "Настрой с GitHub Actions.")]
     public void Built_in_terms_match_case_forms(string spoken, string expected) =>
         Assert.Equal(expected, Terms.Replace(spoken));
 

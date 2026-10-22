@@ -8,61 +8,114 @@ namespace Vox.Core.Text;
 /// <summary>Russian phonetic → English tech term replacements ("гитхаб" → "GitHub").</summary>
 public static partial class Terms
 {
-    private static readonly Lazy<(Regex Pattern, string Replacement)[]> Rules = new(Load);
+    // Every source and its case forms, keyed by lower-case words joined with one space:
+    // "гитхаб", "гитхабе" ("гитхаб" + "е"), "докер компоузе" (multi-word sources decline the last word).
+    // Single-word forms that are ordinary Russian words are left out (Data/no-declension.json,
+    // generated against a frequency list: docs/declension.md).
+    private static readonly Lazy<(Dictionary<string, Entry> Phrases, int MaxWords)> Index = new(BuildIndex);
 
-    // Case forms of single-word terms ("гитхабе" → "GitHub"), minus forms that are ordinary Russian
-    // words (Data/no-declension.json, generated against a frequency list: docs/declension.md).
-    private static readonly Lazy<Dictionary<string, (string Source, string Replacement, string Ending)>> Declined = new(LoadDeclined);
+    private sealed record Entry(string Replacement, string LastSourceWord, string? Ending);
 
-    /// <summary>Apply every replacement in dictionary order (later rules see earlier output), then case forms.</summary>
+    // A word is letters/digits/underscores; a hyphen joins parts into one word ("пиф-паф" is not "паф").
+    [GeneratedRegex(@"[\p{L}\p{Nd}_]+(?:-[\p{L}\p{Nd}_]+)*")]
+    private static partial Regex Word();
+
+    /// <summary>Replace terms in one pass, the longest phrase first ("гитхаб экшенс" before "гитхаб").</summary>
     public static string Replace(string text)
     {
-        foreach (var (pattern, replacement) in Rules.Value)
+        var (phrases, maxWords) = Index.Value;
+        var words = Word().Matches(text);
+        var result = new System.Text.StringBuilder(text.Length);
+        var copied = 0;
+        for (var i = 0; i < words.Count;)
         {
-            text = pattern.Replace(text, _ => replacement);
+            var matched = 0;
+            for (var n = Math.Min(maxWords, words.Count - i); n >= 1 && matched == 0; n--)
+            {
+                if (Phrase(text, words, i, n) is { } key && phrases.TryGetValue(key, out var entry)
+                    && Replacement(entry) is { } replacement)
+                {
+                    result.Append(text, copied, words[i].Index - copied).Append(replacement);
+                    copied = words[i + n - 1].Index + words[i + n - 1].Length;
+                    matched = n;
+                }
+            }
+
+            i += Math.Max(matched, 1);
         }
 
-        return CyrillicWord().Replace(text, m =>
-            Declined.Value.TryGetValue(m.Value.ToLowerInvariant(), out var d)
-                ? Declension.Inflect(d.Replacement, d.Source, d.Ending) ?? m.Value
-                : m.Value);
+        return copied == 0 ? text : result.Append(text, copied, text.Length - copied).ToString();
     }
 
-    [GeneratedRegex(@"(?<![\p{L}\p{Nd}])[а-яёА-ЯЁ]{5,}(?![\p{L}\p{Nd}])")]
-    private static partial Regex CyrillicWord();
-
-    private static Dictionary<string, (string, string, string)> LoadDeclined()
+    // Words i..i+n-1 as a lookup key, or null when they are not separated by whitespace only.
+    private static string? Phrase(string text, MatchCollection words, int i, int n)
     {
-        var sources = LoadPairs().Select(p => p[0].ToLowerInvariant()).ToHashSet();
-        var excluded = LoadResource<string[]>("Vox.Core.no-declension.json").ToHashSet();
-        var forms = new Dictionary<string, (string, string, string)>();
-        var ambiguous = new HashSet<string>();
-        foreach (var pair in LoadPairs().Where(p => !p[0].Contains(' ', StringComparison.Ordinal)))
+        if (n == 1)
         {
-            foreach (var (form, ending) in Declension.Forms(pair[0]))
+            return words[i].Value.ToLowerInvariant();
+        }
+
+        for (var k = i; k < i + n - 1; k++)
+        {
+            var gapStart = words[k].Index + words[k].Length;
+            if (text.AsSpan(gapStart, words[k + 1].Index - gapStart).ContainsAnyExcept(' ', '\u00A0'))
             {
-                if (sources.Contains(form) || excluded.Contains(form))
+                return null;
+            }
+        }
+
+        return string.Join(' ', Enumerable.Range(i, n).Select(k => words[k].Value.ToLowerInvariant()));
+    }
+
+    private static string? Replacement(Entry entry) =>
+        entry.Ending is null ? entry.Replacement : Declension.Inflect(entry.Replacement, entry.LastSourceWord, entry.Ending);
+
+    private static (Dictionary<string, Entry>, int) BuildIndex()
+    {
+        var pairs = LoadPairs();
+        var phrases = new Dictionary<string, Entry>();
+        foreach (var pair in pairs)
+        {
+            var source = pair[0].ToLowerInvariant();
+            phrases[source] = new Entry(pair[1], source.Split(' ')[^1], null);
+        }
+
+        var excluded = LoadResource<string[]>("Vox.Core.no-declension.json").ToHashSet();
+        var forms = new Dictionary<string, Entry>();
+        var ambiguous = new HashSet<string>();
+        foreach (var pair in pairs)
+        {
+            var source = pair[0].ToLowerInvariant();
+            var space = source.LastIndexOf(' ');
+            var (prefix, last) = space < 0 ? ("", source) : (source[..(space + 1)], source[(space + 1)..]);
+            foreach (var (form, ending) in Declension.Forms(last))
+            {
+                var key = prefix + form;
+                if (form.Length < 5 || phrases.ContainsKey(key) || (space < 0 && excluded.Contains(form)))
                 {
-                    continue; // a term of its own, or an ordinary word
+                    continue; // too short to be safe, a term of its own, or an ordinary word
                 }
 
-                if (!forms.TryAdd(form, (pair[0], pair[1], ending)) && forms[form].Item2 != pair[1])
+                if (!forms.TryAdd(key, new Entry(pair[1], last, ending)) && forms[key].Replacement != pair[1])
                 {
-                    ambiguous.Add(form); // two terms share this form: keep neither
+                    ambiguous.Add(key); // two terms share this form: keep neither
                 }
             }
         }
 
-        foreach (var form in ambiguous)
+        foreach (var (key, entry) in forms)
         {
-            forms.Remove(form);
+            if (!ambiguous.Contains(key))
+            {
+                phrases[key] = entry;
+            }
         }
 
-        return forms;
+        return (phrases, phrases.Keys.Max(k => k.Count(c => c == ' ') + 1));
     }
 
     private static readonly Lazy<HashSet<string>> TermWords = new(() =>
-        Rules.Value.SelectMany(r => r.Replacement.Split(' ')).ToHashSet(StringComparer.Ordinal));
+        LoadPairs().SelectMany(p => p[1].Split(' ')).ToHashSet(StringComparer.Ordinal));
 
     /// <summary>Is this word (exact case) part of a term's spelling ("Docker", "GitHub")?</summary>
     public static bool IsTermForm(string word) => TermWords.Value.Contains(word);
@@ -74,14 +127,6 @@ public static partial class Terms
         using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(name)
             ?? throw new InvalidOperationException($"Embedded {name} is missing");
         return JsonSerializer.Deserialize<T>(stream) ?? throw new InvalidOperationException($"{name} is empty");
-    }
-
-    private static (Regex, string)[] Load()
-    {
-        return LoadPairs()
-            .Select(p => (new Regex(@"\b" + Regex.Escape(p[0]) + @"\b",
-                RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled), p[1]))
-            .ToArray();
     }
 }
 

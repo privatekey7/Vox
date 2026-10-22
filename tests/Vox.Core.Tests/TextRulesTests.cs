@@ -64,6 +64,13 @@ public class TermsTests
     [InlineData("обычный текст без терминов", "обычный текст без терминов")]
     public void Replace_maps_phonetic_terms_to_latin(string text, string expected) =>
         Assert.Equal(expected, Terms.Replace(text));
+
+    // Regression: a hyphen is part of the word — "пиф-паф" became "пиф-path", "Жан-Клод" "Жан-Claude".
+    [Theory]
+    [InlineData("Пиф-паф, ой-ой-ой.")]
+    [InlineData("Смотрел фильм с Жан-Клодом ван Даммом, Жан-Клод хорош.")]
+    public void Part_of_a_hyphenated_word_is_not_a_term(string text) =>
+        Assert.Equal(text, Terms.Replace(text));
 }
 
 public class SpacingTests
