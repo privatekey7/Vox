@@ -80,26 +80,14 @@ public partial class RecordingPill : Window
                 return;
         }
 
-        if (!IsVisible)
-        {
-            base.Show();
-        }
-
-        UpdateLayout();
-        PlaceAtBottom();
+        ShowAtBottom();
     }
 
     internal void ShowLearned(string wrong, string correct)
     {
         _hide.Stop();
         SetMessage("\uE82D", "#60CDFF", $"Запомнил: {wrong} → {correct}", "отменить — в Настройки → Словарь");
-        if (!IsVisible)
-        {
-            base.Show();
-        }
-
-        UpdateLayout();
-        PlaceAtBottom();
+        ShowAtBottom();
         HideAfter(TimeSpan.FromSeconds(4));
     }
 
@@ -132,6 +120,20 @@ public partial class RecordingPill : Window
             var shape = 0.55 + 0.45 * Math.Sin(i * 1.7 + elapsed.TotalSeconds * 9);
             _bars[i].Height = 4 + 14 * level * shape;
         }
+    }
+
+    private void ShowAtBottom()
+    {
+        if (!IsVisible)
+        {
+            // Invisible until placed: a fresh window flashed at its default spot for a frame.
+            Opacity = 0;
+            base.Show();
+        }
+
+        UpdateLayout();
+        PlaceAtBottom();
+        Opacity = 1;
     }
 
     private void PlaceAtBottom()
