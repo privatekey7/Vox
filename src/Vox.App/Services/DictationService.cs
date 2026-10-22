@@ -17,6 +17,7 @@ public enum DictationState
     Inserted,
     NotHeard,
     ModelLoading,
+    ModelNotReady,
 }
 
 /// <summary>
@@ -211,6 +212,14 @@ internal sealed class DictationService : IDisposable
         {
             Log.Info($"[REC] Too short ({ms}ms), ignored");
             Report(DictationState.Idle);
+            return;
+        }
+
+        if (Model is null)
+        {
+            // Pressed while the model is still downloading or loading: not the user's fault.
+            Log.Info("[STT] No model loaded yet — dictation skipped");
+            Report(DictationState.ModelNotReady);
             return;
         }
 

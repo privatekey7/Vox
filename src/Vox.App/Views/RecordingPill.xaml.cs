@@ -68,6 +68,10 @@ public partial class RecordingPill : Window
                 SetMessage("", "#FCE100", "Не расслышал — скажите ещё раз", "или проверьте микрофон");
                 HideAfter(TimeSpan.FromSeconds(3));
                 break;
+            case DictationState.ModelNotReady:
+                SetMessage("\uE916", "#60CDFF", "Модель ещё загружается…", "подождите немного");
+                HideAfter(TimeSpan.FromSeconds(2.5));
+                break;
             case DictationState.ModelLoading:
                 return; // loading is shown in the window that started it
             default:
