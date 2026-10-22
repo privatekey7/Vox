@@ -55,7 +55,9 @@ public sealed partial class TermsDictionaryTests
     [InlineData("Открой Clod Cod и кладкод.", "Открой Claude Code и Claude Code.")]
     [InlineData("Проект работает на Gigam, а не на Gigat.", "Проект работает на GigaAM, а не на GigaAM.")]
     [InlineData("Нашёл клад в саду.", "Нашёл клад в саду.")] // "клад" alone is a treasure
-        public void Each_group_maps_its_terms(string spoken, string expected) =>
+        [InlineData("Спроси джеммини, джмини и гимине.", "Спроси Gemini, Gemini и Gemini.")]
+    [InlineData("Это алалам.", "Это LLM.")]
+    public void Each_group_maps_its_terms(string spoken, string expected) =>
         Assert.Equal(expected, Terms.Replace(spoken));
 
     // Settled borrowings are written in Cyrillic (owner's decision): nothing to replace, only spelling fixes.

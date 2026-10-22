@@ -21,14 +21,21 @@ public static partial class ClaudeNames
         @"(?:(?<in>клаудн|клауден|клаудан|клаудин)\s+(?:хром[а-я]*|chrome)" +
         @"|(?<code>клоудкоз[а-я]*|клоудкод[а-я]*|клаудкод[а-я]*|клотко[а-я]*)|";
 
+    // GigaAM's Latin spellings of "Claude in Chrome" (owner's live test): "Clouding chrome", "Clodenchom".
+    private const string LatinLead = Lead +
+        @"(?<in>clouding|clouden|cloudin|clodin|cloden)\s+(?:chrome|home|хром[а-я]*)|(?<in>clodenchom|cloudinchrome)|";
+
     private const string Tail =
         @"(?:а|у|ом|е|ы)?(?![\p{L}\p{Nd}-])(?!\s+(?:" + After + @")(?![\p{L}]))" +
         @"(?:\s+(?:(?<code>code|код[а-я]*)|(?<desktop>desktop|десктоп[а-я]*|дескоп[а-я]*|дископ[а-я]*)" +
-        @"|(?:(?:and|in|ин|энд|н)\s+)?(?<chrome>chrome|хром[а-я]*)|(?<ai>ai|ай|эй\s+ай)))?" +
+        @"|(?:(?:and|in|ин|энд|н)\s+)?(?<chrome>chrome|хром[а-я]*)|(?:and|in|ин|энд)\s+(?<chrome>home)|(?<ai>ai|ай|эй\s+ай)))?" +
         @")(?![\p{L}\p{Nd}-])";
 
-    private const string Pattern = Lead + "(?:cloud|клауд|клоуд|клот|клод)" + Tail;
-    private const string CyrillicPattern = Lead + "(?:клауд|клоуд|клот|клод)" + Tail;
+    private const string Pattern = LatinLead + "(?:cloud|клауд|клоуд|клот|клод)" + AmpersandChrome + Tail;
+    private const string CyrillicPattern = Lead + "(?:клауд|клоуд|клот|клод)" + AmpersandChrome + Tail;
+
+    // "Cloud& chrome" (owner's live test): the "&" glued to the name.
+    private const string AmpersandChrome = @"(?:\s*&\s*(?<chrome>chrome|хром[а-я]*))?";
 
     [GeneratedRegex(Pattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex Name();

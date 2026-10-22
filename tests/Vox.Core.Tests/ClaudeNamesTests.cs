@@ -18,6 +18,12 @@ public sealed class ClaudeNamesTests
     [InlineData("Открой клод в дископте.", "Открой Claude в дископте.")]
     [InlineData("Открой клод дископ.", "Открой Claude Desktop.")]
     [InlineData("Это клот.", "Это Claude.")]
+    // Owner's live test (GigaAM).
+    [InlineData("Открой Clouding chrome.", "Открой Claude in Chrome.")]
+    [InlineData("Открой Clouden Home.", "Открой Claude in Chrome.")]
+    [InlineData("Открой Cloud in Home.", "Открой Claude in Chrome.")]
+    [InlineData("Открой Clodenchom.", "Открой Claude in Chrome.")]
+    [InlineData("Открой Cloud& chrome.", "Открой Claude in Chrome.")]
     [InlineData("Cloud Opus четыре и пять.", "Claude Opus 4.5.")]
     public void Russian_model_cloud_is_claude(string raw, string expected) => Assert.Equal(expected, Ru(raw));
 
