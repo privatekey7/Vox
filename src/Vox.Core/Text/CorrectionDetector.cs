@@ -80,7 +80,7 @@ public static class CorrectionDetector
             return null;
         }
 
-        return (wrong.ToLowerInvariant(), correct);
+        return Declension.BaseForm(wrong.ToLowerInvariant(), correct); // one entry for all case forms
     }
 
     /// <summary>Do two words look like spellings of the same sound (across Cyrillic and Latin)?</summary>

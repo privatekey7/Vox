@@ -6,11 +6,15 @@ using System.Text.RegularExpressions;
 namespace Vox.Core.Text;
 
 /// <summary>Russian phonetic → English tech term replacements ("гитхаб" → "GitHub").</summary>
-public static class Terms
+public static partial class Terms
 {
     private static readonly Lazy<(Regex Pattern, string Replacement)[]> Rules = new(Load);
 
-    /// <summary>Apply every replacement in dictionary order (later rules see earlier output).</summary>
+    // Case forms of single-word terms ("гитхабе" → "GitHub"), minus forms that are ordinary Russian
+    // words (Data/no-declension.json, generated against a frequency list: docs/declension.md).
+    private static readonly Lazy<Dictionary<string, (string Source, string Replacement, string Ending)>> Declined = new(LoadDeclined);
+
+    /// <summary>Apply every replacement in dictionary order (later rules see earlier output), then case forms.</summary>
     public static string Replace(string text)
     {
         foreach (var (pattern, replacement) in Rules.Value)
@@ -18,7 +22,43 @@ public static class Terms
             text = pattern.Replace(text, _ => replacement);
         }
 
-        return text;
+        return CyrillicWord().Replace(text, m =>
+            Declined.Value.TryGetValue(m.Value.ToLowerInvariant(), out var d)
+                ? Declension.Inflect(d.Replacement, d.Source, d.Ending) ?? m.Value
+                : m.Value);
+    }
+
+    [GeneratedRegex(@"(?<![\p{L}\p{Nd}])[а-яёА-ЯЁ]{5,}(?![\p{L}\p{Nd}])")]
+    private static partial Regex CyrillicWord();
+
+    private static Dictionary<string, (string, string, string)> LoadDeclined()
+    {
+        var sources = LoadPairs().Select(p => p[0].ToLowerInvariant()).ToHashSet();
+        var excluded = LoadResource<string[]>("Vox.Core.no-declension.json").ToHashSet();
+        var forms = new Dictionary<string, (string, string, string)>();
+        var ambiguous = new HashSet<string>();
+        foreach (var pair in LoadPairs().Where(p => !p[0].Contains(' ', StringComparison.Ordinal)))
+        {
+            foreach (var (form, ending) in Declension.Forms(pair[0]))
+            {
+                if (sources.Contains(form) || excluded.Contains(form))
+                {
+                    continue; // a term of its own, or an ordinary word
+                }
+
+                if (!forms.TryAdd(form, (pair[0], pair[1], ending)) && forms[form].Item2 != pair[1])
+                {
+                    ambiguous.Add(form); // two terms share this form: keep neither
+                }
+            }
+        }
+
+        foreach (var form in ambiguous)
+        {
+            forms.Remove(form);
+        }
+
+        return forms;
     }
 
     private static readonly Lazy<HashSet<string>> TermWords = new(() =>
@@ -27,13 +67,18 @@ public static class Terms
     /// <summary>Is this word (exact case) part of a term's spelling ("Docker", "GitHub")?</summary>
     public static bool IsTermForm(string word) => TermWords.Value.Contains(word);
 
+    private static string[][] LoadPairs() => LoadResource<string[][]>("Vox.Core.terms.json");
+
+    private static T LoadResource<T>(string name)
+    {
+        using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(name)
+            ?? throw new InvalidOperationException($"Embedded {name} is missing");
+        return JsonSerializer.Deserialize<T>(stream) ?? throw new InvalidOperationException($"{name} is empty");
+    }
+
     private static (Regex, string)[] Load()
     {
-        using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("Vox.Core.terms.json")
-            ?? throw new InvalidOperationException("Embedded terms.json is missing");
-        var pairs = JsonSerializer.Deserialize<string[][]>(stream)
-            ?? throw new InvalidOperationException("terms.json is empty");
-        return pairs
+        return LoadPairs()
             .Select(p => (new Regex(@"\b" + Regex.Escape(p[0]) + @"\b",
                 RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled), p[1]))
             .ToArray();
@@ -193,12 +238,27 @@ public static class UserCorrections
             return text;
         }
 
+        var declined = new Dictionary<string, (string Source, string Correct, string Ending)>();
+        foreach (var (source, correct) in corrections)
+        {
+            foreach (var (form, ending) in Declension.Forms(source))
+            {
+                if (!corrections.ContainsKey(form))
+                {
+                    declined.TryAdd(form, (source, correct, ending));
+                }
+            }
+        }
+
         var words = text.Split(' ');
         for (var i = 0; i < words.Length; i++)
         {
             var word = words[i];
             var stripped = word.Trim(WordPunct.ToCharArray());
-            if (!corrections.TryGetValue(stripped.ToLowerInvariant(), out var replacement))
+            var key = stripped.ToLowerInvariant();
+            if (!corrections.TryGetValue(key, out var replacement)
+                && !(declined.TryGetValue(key, out var d) && Declension.Inflect(d.Correct, d.Source, d.Ending) is { } inflected
+                     && (replacement = inflected) is not null))
             {
                 continue;
             }
