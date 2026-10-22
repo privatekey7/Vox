@@ -39,7 +39,7 @@ public static partial class ModelVersions
         new("Claude Opus", " "), new("Claude Sonnet", " "), new("Claude Haiku", " "),
         new("Claude", " ", Suffixes: ClaudeFamily, NeedsDetail: true),
         new("Opus", " "), new("Sonnet", " "), new("Haiku", " "),
-        new("GPT", "-", Suffixes: Gpt), new("GLM", "-"), new("YandexGPT", " "), new("GigaChat", " "),
+        new("GPT", "-", Suffixes: Gpt), new("GPT Image", " "), new("ChatGPT", " "), new("GLM", "-"), new("YandexGPT", " "), new("GigaChat", " "),
         new("Gemini", " ", Suffixes: Gemini), new("Gemma", " "), new("Grok", " "), new("Llama", " "),
         new("DeepSeek", " ", new() { ["ви"] = "V", ["вэ"] = "V", ["v"] = "V", ["эр"] = "R", ["r"] = "R" }),
         new("Qwen", ""), new("Mistral", " "), new("Mixtral", " "), new("Kimi", " ", K),
@@ -53,7 +53,7 @@ public static partial class ModelVersions
         ["опус"] = new("Opus", " ", DecimalOnly: true), ["сонет"] = new("Sonnet", " ", DecimalOnly: true),
         ["соннет"] = new("Sonnet", " ", DecimalOnly: true), ["хайку"] = new("Haiku", " ", DecimalOnly: true),
         ["лама"] = new("Llama", " "), ["джемма"] = new("Gemma", " "), ["кандинский"] = new("Kandinsky", " "),
-        ["сора"] = new("Sora", " "), ["кими"] = new("Kimi", " ", K),
+        ["сора"] = new("Sora", " "), ["чат GPT"] = new("ChatGPT", " "), ["кими"] = new("Kimi", " ", K),
     };
 
     private static readonly Dictionary<string, int> Numbers = new()
@@ -72,7 +72,7 @@ public static partial class ModelVersions
         var suffixes = string.Join('|', Brands.Values.SelectMany(b => (IEnumerable<string>?)b.Suffixes?.Keys ?? []).Distinct().OrderByDescending(k => k.Length));
         var number = @"\d+|" + string.Join('|', Numbers.Keys.OrderByDescending(k => k.Length));
         return new Regex(
-            $@"(?<![\p{{L}}\p{{Nd}}-])(?<name>{names})(?:\s+|-)(?:(?<pre>{prefixes})\s*)?(?<major>{number})" +
+            $@"(?<![\p{{L}}\p{{Nd}}-])(?<name>{names})(?:\s+|-|(?=\d))(?:(?<pre>{prefixes})\s*)?(?<major>{number})" +
             $@"(?:(?:\s+и\s+|\s*(?:\.|точка)\s*|,)(?<minor>{number}))?(?![\p{{L}}\p{{Nd}}])" +
             $@"(?:\s*(?<suffix>{suffixes})(?![\p{{L}}\p{{Nd}}]))?",
             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);

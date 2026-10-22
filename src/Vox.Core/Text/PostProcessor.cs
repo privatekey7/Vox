@@ -4,7 +4,7 @@ namespace Vox.Core.Text;
 
 /// <summary>
 /// Turns raw model output into the text that is pasted:
-/// &lt;unk&gt; → user dictionary → terms → model versions → key shortcuts → fillers → ITN (if the model needs it)
+/// &lt;unk&gt; → user dictionary → Claude (Russian model) → terms → model versions → key shortcuts → fillers → ITN (if the model needs it)
 /// → dashes → currency → sentence spacing
 /// → one leading space.
 /// </summary>
@@ -22,6 +22,11 @@ public sealed class PostProcessor(SpeechModel model)
 
         var text = UnknownToken.Remove(raw);
         text = corrections is null ? text : UserCorrections.Apply(text, corrections);
+        if (model.Language == "ru")
+        {
+            text = ClaudeNames.Apply(text); // GigaAM hears Claude as "Cloud"
+        }
+
         text = Terms.Replace(text);
         text = ModelVersions.Apply(text);
         text = KeyCombos.Apply(text);

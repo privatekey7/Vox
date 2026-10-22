@@ -33,7 +33,14 @@ public sealed partial class TermsDictionaryTests
     // general IT
     [InlineData("Подними в докер компоузе на убунту.", "Подними в docker-compose на Ubuntu.")]
     [InlineData("Проверь гитхаб экшенс.", "Проверь GitHub Actions.")]
-    public void Each_group_maps_its_terms(string spoken, string expected) =>
+    // Owner's log candidates (coordinator, 22.10).
+    [InlineData("Открой оупен код и опенвид.", "Открой OpenCode и OpenVid.")]
+    [InlineData("Через харнес силай и гит пул.", "Через Harness CLI и git pull.")]
+    [InlineData("Ролик в ремоушен, анимация из миксамо.", "Ролик в Remotion, анимация из Mixamo.")]
+    [InlineData("Кошелёк рэби уоллет на арбитрум.", "Кошелёк Rabby Wallet на Arbitrum.")]
+    [InlineData("Лежит в гугл драйв, а не на гугл диске.", "Лежит в Google Drive, а не на Google Диске.")]
+    [InlineData("Надо закомитить промп.", "Надо закоммитить промпт.")]
+        public void Each_group_maps_its_terms(string spoken, string expected) =>
         Assert.Equal(expected, Terms.Replace(spoken));
 
     // Settled borrowings are written in Cyrillic (owner's decision): nothing to replace, only spelling fixes.
