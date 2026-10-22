@@ -59,6 +59,7 @@ public static class CorrectionDetector
 
         var wrong = string.Join(' ', old.Skip(os).Take(oe - os).Select(w => w.Text)).Trim(WordPunct.ToCharArray());
         var correct = now[ns].Text.Trim(WordPunct.ToCharArray());
+        (wrong, correct) = ChangedPart(wrong, correct);
         if (wrong.Length == 0 || correct.Length == 0
             || string.Equals(wrong, correct, StringComparison.OrdinalIgnoreCase)
             || !LookAlike(wrong, correct)
@@ -134,6 +135,20 @@ public static class CorrectionDetector
             .Where(c => c.OldEnd > first && c.OldStart <= last)
             .ToList();
         return (old, now, changes, first, last);
+    }
+
+    // A hyphenated word with one part fixed: the pair is that part ("ЛМ-полировки" → "LLM-полировки" is "ЛМ" → "LLM").
+    private static (string Wrong, string Correct) ChangedPart(string wrong, string correct)
+    {
+        var a = wrong.Split('-');
+        var b = correct.Split('-');
+        if (a.Length < 2 || a.Length != b.Length)
+        {
+            return (wrong, correct);
+        }
+
+        var changed = Enumerable.Range(0, a.Length).Where(i => a[i] != b[i]).ToList();
+        return changed is [var only] ? (a[only], b[only]) : (wrong, correct);
     }
 
     /// <summary>Do two words look like spellings of the same sound (across Cyrillic and Latin)?</summary>

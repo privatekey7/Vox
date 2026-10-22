@@ -34,4 +34,8 @@ public sealed class NotepadLearningTests
     public void Edits_outside_the_dictation_are_reported_as_such() =>
         Assert.Equal("no change inside the dictation",
             CorrectionDetector.Describe("Открой сервис PPFI.", "Открой сервис PPFI.\r\n Дальше", Inserted));
+
+    [Fact]
+    public void Only_the_changed_part_of_a_hyphenated_word_is_the_pair() =>
+        Assert.Equal(("ЛМ", "LLM"), CorrectionDetector.Detect("Нужна ЛМ-полировки текста.", "Нужна LLM-полировки текста.", "Нужна ЛМ-полировки текста."));
 }
