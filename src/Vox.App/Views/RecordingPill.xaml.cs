@@ -62,7 +62,7 @@ public partial class RecordingPill : Window
                 break;
             case DictationState.Inserted:
                 SetMessage("", "#6CCB5F", "Вставлено", "");
-                HideAfter(TimeSpan.FromSeconds(1.2));
+                HideAfter(TimeSpan.FromSeconds(0.5));
                 break;
             case DictationState.NotHeard:
                 SetMessage("", "#FCE100", "Не расслышал — скажите ещё раз", "или проверьте микрофон");
