@@ -18,6 +18,9 @@ public enum LearnResult
     /// <summary>Under 3 letters: too short to learn automatically (the dictionary takes it by hand).</summary>
     TooShort,
 
+    /// <summary>The user turned a replacement back ("Vox" → "бокс" with "бокс → Vox"): nothing changes.</summary>
+    Reverted,
+
     /// <summary>The entry went back and forth twice ("GitHub" ↔ "Github"): it is no longer changed automatically.</summary>
     Pinned,
 }
@@ -73,6 +76,15 @@ public sealed class SelfLearning(VoxDatabase db)
         lock (_lock)
         {
             var entries = db.DictionaryEntries();
+
+            // "бокс → Vox" exists and the user wrote "Vox" back as "бокс": they meant the sport here, not a
+            // typo in the target. Never learn the reverse pair either.
+            var spoken = correct.ToLowerInvariant();
+            if (entries.Any(e => string.Equals(e.Correct, wrong, StringComparison.OrdinalIgnoreCase)
+                    && (e.Wrong == spoken || Declension.Forms(e.Wrong).Any(f => f.Form == spoken))))
+            {
+                return (LearnResult.Reverted, wrong, correct);
+            }
 
             // The user fixed a word Vox itself wrote from their dictionary (a typo when it was learned):
             // fix that entry's target instead of chaining "GitHbu → GitHub" onto "гитхап → GitHbu".

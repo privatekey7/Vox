@@ -114,4 +114,16 @@ public sealed class SelfLearningTests : IDisposable
         Assert.Equal(LearnResult.Pinned, _learning.Learn("гитхап", "GitHab").Result); // a new pair for the same word too
         Assert.Equal("Github", _db.Corrections()["гитхап"]);
     }
+
+    [Theory]
+    [InlineData("Vox", "бокс")]
+    [InlineData("Vox", "бокса")] // a case form of the source
+    public void Turning_a_replacement_back_changes_nothing(string wrong, string correct)
+    {
+        // Owner: "бокс → Vox" by hand; when he means the sport he writes "Vox" back as "бокс".
+        _db.AddDictionaryEntry("бокс", "Vox", "", "manual");
+
+        Assert.Equal(LearnResult.Reverted, _learning.Learn(wrong, correct).Result);
+        Assert.Equal(new Dictionary<string, string> { ["бокс"] = "Vox" }, _db.Corrections()); // no "vox → бокс"
+    }
 }

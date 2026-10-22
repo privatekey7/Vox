@@ -72,6 +72,7 @@ internal sealed class DictationService : IDisposable
                 LearnResult.CommonWord => "the fixed word is an ordinary Russian word: not learned (add it in the dictionary by hand)",
                 LearnResult.NotTyped => "the text changed without your typing (autocorrect?): nothing learned",
                 LearnResult.TooShort => "too short to learn automatically",
+                LearnResult.Reverted => "you reverted a dictionary replacement here: nothing changed",
                 LearnResult.Pinned => "this entry went back and forth twice: it is pinned, change it in the dictionary by hand",
                 _ => null,
             };
