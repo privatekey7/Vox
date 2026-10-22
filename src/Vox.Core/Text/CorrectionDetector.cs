@@ -29,17 +29,33 @@ public static class CorrectionDetector
     /// <param name="before">Field text right after the dictation was pasted.</param>
     /// <param name="after">The same field later.</param>
     /// <param name="inserted">The pasted dictation (without the leading separator).</param>
-    public static (string Wrong, string Correct)? Detect(string before, string after, string inserted)
+    /// <param name="isTarget">Is this word a dictionary target Vox wrote itself ("Fluxar" from "флюксар → Fluxar")?
+    /// A fix of such a word is a typo in the target, so the grammar-edit guard does not apply.</param>
+    public static (string Wrong, string Correct)? Detect(string before, string after, string inserted, Func<string, bool>? isTarget = null) =>
+        Analyze(before, after, inserted, isTarget).Pair;
+
+    private static ((string Wrong, string Correct)? Pair, string Reason) Analyze(
+        string before, string after, string inserted, Func<string, bool>? isTarget)
     {
         if (Changes(before, after, inserted) is not var (old, now, changes, first, last))
         {
-            return null;
+            return (null, "the dictation is no longer in the field");
+        }
+
+        if (changes.Count == 0)
+        {
+            return (null, "no change inside the dictation");
         }
 
         // One word, or a term the model split in two or three ("Zena Koder." → "Zencoder.").
-        if (changes is not [{ OldStart: var os, OldEnd: var oe, NewStart: var ns, NewEnd: var ne }] || oe - os is < 1 or > MaxSplitWords)
+        if (changes is not [{ OldStart: var os, OldEnd: var oe, NewStart: var ns, NewEnd: var ne }])
         {
-            return null;
+            return (null, "several places changed");
+        }
+
+        if (oe - os is < 1 or > MaxSplitWords)
+        {
+            return (null, "not a word replacement");
         }
 
         // The user went on typing right after (or before) the fixed word: "PPFI." → "Pipify. Дальше".
@@ -54,45 +70,48 @@ public static class CorrectionDetector
 
         if (ne - ns != 1)
         {
-            return null;
+            return (null, "not a word replacement");
         }
 
         var wrong = string.Join(' ', old.Skip(os).Take(oe - os).Select(w => w.Text)).Trim(WordPunct.ToCharArray());
         var correct = now[ns].Text.Trim(WordPunct.ToCharArray());
         (wrong, correct) = ChangedPart(wrong, correct);
-        if (wrong.Length == 0 || correct.Length == 0
-            || string.Equals(wrong, correct, StringComparison.OrdinalIgnoreCase)
-            || !LookAlike(wrong, correct)
-            || IsGrammarEdit(wrong, correct))
+        if (wrong.Length == 0 || correct.Length == 0 || string.Equals(wrong, correct, StringComparison.OrdinalIgnoreCase))
         {
-            return null;
+            return (null, "only punctuation or case changed");
+        }
+
+        if (Similarity(wrong, correct) is var similarity && similarity < MinSimilarity)
+        {
+            return (null, string.Create(System.Globalization.CultureInfo.InvariantCulture, $"the words are not alike ({similarity:0.00})"));
+        }
+
+        if (IsGrammarEdit(wrong, correct) && isTarget?.Invoke(wrong) != true)
+        {
+            return (null, "a grammar or typo edit of an ordinary word");
         }
 
         // As the user fixed it, case kept ("Лебовски" → "Lebowski"): the dictionary stores it lower-cased
         // and UserCorrections works out the base form for other cases.
-        return (wrong, correct);
+        return ((wrong, correct), "");
     }
 
     /// <summary>
-    /// Short log line for an edit that was not learned: how many word changes touch the dictation and
-    /// which ("2 changes: \"PPFI.\" → \"Pipify.\", \"\" → \"тест\"").
+    /// Short log line for an edit that was not learned: why, and which word changes touch the dictation
+    /// ("several places changed; 2 changes: \"PPFI.\" → \"Pipify.\", \"\" → \"тест\"").
     /// </summary>
-    public static string Describe(string before, string after, string inserted)
+    public static string Describe(string before, string after, string inserted, Func<string, bool>? isTarget = null)
     {
-        if (Changes(before, after, inserted) is not var (old, now, changes, _, _))
+        var reason = Analyze(before, after, inserted, isTarget).Reason;
+        if (Changes(before, after, inserted) is not var (old, now, changes, _, _) || changes.Count == 0)
         {
-            return "the dictation is no longer in the field";
-        }
-
-        if (changes.Count == 0)
-        {
-            return "no change inside the dictation";
+            return reason;
         }
 
         string Span(List<Word> words, int from, int to) =>
             Clip(string.Join(' ', words.Skip(from).Take(to - from).Select(w => w.Text)));
         var shown = changes.Take(3).Select(c => $"\"{Span(old, c.OldStart, c.OldEnd)}\" → \"{Span(now, c.NewStart, c.NewEnd)}\"");
-        return $"{changes.Count} change{(changes.Count == 1 ? "" : "s")}: {string.Join(", ", shown)}{(changes.Count > 3 ? ", …" : "")}";
+        return $"{reason}; {changes.Count} change{(changes.Count == 1 ? "" : "s")}: {string.Join(", ", shown)}{(changes.Count > 3 ? ", …" : "")}";
     }
 
     private static string Clip(string s) => s.Length > 40 ? s[..40] + "…" : s;
@@ -152,12 +171,14 @@ public static class CorrectionDetector
     }
 
     /// <summary>Do two words look like spellings of the same sound (across Cyrillic and Latin)?</summary>
-    public static bool LookAlike(string a, string b)
+    public static bool LookAlike(string a, string b) => Similarity(a, b) >= MinSimilarity;
+
+    private static double Similarity(string a, string b)
     {
         var x = Latin(a).Replace(" ", "", StringComparison.Ordinal); // "zena koder" vs "zencoder"
         var y = Latin(b).Replace(" ", "", StringComparison.Ordinal);
         var longest = Math.Max(x.Length, y.Length);
-        return longest > 0 && 1.0 - (double)Levenshtein(x, y) / longest >= MinSimilarity;
+        return longest == 0 ? 0 : 1.0 - (double)Levenshtein(x, y) / longest;
     }
 
     /// <summary>

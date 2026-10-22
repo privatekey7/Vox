@@ -64,6 +64,7 @@ internal sealed class DictationService : IDisposable
         _processor = new Thread(ProcessLoop) { IsBackground = true, Name = "VoxProcessor" };
         _processor.Start();
         _watcher.Enabled = settings.LearnCorrections;
+        _watcher.IsTarget = _learning.IsTarget;
         _watcher.Learned += (shown, correct, userTyped) =>
         {
             var (result, wrong, target) = _learning.Learn(shown, correct, userTyped);

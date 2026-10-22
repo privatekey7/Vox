@@ -75,6 +75,18 @@ public sealed class SelfLearningTests : IDisposable
     }
 
     [Fact]
+    public void A_typo_in_a_learned_target_is_fixed_from_the_field()
+    {
+        // Owner's Windows test (22.10): the field edit went through the detector, which turned it down.
+        _learning.Learn("флюксар", "Fluxar");
+        var pair = CorrectionDetector.Detect("Новый Fluxar.", "Новый Fluxor.", "Новый Fluxar.", _learning.IsTarget);
+
+        Assert.Equal(("Fluxar", "Fluxor"), pair);
+        Assert.Equal((LearnResult.TargetFixed, "флюксар", "Fluxor"), _learning.Learn(pair!.Value.Wrong, pair.Value.Correct));
+        Assert.Equal(new Dictionary<string, string> { ["флюксар"] = "Fluxor" }, _db.Corrections());
+    }
+
+    [Fact]
     public void Undo_brings_back_the_previous_target()
     {
         _db.AddDictionaryEntry("кубер", "Kubernets", "", "manual");

@@ -86,4 +86,22 @@ public class CorrectionDetectorTests
     [InlineData("керил", "Кирилл")]
     public void Misheard_words_are_still_learned(string wrong, string correct) =>
         Assert.Equal((wrong, correct), CorrectionDetector.Detect($"Это {wrong} тут.", $"Это {correct} тут.", $"Это {wrong} тут."));
+
+    // Owner's Windows test (22.10): Vox wrote its own target "Fluxar" and the user fixed it to "Fluxor".
+    [Theory]
+    [InlineData("Новый Fluxar.", "Новый Fluxor.", "Fluxar", "Fluxor")]
+    [InlineData("Открой GitHbu.", "Открой GitHub.", "GitHbu", "GitHub")]
+    public void A_typo_fix_in_a_dictionary_target_is_a_correction(string before, string after, string wrong, string correct)
+    {
+        Assert.Equal((wrong, correct), CorrectionDetector.Detect(before, after, before, w => w == wrong));
+        Assert.Null(CorrectionDetector.Detect(before, after, before)); // an ordinary word: a typo or grammar fix
+        Assert.Equal($"a grammar or typo edit of an ordinary word; 1 change: \"{wrong}.\" → \"{correct}.\"",
+            CorrectionDetector.Describe(before, after, before));
+    }
+
+    // Owner's Windows test: "треде" is a case form of "тред"; learning "треде → tray" would break "в треде".
+    [Fact]
+    public void Unlike_words_are_not_learned_and_the_log_says_why() =>
+        Assert.Equal("the words are not alike (0.40); 1 change: \"треде\" → \"tray\"",
+            CorrectionDetector.Describe("Свернуть в треде и выйти.", "Свернуть в tray и выйти.", "Свернуть в треде и выйти."));
 }

@@ -46,6 +46,15 @@ public sealed class SelfLearning(VoxDatabase db)
     /// <summary>Is this an ordinary Russian word form ("рак", "блоге")?</summary>
     public static bool IsCommonWord(string word) => CommonWords.Value.Contains(word.ToLowerInvariant());
 
+    /// <summary>Did Vox write this word from the dictionary ("Fluxar" from "флюксар → Fluxar")?</summary>
+    public bool IsTarget(string word)
+    {
+        lock (_lock)
+        {
+            return db.DictionaryEntries().Any(e => string.Equals(e.Correct, word, StringComparison.OrdinalIgnoreCase));
+        }
+    }
+
     public bool CanUndo
     {
         get

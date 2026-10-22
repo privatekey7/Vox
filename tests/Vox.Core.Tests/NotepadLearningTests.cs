@@ -17,7 +17,7 @@ public sealed class NotepadLearningTests
 
     [Fact]
     public void Describe_lists_the_word_changes_for_the_log() =>
-        Assert.Equal("1 change: \"сервис PPFI.\" → \"сайт Pipify.\"",
+        Assert.Equal("the words are not alike (0.20); 1 change: \"сервис PPFI.\" → \"сайт Pipify.\"",
             CorrectionDetector.Describe("Задачи:\r\n Открой сервис PPFI.", "Задачи:\r\n Открой сайт Pipify.", Inserted));
 
     // Owner's test: the model split the term in two words, the user typed on after the fix.

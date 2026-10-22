@@ -56,6 +56,9 @@ internal sealed class FieldWatcher : IDisposable
         _poll = new Timer(_ => Enqueue(() => Check(requireStable: true)), null, StableFor, StableFor);
     }
 
+    /// <summary>Is this word a dictionary target (a fix of it is a typo in the target)? See <see cref="CorrectionDetector.Detect"/>.</summary>
+    public Func<string, bool>? IsTarget { get; set; }
+
     /// <summary>The user fixed a dictated word: (wrong, correct).</summary>
     /// <remarks>The third value: the user typed in that window since the paste (not autocorrect).</remarks>
     public event Action<string, string, bool>? Learned;
@@ -175,17 +178,17 @@ internal sealed class FieldWatcher : IDisposable
         }
 
         _pending = null;
-        if (CorrectionDetector.Detect(p.Before, now, p.Inserted) is var (wrong, correct))
+        if (CorrectionDetector.Detect(p.Before, now, p.Inserted, IsTarget) is var (wrong, correct))
         {
             Log.Info($"[LEARN] Correction: \"{wrong}\" → \"{correct}\"");
             Learned?.Invoke(wrong, correct, KeyboardHook.UserTypedIn(p.Window, p.PastedTick));
         }
         else
         {
-            var diff = CorrectionDetector.Describe(p.Before, now, p.Inserted);
+            var diff = CorrectionDetector.Describe(p.Before, now, p.Inserted, IsTarget);
             Log.Info(diff.StartsWith("no change", StringComparison.Ordinal)
                 ? "[LEARN] The field changed outside the dictation: nothing learned"
-                : $"[LEARN] The field was edited, but not as a one-word fix: nothing learned ({diff})");
+                : $"[LEARN] The field was edited, nothing learned: {diff}");
         }
     }
 
