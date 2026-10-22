@@ -198,4 +198,70 @@ internal static partial class Native
         type = INPUT_KEYBOARD,
         ki = new KEYBDINPUT { wVk = vk, dwFlags = up ? KEYEVENTF_KEYUP : 0, dwExtraInfo = VoxInputMarker },
     };
+
+    // Reading a focused control's text without UI Automation (FieldWatcher, Notepad++/Scintilla).
+    public const uint WM_GETTEXT = 0x000D;
+    public const uint WM_GETTEXTLENGTH = 0x000E;
+    public const uint SMTO_ABORTIFHUNG = 0x0002;
+    public const int GWL_STYLE = -16;
+    public const int ES_PASSWORD = 0x0020;
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct RECT
+    {
+        public int Left, Top, Right, Bottom;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct GUITHREADINFO
+    {
+        public int cbSize;
+        public uint flags;
+        public nint hwndActive, hwndFocus, hwndCapture, hwndMenuOwner, hwndMoveSize, hwndCaret;
+        public RECT rcCaret;
+    }
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool GetGUIThreadInfo(uint idThread, ref GUITHREADINFO pgui);
+
+    [LibraryImport("user32.dll", EntryPoint = "SendMessageTimeoutW")]
+    public static partial nint SendMessageTimeout(nint hWnd, uint msg, nint wParam, nint lParam, uint flags, uint timeout, out nint result);
+
+    [LibraryImport("user32.dll", EntryPoint = "GetClassNameW")]
+    public static unsafe partial int GetClassName(nint hWnd, char* lpClassName, int nMaxCount);
+
+    /// <summary>The focused control of the foreground window (other process included), or 0.</summary>
+    public static nint FocusedControl()
+    {
+        var thread = GetWindowThreadProcessId(GetForegroundWindow(), out _);
+        var info = new GUITHREADINFO { cbSize = Marshal.SizeOf<GUITHREADINFO>() };
+        return thread != 0 && GetGUIThreadInfo(thread, ref info) ? info.hwndFocus : 0;
+    }
+
+    public static unsafe string ClassName(nint hwnd)
+    {
+        var buffer = stackalloc char[256];
+        var length = GetClassName(hwnd, buffer, 256);
+        return length > 0 ? new string(buffer, 0, length) : "?";
+    }
+
+    /// <summary>WM_GETTEXTLENGTH with a timeout (a hung app answers -1).</summary>
+    public static int WindowTextLength(nint hwnd, uint timeoutMs) =>
+        SendMessageTimeout(hwnd, WM_GETTEXTLENGTH, 0, 0, SMTO_ABORTIFHUNG, timeoutMs, out var length) == 0 ? -1 : (int)length;
+
+    /// <summary>WM_GETTEXT with a timeout; Windows copies the text across processes.</summary>
+    public static unsafe string? WindowText(nint hwnd, int length, uint timeoutMs)
+    {
+        var buffer = new char[length + 1];
+        fixed (char* p = buffer)
+        {
+            if (SendMessageTimeout(hwnd, WM_GETTEXT, length + 1, (nint)p, SMTO_ABORTIFHUNG, timeoutMs, out var copied) == 0)
+            {
+                return null;
+            }
+
+            return new string(p, 0, (int)Math.Min(copied, length));
+        }
+    }
 }

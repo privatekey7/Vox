@@ -6,7 +6,8 @@ namespace Vox.App.Services;
 
 /// <summary>
 /// Self-learning dictionary: after a dictation is pasted, remembers the focused field's text
-/// (read-only, via UI Automation — the caret and clipboard are never touched). When the field later
+/// (read-only: UI Automation, or WM_GETTEXT for apps without it such as Notepad++ — the caret and
+/// clipboard are never touched). When the field later
 /// shows a single-word fix inside the dictation, <see cref="CorrectionDetector"/> turns it into a
 /// dictionary entry.
 /// </summary>
@@ -19,6 +20,7 @@ namespace Vox.App.Services;
 internal sealed class FieldWatcher : IDisposable
 {
     private const int MaxChars = 20_000;
+    private const uint WindowTextTimeoutMs = 150;
     private static readonly TimeSpan StableFor = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan GiveUpAfter = TimeSpan.FromMinutes(10);
 
@@ -64,33 +66,49 @@ internal sealed class FieldWatcher : IDisposable
     {
         Thread.Sleep(300); // let the target app apply the paste
         _pending = null;
-        var element = AutomationElement.FocusedElement;
-        if (element is null)
+        var element = AutomationElement.FocusedElement; // null: no UIA element, WM_GETTEXT may still work
+        var app = element is not null ? AppName(element) : Native.ForegroundApp().Name;
+        var uiaText = element is not null ? ReadText(element) : null;
+        var hwnd = uiaText is null ? Native.FocusedControl() : 0;
+        if (element is null && hwnd == 0)
         {
-            Log.Info("[LEARN] No focused field — nothing to watch");
+            Log.Info("[LEARN] No focused field: nothing to watch");
             return;
         }
 
-        var app = AppName(element);
-        if ((bool)element.GetCurrentPropertyValue(AutomationElement.IsPasswordProperty))
-        {
-            Log.Info($"[LEARN] Password field in {app} — not read");
-            return;
-        }
+        var windowClass = hwnd != 0 ? Native.ClassName(hwnd) : "?";
+        var isPassword = (element is not null && (bool)element.GetCurrentPropertyValue(AutomationElement.IsPasswordProperty))
+            || (hwnd != 0 && windowClass.Contains("Edit", StringComparison.OrdinalIgnoreCase)
+                && (Native.GetWindowLongPtr(hwnd, Native.GWL_STYLE) & Native.ES_PASSWORD) != 0);
+        var length = hwnd != 0 ? Native.WindowTextLength(hwnd, WindowTextTimeoutMs) : -1;
+        var source = FieldReadPolicy.Choose(uiaText is not null, isPassword, length);
+        Func<string?> read = source == FieldSource.Uia
+            ? () => ReadText(element!)
+            : () => ReadWindowText(hwnd);
 
         // Only the reason is logged, never the field's text.
-        var text = ReadText(element);
-        if (text is null)
+        var text = source switch
         {
-            Log.Info($"[LEARN] {app} does not expose the field's text — cannot learn here");
+            FieldSource.Uia => uiaText,
+            FieldSource.WindowText => read(),
+            _ => null,
+        };
+        if (isPassword)
+        {
+            Log.Info($"[LEARN] Password field in {app}: not read");
+        }
+        else if (text is null)
+        {
+            Log.Info($"[LEARN] {app} (window class {windowClass}) does not expose the field's text: cannot learn here");
         }
         else if (!text.Contains(inserted.Trim(), StringComparison.Ordinal))
         {
-            Log.Info($"[LEARN] The field in {app} does not show the dictation — not watched");
+            Log.Info($"[LEARN] The field in {app} does not show the dictation: not watched");
         }
         else
         {
-            _pending = new Pending(element, text, inserted, DateTime.UtcNow, text, DateTime.UtcNow);
+            Log.Info($"[LEARN] Watching the field in {app} via {(source == FieldSource.Uia ? "uia" : "wm_gettext")}");
+            _pending = new Pending(read, text, inserted, DateTime.UtcNow, text, DateTime.UtcNow);
         }
     });
 
@@ -124,7 +142,7 @@ internal sealed class FieldWatcher : IDisposable
             return;
         }
 
-        var now = ReadText(p.Element);
+        var now = p.Read();
         if (now is null)
         {
             _pending = null;
@@ -167,6 +185,14 @@ internal sealed class FieldWatcher : IDisposable
         }
     }
 
+    private static string? ReadWindowText(nint hwnd)
+    {
+        var length = Native.WindowTextLength(hwnd, WindowTextTimeoutMs);
+        return FieldReadPolicy.Choose(false, false, length) == FieldSource.WindowText
+            ? Native.WindowText(hwnd, length, WindowTextTimeoutMs)
+            : null; // the control went away, hung or grew past the limit
+    }
+
     private static string? ReadText(AutomationElement element)
     {
         if (element.TryGetCurrentPattern(TextPattern.Pattern, out var text))
@@ -184,5 +210,5 @@ internal sealed class FieldWatcher : IDisposable
     }
 
     private sealed record Pending(
-        AutomationElement Element, string Before, string Inserted, DateTime PastedAt, string LastSeen, DateTime LastChange);
+        Func<string?> Read, string Before, string Inserted, DateTime PastedAt, string LastSeen, DateTime LastChange);
 }
