@@ -51,6 +51,10 @@ public sealed partial class TermsDictionaryTests
     [InlineData("Скачай модель гемма и нампай.", "Скачай модель Gemma и NumPy.")]
     [InlineData("Проверь кей пи ай и си ти ар.", "Проверь KPI и CTR.")]
     [InlineData("Спроси клод про погоду.", "Спроси Claude про погоду.")] // "про" is not "Claude Pro" here
+        // Owner's live test (GigaAM, far microphone)
+    [InlineData("Открой Clod Cod и кладкод.", "Открой Claude Code и Claude Code.")]
+    [InlineData("Проект работает на Gigam, а не на Gigat.", "Проект работает на GigaAM, а не на GigaAM.")]
+    [InlineData("Нашёл клад в саду.", "Нашёл клад в саду.")] // "клад" alone is a treasure
         public void Each_group_maps_its_terms(string spoken, string expected) =>
         Assert.Equal(expected, Terms.Replace(spoken));
 
