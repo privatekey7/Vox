@@ -99,6 +99,11 @@ public static partial class Fillers
         "(?<![а-яёa-z-])(?:" + Russian + "|" + string.Join('|', English.OrderByDescending(w => w.Length).Select(Regex.Escape)) + ")(?![а-яёa-z-])",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
+    private const string Marker = "\u2063";
+
+    // Only at a sentence start: "…стоит. А-а, ещё" → "…стоит. Ещё"; mid-sentence fillers do not count.
+    [GeneratedRegex(@"(?<=(?:^|[.!?…])\s*)\u2063[\s,;:]*(\p{Ll})")] private static partial Regex CapitalAfterMarker();
+
     [GeneratedRegex(@"^[\s,;:]+")] private static partial Regex LeadingPunct();
     [GeneratedRegex(@"[,;]\s*[,;]")] private static partial Regex DoubledComma();
     [GeneratedRegex(@"\s[,;]\s")] private static partial Regex LoneComma();
@@ -113,11 +118,15 @@ public static partial class Fillers
             return text;
         }
 
-        var result = Pattern.Replace(text, "");
+        // A capitalised filler leaves a marker, so the next word can take over its capital.
+        var result = Pattern.Replace(text, m => char.IsUpper(m.Value[0]) ? Marker : "");
         if (result == text)
         {
             return result;
         }
+
+        result = CapitalAfterMarker().Replace(result, m => m.Groups[1].Value.ToUpperInvariant());
+        result = result.Replace(Marker, "", StringComparison.Ordinal);
 
         // Tidy punctuation left behind: "Э-э, запусти" → ", запусти" → "запусти".
         result = LeadingPunct().Replace(result, "");

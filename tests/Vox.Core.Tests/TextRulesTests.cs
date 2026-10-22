@@ -45,6 +45,8 @@ public class FillersTests
     [InlineData("м-м-м, хммм, да", "да")]
     [InlineData("Мама мыла раму", "Мама мыла раму")]
     [InlineData("А мы ам", "А мы ам")]
+    // Regression: a capital was lost when a filler started the sentence.
+    [InlineData("Да, у меня всегда это стоит. А-а, ещё не пробовал", "Да, у меня всегда это стоит. Ещё не пробовал")]
     public void Remove_strips_hesitation_sounds_only(string text, string expected) =>
         Assert.Equal(expected, Fillers.Remove(text));
 }
