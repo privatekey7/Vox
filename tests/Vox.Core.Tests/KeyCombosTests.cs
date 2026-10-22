@@ -21,6 +21,13 @@ public sealed class KeyCombosTests
     [InlineData("контрол, икс", "Ctrl+X")]
     [InlineData("Ctrl+S", "Ctrl+S")]
     [InlineData("контрол плюс 1", "Ctrl+1")]
+    [InlineData("Contrl C", "Ctrl+C")]
+    [InlineData("contral V", "Ctrl+V")]
+    [InlineData("Контрол вэ", "Ctrl+V")]
+    [InlineData("контрол зет", "Ctrl+Z")]
+    [InlineData("Contrl A", "Ctrl+A")]
+    [InlineData("контрол 1", "Ctrl+1")]
+    [InlineData("контрол эф пять", "Ctrl+F5")]
     [InlineData("Нажми Control B.", "Нажми Ctrl+B.")] // B stays B: a real Ctrl+B is possible
     public void Spoken_shortcuts_become_key_names(string spoken, string expected) =>
         Assert.Equal(expected, KeyCombos.Apply(spoken));

@@ -20,11 +20,13 @@ public static partial class KeyCombos
     private static readonly string[] Numbers =
         ["один", "два", "три", "четыре", "пять", "шесть", "семь", "восемь", "девять", "десять", "одиннадцать", "двенадцать"];
 
-    // Keys that are also ordinary words or numbers ("control a lot", "контроль 2 этапов"): a key only
-    // after an explicit "+"/"плюс".
-    private static bool NeedsExplicitPlus(string key) => key is "a" or "A" or "i" or "I" || char.IsDigit(key[0]);
+    // After the real words "контроль"/"control", keys that are also words or numbers ("control a lot",
+    // "контроль 2 этапов") need an explicit "+"/"плюс"; after "контрол", "Contrl", "Ctrl"… they do not.
+    private static bool NeedsExplicitPlus(string modifier, string key) =>
+        modifier.ToLowerInvariant() is "контроль" or "кантроль" or "control"
+        && (key is "a" or "A" or "i" or "I" || char.IsDigit(key[0]));
 
-    private const string Modifier = @"к[оа]нтр(?:[оа]?ль?)?|contr(?:o?l)?|ctrl|шифт|shift|альт|alt";
+    private const string Modifier = @"к[оа]нтр(?:[оа]?ль?)?|contr(?:[oa]?l)?|ctrl|шифт|shift|альт|alt";
     private const string Separator = @"\s*(?:\+|плюс|plus)\s*|\s*[,-]?\s+";
 
     [GeneratedRegex(
@@ -39,7 +41,7 @@ public static partial class KeyCombos
     {
         var key = m.Groups["key"].Value;
         var lastSep = m.Groups["sep"].Captures[^1].Value;
-        if (NeedsExplicitPlus(key) && !lastSep.Contains('+') && !lastSep.Contains("плюс", StringComparison.OrdinalIgnoreCase)
+        if (NeedsExplicitPlus(m.Groups["mod"].Captures[^1].Value, key) && !lastSep.Contains('+') && !lastSep.Contains("плюс", StringComparison.OrdinalIgnoreCase)
             && !lastSep.Contains("plus", StringComparison.OrdinalIgnoreCase))
         {
             return m.Value;
