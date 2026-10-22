@@ -19,4 +19,19 @@ public sealed class NotepadLearningTests
     public void Describe_lists_the_word_changes_for_the_log() =>
         Assert.Equal("1 change: \"сервис PPFI.\" → \"сайт Pipify.\"",
             CorrectionDetector.Describe("Задачи:\r\n Открой сервис PPFI.", "Задачи:\r\n Открой сайт Pipify.", Inserted));
+
+    // Owner's test: the model split the term in two words, the user typed on after the fix.
+    [Fact]
+    public void A_split_term_fixed_into_one_word_is_learned() =>
+        Assert.Equal(("zena koder", "Zencoder"),
+            CorrectionDetector.Detect("Заметки:\r\n Открой Zena Koder.", "Заметки:\r\n Открой Zencoder. привет", "Открой Zena Koder."));
+
+    [Fact]
+    public void A_learned_phrase_is_applied() =>
+        Assert.Equal("Открой Zencoder.", UserCorrections.Apply("Открой Zena Koder.", new Dictionary<string, string> { ["zena koder"] = "Zencoder" }));
+
+    [Fact]
+    public void Edits_outside_the_dictation_are_reported_as_such() =>
+        Assert.Equal("no change inside the dictation",
+            CorrectionDetector.Describe("Открой сервис PPFI.", "Открой сервис PPFI.\r\n Дальше", Inserted));
 }

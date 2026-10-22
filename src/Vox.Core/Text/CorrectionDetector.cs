@@ -14,6 +14,7 @@ public static class CorrectionDetector
 {
     private const string WordPunct = ".,!?;:—–-\"'«»()[]{}…";
     private const double MinSimilarity = 0.5;
+    private const int MaxSplitWords = 3;
 
     private static readonly Dictionary<char, string> Translit = new()
     {
@@ -35,13 +36,14 @@ public static class CorrectionDetector
             return null;
         }
 
-        if (changes is not [{ OldStart: var os, OldEnd: var oe, NewStart: var ns, NewEnd: var ne }] || oe - os != 1)
+        // One word, or a term the model split in two or three ("Zena Koder." → "Zencoder.").
+        if (changes is not [{ OldStart: var os, OldEnd: var oe, NewStart: var ns, NewEnd: var ne }] || oe - os is < 1 or > MaxSplitWords)
         {
             return null;
         }
 
         // The user went on typing right after (or before) the fixed word: "PPFI." → "Pipify. Дальше".
-        if (ne - ns > 1 && os == last)
+        if (ne - ns > 1 && oe - 1 == last)
         {
             ne = ns + 1;
         }
@@ -55,7 +57,7 @@ public static class CorrectionDetector
             return null;
         }
 
-        var wrong = old[os].Text.Trim(WordPunct.ToCharArray());
+        var wrong = string.Join(' ', old.Skip(os).Take(oe - os).Select(w => w.Text)).Trim(WordPunct.ToCharArray());
         var correct = now[ns].Text.Trim(WordPunct.ToCharArray());
         if (wrong.Length == 0 || correct.Length == 0
             || string.Equals(wrong, correct, StringComparison.OrdinalIgnoreCase)
@@ -77,6 +79,11 @@ public static class CorrectionDetector
         if (Changes(before, after, inserted) is not var (old, now, changes, _, _))
         {
             return "the dictation is no longer in the field";
+        }
+
+        if (changes.Count == 0)
+        {
+            return "no change inside the dictation";
         }
 
         string Span(List<Word> words, int from, int to) =>
@@ -130,8 +137,8 @@ public static class CorrectionDetector
     /// <summary>Do two words look like spellings of the same sound (across Cyrillic and Latin)?</summary>
     public static bool LookAlike(string a, string b)
     {
-        var x = Latin(a);
-        var y = Latin(b);
+        var x = Latin(a).Replace(" ", "", StringComparison.Ordinal); // "zena koder" vs "zencoder"
+        var y = Latin(b).Replace(" ", "", StringComparison.Ordinal);
         var longest = Math.Max(x.Length, y.Length);
         return longest > 0 && 1.0 - (double)Levenshtein(x, y) / longest >= MinSimilarity;
     }

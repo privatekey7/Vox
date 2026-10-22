@@ -374,6 +374,14 @@ public static class UserCorrections
             return text;
         }
 
+        // Phrases learned from a term the model split ("zena koder" → "Zencoder"): whole-phrase match.
+        foreach (var (source, correct) in corrections.Where(c => c.Key.Contains(' ', StringComparison.Ordinal)))
+        {
+            var pattern = @"(?<![\p{L}\p{Nd}])" + string.Join(@"\s+", source.Split(' ', StringSplitOptions.RemoveEmptyEntries).Select(Regex.Escape))
+                + @"(?![\p{L}\p{Nd}])";
+            text = Regex.Replace(text, pattern, correct.Replace("$", "$$", StringComparison.Ordinal), RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        }
+
         var declined = new Dictionary<string, (string Source, string Correct, string Ending)>();
         foreach (var (source, correct) in corrections)
         {
