@@ -135,6 +135,8 @@
   <!-- Language choice card: RadioButton with Tag = big label ("Рус"/"Eng"), Content = title. -->
   <Style x:Key="Vox.ChoiceCard" TargetType="RadioButton">
     <Setter Property="Cursor" Value="Hand"/>
+    <!-- Own colour: otherwise the Fluent RadioButton foreground (dark grey when unchecked) leaks into the text. -->
+    <Setter Property="Foreground" Value="{DynamicResource Vox.TextPrimary}"/>
     <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
     <Setter Property="Margin" Value="0,0,0,10"/>
     <Setter Property="Template">
@@ -204,6 +206,8 @@
   <!-- Left navigation item (RadioButton, Tag = icon glyph) -->
   <Style x:Key="Vox.NavItem" TargetType="RadioButton">
     <Setter Property="Cursor" Value="Hand"/>
+    <!-- Own colour: otherwise the Fluent RadioButton foreground (dark grey when unchecked) leaks into the text. -->
+    <Setter Property="Foreground" Value="{DynamicResource Vox.TextPrimary}"/>
     <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
     <Setter Property="Margin" Value="0,0,0,4"/>
     <Setter Property="Template">
