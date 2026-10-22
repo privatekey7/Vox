@@ -30,6 +30,7 @@ public sealed class PostProcessor(SpeechModel model)
         text = corrections is null ? text : UserCorrections.Apply(text, corrections);
         text = ClaudeNames.Apply(text, latinCloud: model.Language == "ru"); // GigaAM hears Claude as "Cloud"
 
+        text = FileExtensions.FixGlued(text);
         text = Terms.Replace(text);
         text = FuzzyTerms.Apply(text, fuzzy, screen);
         text = ModelVersions.Apply(text);

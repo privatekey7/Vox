@@ -246,6 +246,13 @@ public sealed partial class FuzzyTerms
         bool Spaced(System.Text.RegularExpressions.Match a, System.Text.RegularExpressions.Match b) =>
             b.Index == a.Index + a.Length + 1 && text[a.Index + a.Length] == ' ';
 
+        // A Latin word becomes a Cyrillic term only inside Russian speech and in its number: "Это Plagens" →
+        // "плагины", but "Stells Extra Plagin для …" stays.
+        bool RussianAround(int k, int n, string spoken, string replacement) =>
+            !(k > 0 && Spaced(words[k - 1], words[k]) && !IsCyrillic(words[k - 1].Value))
+            && !(k + n < words.Count && Spaced(words[k + n - 1], words[k + n]) && !IsCyrillic(words[k + n].Value))
+            && (replacement[^1] is not ('ы' or 'и') || spoken.EndsWith('s'));
+
         for (var i = 0; i < words.Count;)
         {
             var n = 0;
@@ -256,7 +263,8 @@ public sealed partial class FuzzyTerms
                 var spoken = string.Concat(Enumerable.Range(i, span).Select(k => words[k].Value));
                 if ((IsCyrillic(spoken) ? span == 1 : _latinOn) && Eligible(text, words, i, span, out var name)
                     && (span == 1 ? FindWord(spoken, name, EnglishNeighbour(i)) : Find(spoken, name, english: false, names)) is { } match
-                    && (span == 1 || !Enumerable.Range(i, span).Any(k => CloserEnglish(words[k].Value, match.Score, (w, n) => FindWord(w, n)))))
+                    && (span == 1 || !Enumerable.Range(i, span).Any(k => CloserEnglish(words[k].Value, match.Score, (w, n) => FindWord(w, n))))
+                    && (IsCyrillic(spoken) || !IsCyrillic(match.Replacement) || RussianAround(i, span, spoken, match.Replacement)))
                 {
                     found = match;
                     n = span;
@@ -459,6 +467,12 @@ public sealed partial class FuzzyTerms
         if (hits.Count == 0)
         {
             return null;
+        }
+
+        // The term itself in other case ("Deepl": DeepL, not "деплой" of "диплей") wins over any look-alike.
+        if (!cyrillic && hits.FirstOrDefault(h => !h.C.English && LettersOf(h.C.Target) == letters) is { C: not null } same)
+        {
+            hits = [same];
         }
 
         var top = hits.Max(h => h.Score);

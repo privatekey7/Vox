@@ -353,6 +353,13 @@ public static partial class FileExtensions
 
     public static string Apply(string text) => !text.Contains("точка", StringComparison.OrdinalIgnoreCase) ? text
         : Spoken().Replace(text, m => (m.Groups["name"].Success ? m.Groups["name"].Value.TrimEnd() : "") + "." + m.Groups["ext"].Value.ToLowerInvariant());
+
+    // A model's ".json" glued to a file name: "terms.gson", "config.джейсон" (before Terms makes it " JSON").
+    [GeneratedRegex(@"(?<=[\p{L}\p{Nd}_-])\.(?:gson|джейсон|джсон|джесон)(?![\p{L}\p{Nd}])", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex GluedJson();
+
+    /// <summary>"terms.gson", "config.джейсон" → ".json"; runs before <see cref="Terms"/>.</summary>
+    public static string FixGlued(string text) => GluedJson().Replace(text, ".json");
 }
 
 /// <summary>

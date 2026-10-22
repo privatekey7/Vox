@@ -141,6 +141,21 @@ public class ScreenNamesTests
     [InlineData("Фантом, Соник, Эфир, Энди Шаман, Лихи.", "Фантом, Соник, Эфир, Энди Шаман, Лихи.")]
     public void Second_live_test_spellings(string raw, string expected) => Assert.Equal(expected, Fix(raw, null));
 
+    // Owner's live test of 9ba837c (laptop).
+    [Theory]
+    [InlineData("Stells Extra Plagin для Playrite.", "Stells Extra Plagin для Playwright.")] // no Cyrillic term among Latin words
+    [InlineData("Это Plagin.", "Это Plagin.")] // nor a plural for a singular
+    [InlineData("Ставлю Plagens.", "Ставлю плагины.")]
+    [InlineData("Открой Джиммини, Джимини, Гемени, на Гемене, Гиминиаргон.", "Открой Gemini, Gemini, Gemini, на Gemini, Gemini Argon.")]
+    [InlineData("Формат Джесон и Джей Сон.", "Формат JSON и JSON.")]
+    [InlineData("Влюбилась в Джейсона.", "Влюбилась в Джейсона.")] // the name Jason stays
+    [InlineData("Файл Термс.gson и config.джейсон.", "Файл Термс.json и config.json.")]
+    [InlineData("Кошелёк Рэбби Воллетт, Рэбиволет, Фантом Воллет, Фантом.", "Кошелёк Rabby Wallet, Rabby Wallet, Phantom Wallet, Фантом.")]
+    [InlineData("Тесты Пубитер, HDmell, rast.", "Тесты Puppeteer, HTML, Rust.")]
+    [InlineData("Сделай диплей, Jumper X Change.", "Сделай диплей, Jumper Exchange.")] // "диплей" by sound took "дисплей" too
+    [InlineData("Новый дисплей и дисплеем.", "Новый дисплей и дисплеем.")]
+    public void Third_live_test_spellings(string raw, string expected) => Assert.Equal(expected, Fix(raw, null));
+
     [Fact]
     public void A_capitalised_spelling_wins()
     {
