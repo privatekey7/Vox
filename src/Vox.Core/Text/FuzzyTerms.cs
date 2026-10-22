@@ -121,7 +121,8 @@ public sealed partial class FuzzyTerms
             _termWords.UnionWith(target.Split(' '));
             // Spelled letters ("бэ гэ пэ") and abbreviations ("BGP" → "бгп") are too short to compare by sound.
             var skeleton = Skeleton(source);
-            if (skeleton.Length >= 4 && !source.Split(' ', '-').Any(w => w.Length <= 2))
+            // A source of both alphabets ("claude опус") is a phrase after ClaudeNames: not a sound to search by.
+            if (skeleton.Length >= 4 && !source.Split(' ', '-').Any(w => w.Length <= 2) && !IsMixed(source))
             {
                 Add(_latin, new Candidate(skeleton, source, target, RankOf(target)));
             }
@@ -705,6 +706,8 @@ public sealed partial class FuzzyTerms
         var before = text.AsSpan(0, index).TrimEnd();
         return before.IsEmpty || ".!?…".Contains(before[^1]);
     }
+
+    private static bool IsMixed(string s) => IsCyrillic(s) && s.Any(c => c is >= 'a' and <= 'z' or >= 'A' and <= 'Z');
 
     private static bool IsCyrillic(string s) => s.Any(c => c is >= 'а' and <= 'я' or >= 'А' and <= 'Я' or 'ё' or 'Ё');
 

@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Vox.Core.Models;
 using Vox.Core.Text;
 
 namespace Vox.Core.Tests;
@@ -74,6 +75,37 @@ public sealed partial class TermsDictionaryTests
     [InlineData("нейро сети и ии агенты", "нейросети и ИИ-агенты")]
     public void Borrowings_get_their_spelling_fixed(string spoken, string expected) =>
         Assert.Equal(expected, Terms.Replace(spoken));
+
+    // tools/eval/anglicisms-30.tsv: spellings GigaAM and Parakeet gave on the owner's recordings (both models).
+    [Theory]
+    [InlineData("Задиплой проект.", "Задеплой проект.")]
+    [InlineData("Сделай коммент и запуши изменения.", "Сделай коммит и запушь изменения.")]
+    [InlineData("Видел коммент и запуши.", "Видел коммит и запушь.")]
+    [InlineData("Сделай комиты в ветку.", "Сделай коммиты в ветку.")]
+    [InlineData("Открой file terms.Gon и поправь.", "Открой file terms.json и поправь.")]
+    [InlineData("Этот Inpoint и этот энпоинт.", "Этот эндпоинт и этот эндпоинт.")]
+    [InlineData("Попробуем пупит и Купитер, тесты на PlayRite.", "Попробуем Puppeteer и Puppeteer, тесты на Playwright.")]
+    [InlineData("Подними Doker, Spost Sque и Readis.", "Подними Docker, PostgreSQL и Redis.")]
+    [InlineData("Нужен Xml и мсипи сервер.", "Нужен XML и MCP сервер.")]
+    [InlineData("Сделай пол реквест и отправь на код ревью.", "Сделай пул-реквест и отправь на код-ревью.")]
+    [InlineData("Скачай модель и сделай финтюнинг.", "Скачай модель и сделай файнтюнинг.")]
+    [InlineData("Попробуем Клод Окус и Гимине.", "Попробуем Claude Opus и Gemini.")]
+    [InlineData("Спроси Чарт Джи Пити, переведи через Дибл.", "Спроси ChatGPT, переведи через DeepL.")]
+    [InlineData("Найди в Файерфос.", "Найди в Firefox.")]
+    [InlineData("Смонтируй в Давинче резольф.", "Смонтируй в DaVinci Resolve.")]
+    [InlineData("Установи Реби Уаллит.", "Установи Rabby Wallet.")]
+    [InlineData("Сделай свап на Юнисваб и Юни Свап.", "Сделай свап на Uniswap и Uniswap.")]
+    [InlineData("Зайди в биуз и включи эксэмпи.", "Зайди в BIOS и включи XMP.")]
+    [InlineData("Проверь PIN до сервера.", "Проверь пинг до сервера.")]
+    [InlineData("Колонка от Джибель и от GBL.", "Колонка от JBL и от JBL.")]
+    [InlineData("Это коммент в коде, а не коммит; пин до утра.", "Это коммент в коде, а не коммит; пин до утра.")]
+    public void Recorded_model_spellings_of_terms(string raw, string expected)
+    {
+        foreach (var model in ModelCatalog.All)
+        {
+            Assert.Equal(expected, new PostProcessor(model).Process(raw).Trim());
+        }
+    }
 
     // Ordinary Russian words (and names) that are also product names: alone they stay as they are.
     [Theory]
