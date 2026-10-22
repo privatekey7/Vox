@@ -171,6 +171,9 @@ Root: HKLM; Subkey: "SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDum
 Root: HKLM; Subkey: "SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps\Vox.exe"; ValueType: dword; ValueName: "DumpType"; ValueData: "1"; Check: IsAdminInstallMode
 
 [Run]
+; Vox 2.0 lives at the same path as 1.x (C:\Program Files\Vox\vox.exe), so Windows keeps showing
+; the old icon from its icon cache. Refresh the cache for the user who runs setup.
+Filename: "{sys}\ie4uinit.exe"; Parameters: "-show"; Flags: runhidden runasoriginaluser skipifdoesntexist
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchAfterInstall}"; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]
