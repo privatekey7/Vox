@@ -52,6 +52,31 @@ public class BrandsTests
     public void A_case_form_of_a_term_becomes_the_term_through_the_pipeline() =>
         Assert.Equal("Попроси Midjourney.", new PostProcessor(ModelCatalog.GigaAm).Process("Попроси мидджорнея.").Trim());
 
+    // A capital mid-phrase: the model writes a foreign name it does not know with one ("в Кубернейтис"), 23.10.
+    [Theory]
+    [InlineData("Это Кубернейтис упал", "Это Kubernetes упал")]
+    [InlineData("Я знаю Полониекс", "Я знаю Poloniex")]
+    [InlineData("Открой в Пионекс", "Открой в Pionex")]
+    [InlineData("Запусти Алакритти", "Запусти Alacritty")]
+    public void A_capitalised_Cyrillic_name_becomes_the_brand(string text, string expected) => Assert.Equal(expected, Fix(text));
+
+    // Surnames, towns and case forms with a capital stay: the shape of a Russian name, a case ending, a looser sound.
+    [Theory]
+    [InlineData("Это про Симфонию")] // Symfony
+    [InlineData("Это про Изотопа")] // iZotope, a name that ends in a silent "e"
+    [InlineData("Это про Телеурок")] // Telerik, a sound only close
+    [InlineData("Привет, Леонов")] // Lenovo
+    [InlineData("Мы приехали в Рязань")]
+    public void A_capitalised_Russian_name_stays(string text) => Assert.Equal(text, Fix(text));
+
+    [Fact]
+    public void A_capitalised_name_with_a_Russian_surname_ending_stays()
+    {
+        var brands = new FuzzyTerms([], [], latin: true, English, ["Kasparin"]);
+        Assert.Equal("Открой Kasparin", brands.Replace("Открой каспарин"));
+        Assert.Equal("Открой Каспарин", brands.Replace("Открой Каспарин"));
+    }
+
     // Real Russian words and English loanwords come as close to names by sound; they stay.
     [Theory]
     [InlineData("Хочу купить биткоин")] // Bitcoin is an English word, BitKan only sounds like it
@@ -62,7 +87,6 @@ public class BrandsTests
     [InlineData("Тестовые данные")] // a plural ending
     [InlineData("Посмотри конфиг")]
     [InlineData("Леонов пришёл")] // a surname is a name: a capital is exact only
-    [InlineData("Я знаю Полониекс")]
     [InlineData("Запусти алакрити")] // alacrity is an English word as close as Alacritty
     public void Russian_words_stay(string text) => Assert.Equal(text, Fix(text));
 

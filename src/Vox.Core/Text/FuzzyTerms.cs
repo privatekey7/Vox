@@ -52,6 +52,9 @@ public sealed partial class FuzzyTerms
     private const double BrandThreshold = 0.9;
     private const double BrandLead = 0.1;
     private const double BrandVowels = 0.85;
+    // A Cyrillic capital mid-phrase is a name or the model's own spelling of a foreign name ("в Кубернейтис"): see FindBrand.
+    private const double BrandCapitalThreshold = 0.95;
+    private const double BrandCapitalVowels = 0.9;
     private const int ShortKey = 5; // a Latin skeleton this short is checked with vowels
     private const double Threshold = 0.85;
     private const double LatinThreshold = 0.85; // under it, dev words SCOWL lacks: "webhook" ~ "Webpack" 0.83
@@ -353,7 +356,7 @@ public sealed partial class FuzzyTerms
             {
                 var spoken = string.Concat(Enumerable.Range(i, span).Select(k => words[k].Value));
                 if ((IsCyrillic(spoken) ? span == 1 : _latinOn) && Eligible(text, words, i, span, out var name)
-                    && (span == 1 ? FindWord(spoken, name, EnglishNeighbour(i)) ?? (_latinOn && !name && IsCyrillic(spoken) ? FindBrand(spoken) : null)
+                    && (span == 1 ? FindWord(spoken, name, EnglishNeighbour(i)) ?? (_latinOn && IsCyrillic(spoken) ? FindBrand(spoken, name) : null)
                         : Find(spoken, name, english: false, names)) is { } match
                     && (span == 1 || !Enumerable.Range(i, span).Any(k => CloserEnglish(words[k].Value, match.Score, (w, n) => FindWord(w, n))))
                     && (IsCyrillic(spoken) || !IsCyrillic(match.Replacement) || RussianAround(i, span, spoken, match.Replacement)))
@@ -646,11 +649,16 @@ public sealed partial class FuzzyTerms
         return false;
     }
 
-    /// <summary>A Cyrillic word that is a Latin name said in Russian: see <see cref="BrandKey"/>.</summary>
-    private Found? FindBrand(string spoken)
+    /// <summary>
+    /// A Cyrillic word that is a Latin name said in Russian: see <see cref="BrandKey"/>. A word with a capital mid-phrase
+    /// ("в Кубернейтис": the model writes a foreign name it does not know with a capital) is also a real name, surname or
+    /// town: it must have no Russian name ending (<see cref="RussianNameShape"/>), no case ending where the name ends in a
+    /// silent "e" ("изотопа" ~ iZotope), and a closer sound and vowels.
+    /// </summary>
+    private Found? FindBrand(string spoken, bool capital)
     {
         var letters = LettersOf(spoken);
-        if (letters.Length < MinLetters || spoken.Contains('-', StringComparison.Ordinal) || RussianEnding(letters))
+        if (letters.Length < MinLetters || spoken.Contains('-', StringComparison.Ordinal) || RussianEnding(letters) || (capital && RussianNameShape(letters)))
         {
             return null;
         }
@@ -661,7 +669,9 @@ public sealed partial class FuzzyTerms
             return null;
         }
 
-        var floor = BrandThreshold - BrandLead;
+        var threshold = capital ? BrandCapitalThreshold : BrandThreshold;
+        const double lead = BrandLead;
+        var floor = threshold - lead;
         List<(Candidate C, double Score)> hits = [];
         for (var length = Math.Max(BrandKey, key.Length - 2); length <= key.Length + 2; length++)
         {
@@ -694,7 +704,7 @@ public sealed partial class FuzzyTerms
 
         hits.Sort((a, b) => b.Score.CompareTo(a.Score));
         var (best, bestScore) = hits[0];
-        if (bestScore < BrandThreshold || (hits.Count > 1 && hits[1].Score > bestScore - BrandLead) || LettersOf(best.Target) == letters)
+        if (bestScore < threshold || (hits.Count > 1 && hits[1].Score > bestScore - lead) || LettersOf(best.Target) == letters)
         {
             return null; // not close enough, or two names about as close
         }
@@ -709,14 +719,14 @@ public sealed partial class FuzzyTerms
                 if (index.TryGetValue((Class(key[0]), length), out var bucket)
                     && bucket.Any(c => c.Target != best.Target && c.Key[0] == key[0]
                         && (!c.English || Similarity(latin, LettersOf(c.Target), BrandLetters) >= BrandLetters)
-                        && Similarity(key, c.Key, bestScore - BrandLead) > bestScore - BrandLead))
+                        && Similarity(key, c.Key, bestScore - lead) > bestScore - lead))
                 {
                     return null;
                 }
             }
         }
 
-        if (EnglishNeighbour(latin, key, bestScore - BrandLead))
+        if (EnglishNeighbour(latin, key, bestScore - lead))
         {
             return null;
         }
@@ -725,13 +735,14 @@ public sealed partial class FuzzyTerms
         // silent or not; "ы" is a Russian plural.
         var last = char.ToLowerInvariant(best.Target[^1]);
         var open = "аеёиоуыэюя".Contains(letters[^1], StringComparison.Ordinal);
-        if (letters[^1] == 'ы' || (last != 'e' && open != "aiouy".Contains(last, StringComparison.Ordinal)))
+        if (letters[^1] == 'ы' || (last != 'e' && open != "aiouy".Contains(last, StringComparison.Ordinal))
+            || (capital && last == 'e' && letters[^1] is 'а' or 'я' or 'у' or 'ю' or 'о'))
         {
             return null;
         }
 
         // A short skeleton drops vowels that tell words apart.
-        return Similarity(VowelSkeleton(spoken), best.Vowels) >= BrandVowels ? new Found(best.Target, bestScore, false) : null;
+        return Similarity(VowelSkeleton(spoken), best.Vowels) >= (capital ? BrandCapitalVowels : BrandVowels) ? new Found(best.Target, bestScore, false) : null;
     }
 
     private bool CamelEnglish(string name)
@@ -778,13 +789,20 @@ public sealed partial class FuzzyTerms
         return sb.ToString();
     }
 
+    // A surname, a first name or a town (a capital mid-phrase): see FindBrand.
+    private static bool RussianNameShape(string letters) =>
+        NameEndings.Any(e => letters.Length > e.Length + 2 && letters.EndsWith(e, StringComparison.Ordinal));
+
+    private static readonly string[] NameEndings =
+        ["ин", "ын", "ина", "ына", "ину", "ыну", "ского", "ский", "ская", "ское", "ской", "цкий", "ова", "ева", "ову", "еву", "ович", "евич", "ич", "ко", "енко", "ук", "юк", "ян", "дзе", "швили", "ск", "град", "бург", "поль", "ово", "ево", "ино", "ия", "ых", "их"];
+
     // Case endings of ordinary Russian words: a name said in Russian rarely ends in them.
     private static bool RussianEnding(string letters) =>
         letters.EndsWith("ть", StringComparison.Ordinal) || letters.EndsWith("ся", StringComparison.Ordinal)
         || RussianEndings.Any(e => letters.Length > e.Length + 2 && letters.EndsWith(e, StringComparison.Ordinal));
 
     private static readonly string[] RussianEndings =
-        ["ый", "ий", "ой", "ая", "яя", "ое", "ее", "ые", "ие", "ого", "его", "ому", "ему", "ыми", "ими", "ами", "ями", "ую", "юю", "ах", "ях", "ом", "ем", "ет", "ут", "ют", "ит", "ат", "ят", "ов", "ев", "ей"];
+        ["ый", "ий", "ой", "ая", "яя", "ое", "ее", "ые", "ие", "ого", "его", "ому", "ему", "ыми", "ими", "ами", "ями", "ию", "ии", "ую", "юю", "ах", "ях", "ом", "ем", "ет", "ут", "ют", "ит", "ат", "ят", "ов", "ев", "ей"];
 
     // English reading of a name said in Russian: "Remotion" is "ремоушн".
     private static string EnglishReading(string name) =>
