@@ -32,6 +32,7 @@ Vox переписан на C# (.NET 10, WPF) с новым дизайном VOX
   Codex, Windsurf, Lovable, Perplexity, NotebookLM, Manus), автоматизация (n8n, Make, Zapier, Dify,
   LangChain, CrewAI), локальный запуск (Ollama, LM Studio, llama.cpp, vLLM, GGUF, QLoRA), картинки,
   видео и звук (Midjourney, Stable Diffusion, ComfyUI, Sora, Veo, Kling, Suno, ElevenLabs, Whisper).
+- «на опусе версии 5.5» → «на Opus 5.5», «код-код» → Claude Code, «GPT Mage» → GPT Image.
 - Модель с версией: «клод опус четыре и пять» → Claude Opus 4.5, «джипити пять» → GPT-5,
   «джемини два и пять про» → Gemini 2.5 Pro, «дипсик эр один» → DeepSeek R1 — и для GigaAM, и для Parakeet.
 - «клауд», «клот», «клод» → Claude для обеих моделей, латинское «Cloud» → Claude для русской модели («Cloud Code» → Claude Code, «клаудн хром» →

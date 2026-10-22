@@ -66,14 +66,16 @@ public static partial class ModelVersions
 
     private static readonly Lazy<Regex> Pattern = new(() =>
     {
+        // A Cyrillic name ending in a consonant also in case forms: "на опусе версии 5.5".
         var names = string.Join('|', Brands.Keys.Concat(CyrillicNames.Keys).OrderByDescending(k => k.Length)
-            .Select(k => Regex.Escape(k).Replace(@"\ ", @"\s+", StringComparison.Ordinal)));
+            .Select(k => Regex.Escape(k).Replace(@"\ ", @"\s+", StringComparison.Ordinal)
+                + (CyrillicNames.ContainsKey(k) && "бвгджзклмнпрстфхцчшщ".Contains(k[^1], StringComparison.Ordinal) ? "(?:а|у|е|ом)?" : "")));
         var prefixes = string.Join('|', Brands.Values.SelectMany(b => (IEnumerable<string>?)b.Prefixes?.Keys ?? []).Distinct().OrderByDescending(k => k.Length));
         var suffixes = string.Join('|', Brands.Values.SelectMany(b => (IEnumerable<string>?)b.Suffixes?.Keys ?? []).Distinct().OrderByDescending(k => k.Length));
         var number = @"\d+|" + string.Join('|', Numbers.Keys.OrderByDescending(k => k.Length));
         var digit = @"\d(?!\d)|" + string.Join('|', Numbers.Where(n => n.Value < 10).Select(n => n.Key).OrderByDescending(k => k.Length));
         return new Regex(
-            $@"(?<![\p{{L}}\p{{Nd}}-])(?<name>{names})(?:\s+|-|(?=\d))(?:(?<pre>{prefixes})\s*)?(?<major>{number})" +
+            $@"(?<![\p{{L}}\p{{Nd}}-])(?<name>{names})(?:\s+верси(?:и|я|ю|ей))?(?:\s+|-|(?=\d))(?:(?<pre>{prefixes})\s*)?(?<major>{number})" +
             // "четыре и пять", "4.5", "4,5" — or "два пять" (owner's corpus): a single digit after a space.
             $@"(?:(?:\s+и\s+|\s*(?:\.|точка)\s*|,)(?<minor>{number})|\s+(?<minor>{digit}))?(?![\p{{L}}\p{{Nd}}])" +
             $@"(?:\s*(?<suffix>{suffixes})(?![\p{{L}}\p{{Nd}}]))?",
@@ -89,7 +91,8 @@ public static partial class ModelVersions
     private static string Format(Match m, string text)
     {
         var name = Regex.Replace(m.Groups["name"].Value, @"\s+", " ");
-        var brand = Brands.GetValueOrDefault(name) ?? CyrillicNames[name];
+        var brand = Brands.GetValueOrDefault(name) ?? CyrillicNames.GetValueOrDefault(name)
+            ?? CyrillicNames[Regex.Replace(name, "(?:а|у|е|ом)$", "")]; // "опусе" → "опус"
         var minor = m.Groups["minor"];
         string? prefix = null;
         if (m.Groups["pre"].Success && brand.Prefixes?.TryGetValue(m.Groups["pre"].Value.ToLowerInvariant(), out prefix) != true)
