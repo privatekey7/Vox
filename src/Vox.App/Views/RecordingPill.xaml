@@ -4,7 +4,7 @@
         Title="Vox" WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         ResizeMode="NoResize" ShowInTaskbar="False" ShowActivated="False" Topmost="True" Focusable="False"
         SizeToContent="WidthAndHeight" UseLayoutRounding="True" SnapsToDevicePixels="True" FontFamily="{StaticResource Vox.FontText}"
-        TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="Grayscale"
+        TextOptions.TextFormattingMode="Ideal" TextOptions.TextRenderingMode="Grayscale" TextOptions.TextHintingMode="Fixed"
         IsHitTestVisible="False">
   <!-- Floating status pill (docs/design/v2/ui-4-pill.jpg). Never takes focus: the dictation must
        land in the window the user is typing in.
