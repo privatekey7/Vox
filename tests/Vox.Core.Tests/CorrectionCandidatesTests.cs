@@ -24,4 +24,20 @@ public sealed class CorrectionCandidatesTests
         Assert.False(candidates.Confirm("вокс", "Fox"));
         Assert.True(candidates.Confirm("вокс", "Fox"));
     }
+
+    [Fact]
+    public void A_common_russian_word_is_never_learned()
+    {
+        // Regression (owner's log): "рак" → "RAG" was learned and every "рак" became RAG.
+        var candidates = new CorrectionCandidates();
+
+        Assert.True(CorrectionCandidates.IsCommonWord("рак"));
+        Assert.False(candidates.Confirm("рак", "RAG"));
+        Assert.False(candidates.Confirm("рак", "RAG"));
+        Assert.False(candidates.Confirm("рак", "RAG"));
+
+        Assert.False(CorrectionCandidates.IsCommonWord("гитхап"));
+        Assert.False(candidates.Confirm("гитхап", "GitHub"));
+        Assert.True(candidates.Confirm("гитхап", "GitHub"));
+    }
 }

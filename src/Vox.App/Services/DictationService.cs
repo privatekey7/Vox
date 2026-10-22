@@ -66,6 +66,12 @@ internal sealed class DictationService : IDisposable
         _watcher.Enabled = settings.LearnCorrections;
         _watcher.Learned += (wrong, correct) =>
         {
+            if (CorrectionCandidates.IsCommonWord(wrong))
+            {
+                Log.Info("[LEARN] The fixed word is an ordinary Russian word: not learned (add it in the dictionary by hand)");
+                return;
+            }
+
             if (!_candidates.Confirm(wrong, correct))
             {
                 Log.Info("[LEARN] Seen once — will learn it if the same fix happens again");
