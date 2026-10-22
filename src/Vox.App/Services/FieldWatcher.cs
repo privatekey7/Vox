@@ -64,7 +64,7 @@ internal sealed class FieldWatcher : IDisposable
     /// <summary>Call right after a dictation was pasted.</summary>
     public void AfterPaste(string inserted) => Enqueue(() =>
     {
-        Thread.Sleep(300); // let the target app apply the paste
+        Thread.Sleep(150); // let the target app apply the paste (more retries below)
         _pending = null;
         var element = AutomationElement.FocusedElement; // null: no UIA element, WM_GETTEXT may still work
         var app = element is not null ? AppName(element) : Native.ForegroundApp().Name;
@@ -86,13 +86,19 @@ internal sealed class FieldWatcher : IDisposable
             ? () => ReadText(element!)
             : () => ReadWindowText(hwnd);
 
-        // Only the reason is logged, never the field's text.
+        // Only the reason is logged, never the field's text. The target app applies the paste
+        // asynchronously (Notepad++ took ~0.8 s in the owner's log): retry for about a second.
         var text = source switch
         {
             FieldSource.Uia => uiaText,
             FieldSource.WindowText => read(),
             _ => null,
         };
+        for (var attempt = 0; attempt < 5 && text is not null && !text.Contains(inserted.Trim(), StringComparison.Ordinal); attempt++)
+        {
+            Thread.Sleep(200);
+            text = read();
+        }
         if (isPassword)
         {
             Log.Info($"[LEARN] Password field in {app}: not read");
@@ -168,7 +174,7 @@ internal sealed class FieldWatcher : IDisposable
         }
         else
         {
-            Log.Info("[LEARN] The field was edited, but not as a one-word fix — nothing learned");
+            Log.Info($"[LEARN] The field was edited, but not as a one-word fix: nothing learned ({CorrectionDetector.Describe(p.Before, now, p.Inserted)})");
         }
     }
 
