@@ -39,6 +39,12 @@ public class FillersTests
     [InlineData("Mmm.", "")]
     [InlineData("ну вот этот файл", "ну вот этот файл")]
     [InlineData("um so hello world", "so hello world")]
+    // Regression (owner's log): longer hesitations were left behind or broke the text.
+    [InlineData("Надо сказать, э-э-э, вот так", "Надо сказать, вот так")]
+    [InlineData("Тестовые Ааа, тестируйте", "Тестовые тестируйте")]
+    [InlineData("м-м-м, хммм, да", "да")]
+    [InlineData("Мама мыла раму", "Мама мыла раму")]
+    [InlineData("А мы ам", "А мы ам")]
     public void Remove_strips_hesitation_sounds_only(string text, string expected) =>
         Assert.Equal(expected, Fillers.Remove(text));
 }

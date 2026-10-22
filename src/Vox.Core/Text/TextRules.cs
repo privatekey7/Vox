@@ -88,17 +88,15 @@ public static partial class Terms
 /// <summary>Removes pure hesitation sounds ("э-э", "ммм", "uh"); meaningful words like "ну" stay.</summary>
 public static partial class Fillers
 {
-    private static readonly string[] Words =
-    [
-        // ru
-        "э-э", "э", "ээ", "эээ", "а-а", "м-м", "мм", "ммм", "хм", "хмм",
-        // en
-        "um", "umm", "uh", "uhh", "er", "err", "ah", "ahh", "hmm", "hm", "mm", "mmm",
-    ];
+    // ru: drawn-out or repeated sounds of any length ("эээ", "Ааа", "э-э-э", "м-м-м", "хммм") and a
+    // lone "э"; real words made of the same letters ("а", "мы", "ам", "мама") are not matched.
+    private const string Russian = @"э{2,}|а{3,}|м{2,}|э+(?:-э+)+|а+(?:-а+)+|м+(?:-м+)+|хм+|э";
+
+    private static readonly string[] English = ["um", "umm", "uh", "uhh", "er", "err", "ah", "ahh", "hmm", "hm", "mm", "mmm"];
 
     // \b does not work with Cyrillic hyphens, so word edges are explicit lookarounds.
     private static readonly Regex Pattern = new(
-        "(?<![а-яёa-z])(?:" + string.Join('|', Words.OrderByDescending(w => w.Length).Select(Regex.Escape)) + ")(?![а-яёa-z])",
+        "(?<![а-яёa-z-])(?:" + Russian + "|" + string.Join('|', English.OrderByDescending(w => w.Length).Select(Regex.Escape)) + ")(?![а-яёa-z-])",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
     [GeneratedRegex(@"^[\s,;:]+")] private static partial Regex LeadingPunct();
