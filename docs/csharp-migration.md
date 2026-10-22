@@ -24,6 +24,14 @@
 | 12. Плашка мелькает при первом показе | ✅ `3341acb` (Opacity 0 до размещения) |
 | 10. Мусор в `models` | ✅ `63fe9e4` (отмена распаковки + `ModelDownloader.RemoveLeftovers` при старте, тест) |
 | 9. Выход ждёт до 3 с | ✅ `0203f8a` (на выходе очередь отбрасывается, вставки нет) |
+| Тире «—/–» → «-», удаление `<unk>` | ✅ (тесты `DashesTests`, `UnknownTokenTests`) |
+| Vox.Replay: лог 1.x и CRLF | ✅ `Vox.Core.Diagnostics.DictationLog` (тест) |
+| Регрессии корпуса: «API-ключами», «клод-код», «Claude 18», «github.com» | ✅ `569071d` |
+| Cloud/клауд → Claude (только GigaAM) | ✅ `ClaudeNames.cs` (тесты) |
+| Кандидаты из лога владельца, соцсети латиницей, VSL → WSL | ✅ (тесты в `TermsDictionaryTests`) |
+| Плашка: «Запомнил» 2 с, знак Vox (вариант B), без длинных тире в UI | ✅ |
+| Бюджет 5 мс на диктовку | ✅ `PerformanceTests` |
+| Этап 2 словаря: 3000–5000 терминов | 🟡 в работе (источники: npm, PyPI, linguist; SO/HF закрыты прокси) |
 | SmartScreen / MSIX / SignPath | ⏸ ждёт владельца — не трогать |
 
 Как устроен словарь (подробно — `docs/terms.md`):
