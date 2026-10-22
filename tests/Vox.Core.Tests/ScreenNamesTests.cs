@@ -114,6 +114,33 @@ public class ScreenNamesTests
     public void Live_test_of_screen_words(string raw, string expected) =>
         Assert.Equal(expected, Fix(raw, OnScreen("DeepL Translate - Google Chrome", "cruzade.com - Mozilla Firefox")));
 
+    // A loop in the owner's test: the model's "Jamper X Change", pasted into a chat, came back as a name.
+    [Fact]
+    public void The_models_own_words_are_not_names()
+    {
+        var own = new OwnWords();
+        own.Add("Зайди на Jamper X Change.");
+        Assert.True(own.Contains("Jamper"));
+        Assert.True(own.Contains("jamper Change"));
+        Assert.False(own.Contains("Jumper"));
+
+        var memory = new ScreenMemory();
+        memory.See(["Jamper", "CoinWin"], DateTime.UtcNow);
+        Assert.Equal(1, memory.Forget(own.Contains));
+        Assert.Equal("CoinWin", Assert.Single(memory.Entries).Name);
+    }
+
+    [Theory]
+    [InlineData("Тесты на Пупитер и Пупитор.", "Тесты на Puppeteer и Puppeteer.")]
+    [InlineData("Сеть Этериум и Эфериум, Евмос, монета ЕТХ.", "Сеть Ethereum и Ethereum, Evmos, монета ETH.")]
+    [InlineData("Программа Аида 64 Экстрим.", "Программа AIDA64 Extreme.")]
+    [InlineData("Купил ВДС на ВДсина, коды на Хиро SMS.", "Купил VDS на VDSina, коды на HeroSMS.")]
+    [InlineData("Сайт Jumper ex Change и Jumperex Change.", "Сайт Jumper Exchange и Jumper Exchange.")]
+    [InlineData("Канал Vid IQ, VidQ, VIQ.", "Канал vidIQ, vidIQ, vidIQ.")]
+    [InlineData("Сервис Визиро, Виноль бай Версель, We 0 by Versel.", "Сервис v0, v0 by Vercel, v0 by Vercel.")]
+    [InlineData("Фантом, Соник, Эфир, Энди Шаман, Лихи.", "Фантом, Соник, Эфир, Энди Шаман, Лихи.")]
+    public void Second_live_test_spellings(string raw, string expected) => Assert.Equal(expected, Fix(raw, null));
+
     [Fact]
     public void A_capitalised_spelling_wins()
     {

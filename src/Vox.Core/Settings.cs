@@ -81,7 +81,7 @@ public sealed class Settings
         set => _json["learn_corrections"] = value;
     }
 
-    /// <summary>Use names from open windows (titles, the field at the cursor) to spell what the model misheard.</summary>
+    /// <summary>Use names from open windows (their titles) to spell what the model misheard.</summary>
     public bool ScreenHints
     {
         get => GetBool("screen_hints", true);

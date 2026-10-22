@@ -65,9 +65,6 @@ internal sealed class FieldWatcher : IDisposable
 
     public bool Enabled { get; set; } = true;
 
-    /// <summary>The watched field's last text and its window: names for <see cref="ScreenTitles"/>' neighbour, never saved.</summary>
-    public (nint Window, string Text)? LastField { get; private set; }
-
     /// <summary>Call right after a dictation was pasted.</summary>
     public void AfterPaste(string inserted) => Enqueue(() =>
     {
@@ -129,7 +126,6 @@ internal sealed class FieldWatcher : IDisposable
         {
             Log.Info($"[LEARN] Watching the field in {app} via {(source == FieldSource.Uia ? "uia" : "wm_gettext")}");
             _pending = new Pending(read, text, inserted, DateTime.UtcNow, text, DateTime.UtcNow, Native.GetForegroundWindow(), Environment.TickCount64);
-            LastField = (_pending.Window, text);
         }
     });
 
@@ -169,8 +165,6 @@ internal sealed class FieldWatcher : IDisposable
             _pending = null;
             return;
         }
-
-        LastField = (p.Window, now);
 
         if (now == p.Before)
         {

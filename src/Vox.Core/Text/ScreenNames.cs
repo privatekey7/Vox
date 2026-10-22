@@ -7,7 +7,7 @@ namespace Vox.Core.Text;
 public sealed record ScreenName(string Name, bool OnScreen);
 
 /// <summary>
-/// Latin names in window titles and the field at the cursor ("Remotion Studio - Google Chrome" → "Remotion"):
+/// Latin names in window titles ("Remotion Studio - Google Chrome" → "Remotion"):
 /// words of 3+ letters, CamelCase, with digits ("LMArena", "HAPP", "Qwen3"), and pairs of capitalised words.
 /// </summary>
 /// <remarks>
@@ -92,10 +92,44 @@ public static partial class ScreenWords
 }
 
 /// <summary>
+/// Latin words the model itself wrote (raw dictations): Vox's own text in a window, a chat titled after a dictation
+/// ("Jamper X Change"), must not come back as a name, or a misheard word would teach itself.
+/// </summary>
+public sealed partial class OwnWords
+{
+    public const int HistoryLimit = 1000;
+
+    private readonly Lock _lock = new();
+    private readonly HashSet<string> _words = new(StringComparer.OrdinalIgnoreCase);
+
+    [GeneratedRegex(@"[A-Za-z][A-Za-z0-9]*")] private static partial Regex Latin();
+
+    public void Add(string raw)
+    {
+        lock (_lock)
+        {
+            foreach (Match m in Latin().Matches(raw))
+            {
+                _words.Add(m.Value);
+            }
+        }
+    }
+
+    /// <summary>Did the model write this name, or a word of it ("Jamper" of "Jamper Change")?</summary>
+    public bool Contains(string name)
+    {
+        lock (_lock)
+        {
+            return name.Split(' ').Any(_words.Contains);
+        }
+    }
+}
+
+/// <summary>
 /// Names Vox has seen in window titles, in screen_names.json next to the history: name, how often, when last.
 /// At most <see cref="Limit"/>; the ones not seen for longest go first.
 /// </summary>
-/// <remarks>Only names from <see cref="ScreenWords.Extract"/> and without digits; the field's text is never saved.</remarks>
+/// <remarks>Only names from <see cref="ScreenWords.Extract"/>, without digits, never written by the model (<see cref="OwnWords"/>).</remarks>
 public sealed class ScreenMemory
 {
     public const int Limit = 5000;
@@ -168,6 +202,17 @@ public sealed class ScreenMemory
     /// ("Flux Krea" would pull in "Fluxar").
     /// </summary>
     public static bool IsRememberable(string name) => !name.Any(c => char.IsDigit(c) || c == ' ');
+
+    /// <summary>Drops the remembered names <paramref name="drop"/> picks; returns how many.</summary>
+    public int Forget(Func<string, bool> drop)
+    {
+        lock (_lock)
+        {
+            var gone = _names.Keys.Where(drop).ToList();
+            gone.ForEach(n => _names.Remove(n));
+            return gone.Count;
+        }
+    }
 
     public void Clear()
     {

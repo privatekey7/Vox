@@ -52,10 +52,22 @@ internal sealed class DictationService : IDisposable
     private readonly CancellationTokenSource _stopping = new(); // Vox is closing
     private readonly CursorContext _context = new();
     private readonly ScreenMemory _screenMemory;
+    private readonly OwnWords _ownWords = new();
 
     public DictationService(AudioCapture audio, Paster paster, Sounds sounds, VoxDatabase db, Settings settings, string modelsRoot, ScreenMemory screenMemory)
     {
         _screenMemory = screenMemory;
+        foreach (var t in db.History(OwnWords.HistoryLimit))
+        {
+            _ownWords.Add(t.RawText);
+        }
+
+        if (_screenMemory.Forget(_ownWords.Contains) is var forgotten and > 0)
+        {
+            Log.Info($"[SCREEN] Forgot {forgotten} remembered names the model itself wrote");
+            _ = Task.Run(SaveScreenMemory);
+        }
+
         _audio = audio;
         _paster = paster;
         _sounds = sounds;
@@ -295,6 +307,7 @@ internal sealed class DictationService : IDisposable
         }
 
         Log.Info($"[STT] Raw: \"{raw}\"");
+        _ownWords.Add(raw);
         PostProcessor? pp;
         SpeechModel? model;
         lock (_engineLock)
@@ -365,21 +378,20 @@ internal sealed class DictationService : IDisposable
         }
     }
 
-    // Names in window titles and the watched field of the foreground window, plus remembered ones. Titles and
-    // field text are never logged or saved; only names from titles are remembered.
+    // Names in window titles, plus remembered ones; never the text of a field, where Vox pastes its own dictations
+    // (a misheard "Jamper" would come back as a name). Titles are never logged or saved, only names from them.
     private List<ScreenName> ScreenNames()
     {
         try
         {
             var sw = Stopwatch.StartNew();
             var titles = ScreenTitles.Read(TitlesTimeout);
-            var fromTitles = ScreenWords.Distinct(titles.SelectMany(t => ScreenWords.Extract(t, FuzzyTerms.IsEnglishName)));
-            var fromField = _watcher.LastField is var (window, field) && window == Native.GetForegroundWindow()
-                ? ScreenWords.Extract(field, FuzzyTerms.IsEnglishName)
-                : [];
+            // A chat's title may be Vox's own dictation too ("Jamper X Change - ChatGPT").
+            var fromTitles = ScreenWords.Distinct(titles.SelectMany(t => ScreenWords.Extract(t, FuzzyTerms.IsEnglishName)))
+                .Where(n => !_ownWords.Contains(n)).ToList();
             List<ScreenName> names =
             [
-                .. ScreenWords.Distinct(fromTitles.Concat(fromField)).Select(n => new ScreenName(n, OnScreen: true)),
+                .. fromTitles.Select(n => new ScreenName(n, OnScreen: true)),
                 .. _screenMemory.Entries.Select(e => new ScreenName(e.Name, OnScreen: false)),
             ];
             if (_screenMemory.See(ScreenWords.Unknown(fromTitles), DateTime.UtcNow))
