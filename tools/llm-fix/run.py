@@ -34,8 +34,9 @@ def prompt(item):
     return "\n".join(lines)
 
 
-def accepted(item, answer):
-    """The answer with every non-contested piece of the phrase unchanged, or None."""
+def accepted(item, answer, strict=False):
+    """The answer with every non-contested piece of the phrase unchanged, or None. Strict: each contested word
+    also became one of its candidates or stayed ("Тайвань" → "по-видимому, Тайвань" passes only the loose check)."""
     final = item["final"].strip()
     pattern, pos = "", 0
     for span in sorted(item["spans"], key=lambda s: s["start"]):
@@ -44,7 +45,16 @@ def accepted(item, answer):
         pos = start + len(span["text"])
     pattern += re.escape(final[pos:])
     answer = answer.strip().strip("«»\"").strip()
-    return answer if re.fullmatch(pattern, answer, re.DOTALL) else None
+    match = re.fullmatch(pattern, answer, re.DOTALL)
+    if match is None:
+        return None
+    if strict:
+        spans = sorted(item["spans"], key=lambda s: s["start"])
+        for span, got in zip(spans, match.groups()):
+            allowed = {c.casefold() for c in span["candidates"]} | {span["text"].casefold()}
+            if got.strip().casefold() not in allowed:
+                return None
+    return answer
 
 
 def terms_score(finals):
@@ -58,10 +68,11 @@ def terms_score(finals):
 
 
 def run(llm, items, thinking_off):
+    """(item, loose result, strict result, note) per phrase, and seconds per LLM call."""
     results, times = [], []
     for item in items:
         if not item["spans"]:
-            results.append((item, item["final"].strip(), "no call"))
+            results.append((item, item["final"].strip(), item["final"].strip(), "no call"))
             continue
         user = prompt(item) + ("\n/no_think" if thinking_off else "")
         t = time.perf_counter()
@@ -70,8 +81,9 @@ def run(llm, items, thinking_off):
             temperature=0, max_tokens=len(item["final"]) * 2 + 32)
         times.append(time.perf_counter() - t)
         answer = re.sub(r"<think>.*?</think>", "", out["choices"][0]["message"]["content"], flags=re.DOTALL)
-        fixed = accepted(item, answer)
-        results.append((item, fixed or item["final"].strip(), "kept" if fixed else "rolled back: " + answer.strip()))
+        loose, strict = accepted(item, answer), accepted(item, answer, strict=True)
+        note = "kept" if strict else "loose only" if loose else "rolled back"
+        results.append((item, loose or item["final"].strip(), strict or item["final"].strip(), f"{note}: {answer.strip()}"))
     return results, times
 
 
@@ -92,22 +104,22 @@ def main():
     t_res, t_times = run(llm, terms, thinking_off)
     p_res, p_times = run(llm, plain, thinking_off)
     before, total = terms_score([i["final"].strip() for i in terms])
-    after, _ = terms_score([r[1] for r in t_res])
-    false_changes = sum(1 for item, fixed, _ in p_res if fixed != item["final"].strip())
+    after = [terms_score([r[k] for r in t_res])[0] for k in (1, 2)]
+    false_changes = [sum(1 for r in p_res if r[k] != r[0]["final"].strip()) for k in (1, 2)]
     times = t_times + p_times
     calls = len(times)
-    print(f"{os.path.basename(a.model)}: terms {before}/{total} → {after}/{total}; "
-          f"plain changed {false_changes}/{len(plain)}; "
+    print(f"{os.path.basename(a.model)}: terms {before}/{total} → {after[0]} loose, {after[1]} strict; "
+          f"plain changed {false_changes[0]} loose, {false_changes[1]} strict of {len(plain)}; "
           f"calls {calls}/{len(terms) + len(plain)} ({100 * calls / (len(terms) + len(plain)):.0f}%), "
           f"{1000 * sum(times) / max(calls, 1):.0f} ms per call; "
-          f"rolled back {sum(1 for r in t_res + p_res if r[2].startswith('rolled'))}; "
+          f"rolled back {sum(1 for r in t_res + p_res if r[3].startswith('rolled'))}; "
           f"{os.path.getsize(a.model) / 2**20:.0f} MB")
     if a.out:
         with open(a.out, "w", encoding="utf-8") as f:
             for set_name, res in (("terms", t_res), ("plain", p_res)):
-                for item, fixed, note in res:
+                for item, loose, strict, note in res:
                     if note != "no call":
-                        f.write(f"{set_name}\t{item['final'].strip()}\t{fixed}\t{note}\n")
+                        f.write(f"{set_name}\t{item['final'].strip()}\t{loose}\t{strict}\t{note}\n")
 
 
 if __name__ == "__main__":
