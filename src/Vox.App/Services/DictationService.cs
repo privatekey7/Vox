@@ -291,7 +291,13 @@ internal sealed class DictationService : IDisposable
             model = _recognizer?.Model;
         }
 
-        var text = pp?.Process(raw, _corrections) ?? raw;
+        var fuzzy = new List<FuzzyTerms.Match>();
+        var text = pp?.Process(raw, _corrections, fuzzy) ?? raw;
+        foreach (var f in fuzzy)
+        {
+            Log.Info($"[FUZZY] \"{f.Spoken}\" → \"{f.Replacement}\" {f.Score.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)}");
+        }
+
         Log.Info($"[STT] Final: \"{text}\"");
         if (text.Trim().Length == 0)
         {

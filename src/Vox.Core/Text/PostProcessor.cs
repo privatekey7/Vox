@@ -4,7 +4,7 @@ namespace Vox.Core.Text;
 
 /// <summary>
 /// Turns raw model output into the text that is pasted:
-/// &lt;unk&gt; → user dictionary → Claude → terms → model versions → file extensions → key shortcuts → fillers → ITN (if the model needs it)
+/// &lt;unk&gt; → user dictionary → Claude → terms → phonetic terms → model versions → file extensions → key shortcuts → fillers → ITN (if the model needs it)
 /// → dashes → currency → sentence spacing
 /// → one leading space.
 /// </summary>
@@ -13,7 +13,8 @@ public sealed class PostProcessor(SpeechModel model)
     // Parakeet is multilingual but Vox users dictate mostly in Russian.
     private readonly string _lang = model.Language == "multi" ? "ru" : model.Language;
 
-    public string Process(string raw, IReadOnlyDictionary<string, string>? corrections = null)
+    /// <param name="fuzzy">Receives the phonetic replacements (<see cref="FuzzyTerms"/>) for the log.</param>
+    public string Process(string raw, IReadOnlyDictionary<string, string>? corrections = null, ICollection<FuzzyTerms.Match>? fuzzy = null)
     {
         if (string.IsNullOrWhiteSpace(raw))
         {
@@ -25,6 +26,7 @@ public sealed class PostProcessor(SpeechModel model)
         text = ClaudeNames.Apply(text, latinCloud: model.Language == "ru"); // GigaAM hears Claude as "Cloud"
 
         text = Terms.Replace(text);
+        text = FuzzyTerms.Apply(text, fuzzy);
         text = ModelVersions.Apply(text);
         text = FileExtensions.Apply(text);
         text = KeyCombos.Apply(text);
