@@ -3,7 +3,28 @@
 Этот файл — стартовая точка для новой сессии. Здесь всё, что решено и проверено
 в предыдущей сессии (21.10.2026), чтобы не повторять исследование.
 
-## Передача рабочей сессии 22.10 (живой тест GigaAM, session_01BBYXw1ofhfeTWWo7yzckUc) — читать первым
+## Передача рабочей сессии 22.10 (записи диктовок, session_01BBYXw1ofhfeTWWo7yzckUc) — читать первым
+
+- **Настройка** `save_recordings` (по умолчанию false), Настройки → Основное: переключатель и «Открыть папку с записями».
+- **Core** `Vox.Core.Audio.Recordings.cs`: `Wav` (16 бит моно, запись/чтение), `Resampler` (windowed sinc, Hann,
+  срез 0.95 нижнего Найквиста), `RecordingStore` (`AppPaths.Recordings` = `%APPDATA%\vox\recordings`): WAV 16 кГц
+  `ггггММдд-ЧЧммсс-ммм.wav` + строка `recordings.tsv` (UTF-8 с BOM, заголовок `file time model raw final note`; табы и
+  переводы строк в тексте → пробел). Лимит 500 записей / 300 МБ: удаляются самые старые WAV и их строки.
+- **App** (`DictationService.SaveRecording`, в Task после распознавания): сохраняются все диктовки, кроме слишком
+  коротких (< 250 мс) и нажатых до загрузки модели. Пометка `note`: `no speech`, `too quiet`, `no model`,
+  `empty final`; пустая у обычной. Final в записи до `ContextJoiner` (как `[STT] Final`). Лог `[REC] Saved recording <файл>`.
+- **Важно:** модель получает звук как раньше (частота микрофона, ресемплинг внутри sherpa-onnx); WAV ресемплит наш
+  `Resampler`. Звук почти тот же, но не побайтно. Проверено: example.wav GigaAM → 48 кГц → запись → `--audio` даёт
+  тот же текст; сохранение 11 с звука ~0.5 с (в фоне).
+- **Vox.Replay** `--audio <папка>` [`--model gigaam|parakeet`] [`--models <папка>` или `VOX_TEST_MODELS`] [`--dict`]:
+  TSV `файл, Raw из записи, новый Raw, новый Final`, сводка в stderr. Ссылается на Vox.Engine; модель создаётся через
+  `Recognizers.Create` (единственная точка для третьей модели).
+- **Qwen3-ASR:** в org.k2fsa.sherpa.onnx 1.13.8 есть `OfflineModelConfig.Qwen3Asr` (`OfflineQwen3AsrModelConfig`:
+  ConvFrontend, Encoder, Decoder, Tokenizer, MaxTotalLen, MaxNewTokens, Temperature, TopP, Seed, Hotwords). Файлы:
+  conv_frontend.onnx, encoder(.int8).onnx, decoder(.int8).onnx, папка токенизатора; имена в официальном релизе не сверены.
+- **Удаление:** `vox.iss` при «Да» удаляет `{userappdata}\vox` целиком, записи с ним. На Windows не проверено.
+
+## Передача рабочей сессии 22.10 (живой тест GigaAM, session_01BBYXw1ofhfeTWWo7yzckUc)
 
 30 фраз владельца с англицизмами на GigaAM; тест `GigaAM_live_test_spellings` гоняет обе модели через PostProcessor.
 - **Группа `exact`** в terms.json: точные записи без поиска по звучанию (`FuzzyTerms.Default` её пропускает),

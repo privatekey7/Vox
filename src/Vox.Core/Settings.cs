@@ -22,6 +22,7 @@ public sealed class AppPaths(string root, string sharedRoot)
     public string LogFile => Path.Combine(Logs, "vox.log");
     public string Database => Path.Combine(Root, "vox_data.db");
     public string ScreenNames => Path.Combine(Root, "screen_names.json");
+    public string Recordings => Path.Combine(Root, "recordings");
     public string Config => Path.Combine(Root, "config.json");
 }
 
@@ -86,6 +87,13 @@ public sealed class Settings
     {
         get => GetBool("screen_hints", true);
         set => _json["screen_hints"] = value;
+    }
+
+    /// <summary>Save each dictation's audio and text for checking recognition (<see cref="Audio.RecordingStore"/>).</summary>
+    public bool SaveRecordings
+    {
+        get => GetBool("save_recordings", false);
+        set => _json["save_recordings"] = value;
     }
 
     /// <summary>Put the user's own clipboard back after pasting a dictation.</summary>

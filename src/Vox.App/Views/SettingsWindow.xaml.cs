@@ -108,6 +108,7 @@ public partial class SettingsWindow : Window
         SoundsToggle.IsChecked = _app.Settings.Sounds;
         AutostartToggle.IsChecked = Autostart.IsEnabled;
         ClipboardToggle.IsChecked = _app.Settings.RestoreClipboard;
+        RecordingsToggle.IsChecked = _app.Settings.SaveRecordings;
         LearnToggle.IsChecked = _app.Settings.LearnCorrections;
         ScreenToggle.IsChecked = _app.Settings.ScreenHints;
     }
@@ -208,6 +209,10 @@ public partial class SettingsWindow : Window
         else if (sender == ScreenToggle)
         {
             _app.Settings.ScreenHints = ScreenToggle.IsChecked == true;
+        }
+        else if (sender == RecordingsToggle)
+        {
+            _app.Settings.SaveRecordings = RecordingsToggle.IsChecked == true;
         }
 
         _app.Settings.Save();
@@ -313,6 +318,12 @@ public partial class SettingsWindow : Window
             _app.Database.ClearHistory();
             LoadHistory();
         }
+    }
+
+    private void OnOpenRecordings(object sender, RoutedEventArgs e)
+    {
+        Directory.CreateDirectory(App.Paths.Recordings);
+        Process.Start(new ProcessStartInfo { FileName = App.Paths.Recordings, UseShellExecute = true });
     }
 
     // ---- Dictionary ----------------------------------------------------------------------

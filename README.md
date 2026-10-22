@@ -119,6 +119,8 @@ Vox 2.0 написан на C# (.NET 10, WPF). Распознавание — [s
 dotnet test Vox.sln --filter "Category!=Models"        # тесты без моделей (работают и на Linux/macOS)
 VOX_TEST_MODELS=/путь/к/моделям dotnet test Vox.sln     # + тесты на настоящих моделях
 dotnet publish src/Vox.App -c Release -r win-x64 --self-contained -o publish
+# записи диктовок (Настройки → Основное → «Сохранять записи диктовок») через модель и весь постпроцессинг:
+dotnet run --project tools/Vox.Replay -- --audio путь/к/recordings --model gigaam --models /путь/к/моделям
 ```
 
 Установщик (`vox-setup.exe`) собирает GitHub Actions: `.github/workflows/build.yml` → Inno Setup (`vox.iss`).

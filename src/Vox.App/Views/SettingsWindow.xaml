@@ -102,6 +102,19 @@
               </StackPanel>
               <CheckBox x:Name="ClipboardToggle" Grid.Column="1" Style="{StaticResource Vox.Toggle}" Click="OnToggle"/>
             </Grid>
+            <Border Height="1" Background="{DynamicResource Vox.CardStroke}"/>
+            <Grid Margin="16,14">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="Сохранять записи диктовок" Style="{StaticResource Vox.Body}"/>
+                <TextBlock Text="Для проверки распознавания. Записи хранятся только на этом компьютере." Style="{StaticResource Vox.Caption}"/>
+                <Button Content="Открыть папку с записями" Style="{StaticResource Vox.LinkButton}" HorizontalAlignment="Left" Margin="0,4,0,0" Click="OnOpenRecordings"/>
+              </StackPanel>
+              <CheckBox x:Name="RecordingsToggle" Grid.Column="1" Style="{StaticResource Vox.Toggle}" Click="OnToggle"/>
+            </Grid>
           </StackPanel>
         </Border>
       </StackPanel>

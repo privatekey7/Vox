@@ -53,10 +53,12 @@ internal sealed class DictationService : IDisposable
     private readonly CursorContext _context = new();
     private readonly ScreenMemory _screenMemory;
     private readonly OwnWords _ownWords = new();
+    private readonly RecordingStore _recordings;
 
-    public DictationService(AudioCapture audio, Paster paster, Sounds sounds, VoxDatabase db, Settings settings, string modelsRoot, ScreenMemory screenMemory)
+    public DictationService(AudioCapture audio, Paster paster, Sounds sounds, VoxDatabase db, Settings settings, string modelsRoot, ScreenMemory screenMemory, RecordingStore recordings)
     {
         _screenMemory = screenMemory;
+        _recordings = recordings;
         foreach (var t in db.History(OwnWords.HistoryLimit))
         {
             _ownWords.Add(t.RawText);
@@ -289,10 +291,11 @@ internal sealed class DictationService : IDisposable
 
         Log.Info($"[REC] Stopped ({ms}ms), transcribing...");
         Report(DictationState.Recognizing);
-        var raw = Recognize(samples, rate);
+        var (raw, why) = Recognize(samples, rate);
         if (raw.Length == 0)
         {
             Log.Info("[STT] No speech recognized");
+            SaveRecording(samples, rate, Model, "", "", why);
             if (ms >= ErrorSignalMinMs)
             {
                 _sounds.Error();
@@ -327,6 +330,7 @@ internal sealed class DictationService : IDisposable
         }
 
         Log.Info($"[STT] Final: \"{text}\"");
+        SaveRecording(samples, rate, model, raw, text, text.Trim().Length == 0 ? "empty final" : "");
         if (text.Trim().Length == 0)
         {
             Report(DictationState.Idle);
@@ -421,21 +425,43 @@ internal sealed class DictationService : IDisposable
         }
     }
 
-    /// <summary>Recognise, logging *why* when no text comes out.</summary>
-    private string Recognize(float[] samples, int rate)
+    // Settings: each dictation (an empty one too, with why) for checking recognition; off the processing thread.
+    private void SaveRecording(float[] samples, int rate, SpeechModel? model, string raw, string final, string note)
+    {
+        if (!_settings.SaveRecordings || samples.Length == 0)
+        {
+            return;
+        }
+
+        var time = DateTime.Now;
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                Log.Info($"[REC] Saved recording {_recordings.Save(samples, rate, time, model?.Id ?? "", raw, final, note)}");
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                Log.Error("[REC] Saving the recording failed", e);
+            }
+        });
+    }
+
+    /// <summary>Recognise, logging *why* when no text comes out (also returned, for the saved recording).</summary>
+    private (string Text, string Why) Recognize(float[] samples, int rate)
     {
         if (samples.Length == 0)
         {
             Log.Info("[STT] No audio from microphone — reopening it");
             _audio.Reopen();
-            return "";
+            return ("", "no audio");
         }
 
         var peak = samples.Max(Math.Abs);
         if (peak < MinPeak)
         {
             Log.Info($"[STT] Too quiet (peak {peak * 32768:F0} < 100) — check the microphone");
-            return "";
+            return ("", "too quiet");
         }
 
         SpeechRecognizer? recognizer;
@@ -447,7 +473,7 @@ internal sealed class DictationService : IDisposable
         if (recognizer is null)
         {
             Log.Info("[STT] No model loaded");
-            return "";
+            return ("", "no model");
         }
 
         var sw = Stopwatch.StartNew();
@@ -459,7 +485,7 @@ internal sealed class DictationService : IDisposable
             Log.Info("[STT] Model returned no text");
         }
 
-        return text;
+        return (text, text.Length == 0 ? "no speech" : "");
     }
 
     /// <param name="Screen">Names on screen at key-up (<see cref="ScreenNames"/>), null when screen hints are off.</param>

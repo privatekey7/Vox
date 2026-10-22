@@ -6,5 +6,6 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Vox.Core\Vox.Core.csproj" />
+    <ProjectReference Include="..\..\src\Vox.Engine\Vox.Engine.csproj" />
   </ItemGroup>
 </Project>

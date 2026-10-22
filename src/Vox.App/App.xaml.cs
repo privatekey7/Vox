@@ -80,7 +80,7 @@ public partial class App : Application
             _db = new VoxDatabase(Paths.Database);
             _sounds = new Sounds { Enabled = Settings.Sounds };
             _audio = new AudioCapture(Settings.Microphone);
-            _dictation = new DictationService(_audio, new Paster(Dispatcher), _sounds, _db, Settings, Paths.Models, Vox.Core.Text.ScreenMemory.Load(Paths.ScreenNames));
+            _dictation = new DictationService(_audio, new Paster(Dispatcher), _sounds, _db, Settings, Paths.Models, Vox.Core.Text.ScreenMemory.Load(Paths.ScreenNames), new Vox.Core.Audio.RecordingStore(Paths.Recordings));
             _hook = new KeyboardHook(Hotkeys.VirtualKey(Settings.Hotkey));
             _hook.Pressed += _dictation.OnPressed;
             _hook.Released += _dictation.OnReleased;
