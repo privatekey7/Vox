@@ -79,7 +79,9 @@ public sealed class ModelVersionsTests
     [InlineData("Опуск 5 и пять.", " Opus 5.5.")]
     [InlineData("Цена 5,5 рубля.", " Цена 5,5 рубля.")] // an ordinary number stays
     [InlineData("Фронтент и фронтанд.", " Фронтенд и фронтенд.")]
-    [InlineData("Это Frount End.", " Это Фронтенд.")]
+    [InlineData("Это Frount End.", " Это фронтенд.")] // the model's Latin capital is not kept mid-sentence
+    [InlineData("Fruentand готов. Bek End тоже.", " Фронтенд готов. Бэкенд тоже.")] // but is at a sentence start
+    [InlineData("Это Вэкенд.", " Это Бэкенд.")] // a Cyrillic capital is the speaker's: kept
     [InlineData("Нужен фронт-энд-инженер.", " Нужен фронтенд-инженер.")]
     [InlineData("Это вэкенд и бэкэнд.", " Это бэкенд и бэкенд.")]
     [InlineData("Нужна Лэм полировка.", " Нужна LLM-полировка.")]

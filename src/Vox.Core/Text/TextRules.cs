@@ -36,7 +36,7 @@ public static partial class Terms
             for (var n = Math.Min(maxWords, words.Count - i); n >= 1 && matched == 0; n--)
             {
                 if (Phrase(text, words, i, n) is { } key && phrases.TryGetValue(key, out var entry)
-                    && Replacement(entry, words[i].Value) is { } replacement)
+                    && Replacement(entry, words[i].Value, StartsSentence(text, words[i].Index)) is { } replacement)
                 {
                     result.Append(text, copied, words[i].Index - copied).Append(replacement);
                     copied = words[i + n - 1].Index + words[i + n - 1].Length;
@@ -80,14 +80,23 @@ public static partial class Terms
     }
 
     // A Cyrillic spelling fix keeps the spoken capital ("Промт" → "Промпт"); Latin terms keep their own case.
-    private static string? Replacement(Entry entry, string spoken)
+    // A capital on a Latin spelling is the model's, not the speaker's: kept only at a sentence start
+    // ("Это Frount End" → "Это фронтенд").
+    private static string? Replacement(Entry entry, string spoken, bool sentenceStart)
     {
         var replacement = entry.Ending is null
             ? entry.Replacement
             : Declension.Inflect(entry.Replacement, entry.LastSourceWord, entry.Ending, entry.MinLength);
         return replacement is { Length: > 0 } && char.IsUpper(spoken[0]) && char.IsLower(replacement[0]) && !HasLatin(replacement)
+            && (sentenceStart || !HasLatin(spoken))
             ? char.ToUpperInvariant(replacement[0]) + replacement[1..]
             : replacement;
+    }
+
+    private static bool StartsSentence(string text, int index)
+    {
+        var before = text.AsSpan(0, index).TrimEnd();
+        return before.IsEmpty || ".!?…".Contains(before[^1]);
     }
 
     private static bool HasLatin(string s) => s.Any(c => c is >= 'a' and <= 'z' or >= 'A' and <= 'Z');
