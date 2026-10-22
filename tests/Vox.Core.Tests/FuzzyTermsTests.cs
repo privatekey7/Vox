@@ -127,6 +127,20 @@ public class FuzzyTermsTests
     [InlineData("в папку Defolt", "в папку default")]
     [InlineData("Optimising Hub, Хоум, Директори, Паспайдер, Мимо, Бэ дрок", "Optimising Hub, Хоум, Директори, Паспайдер, Мимо, Бэ дрок")]
     [InlineData("Sishar, Orbitrum, Dipsic, Becande, Pyton, Promice", "C#, Arbitrum, DeepSeek, бэкенд, Python, promise")]
+    // Owner's live test of d873371 (Final from the chat).
+    [InlineData("Сеть орбитру и орбитрум", "Сеть Arbitrum и Arbitrum")]
+    [InlineData("Модель Deeps версии 4.1", "Модель DeepSeek 4.1")]
+    [InlineData("Клоцонет и клод сонет, Claude Санет 4.5, Санет 4.5", "Claude Sonnet и Claude Sonnet, Claude Sonnet 4.5, Sonnet 4.5")]
+    [InlineData("Claude Хайку, Хайку про осень, сонет Шекспира", "Claude Haiku, Хайку про осень, сонет Шекспира")]
+    [InlineData("Вибук и вебку", "webhook и вебку")]
+    [InlineData("Анрил Энджайн и Гадот", "Unreal Engine и Godot")]
+    [InlineData("в сети манат, сеть Manat, курс манат", "в сети Monad, сеть Monad, курс манат")]
+    [InlineData("Fugion Face и Яндекс JPT", "Hugging Face и YandexGPT")]
+    [InlineData("приват Кей и private Кей", "private key и private key")]
+    [InlineData("Это плагенс и Plagens", "Это плагины и плагины")] // a Cyrillic capital is the speaker's and stays
+    [InlineData("Гитпуш, кли и кли-версия", "git push, CLI и CLI-версия")]
+    [InlineData("Митсубиси Лэнд-Крузер", "Mitsubishi Land Cruiser")]
+    [InlineData("пишу на nast и на go, на GO, голу", "пишу на Rust и на Go, на Go, голу")]
     public void Live_test_phrases(string raw, string expected) =>
         Assert.Equal(expected, new PostProcessor(ModelCatalog.GigaAm).Process(raw).Trim());
 

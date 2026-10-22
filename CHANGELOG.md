@@ -79,6 +79,8 @@ Vox переписан на C# (.NET 10, WPF) с новым дизайном VOX
 - Нажатия, которые Vox отправляет сам (Ctrl+V), больше не могут запустить запись.
 
 ### Fixed
+- Термины по второму живому тесту: Claude Sonnet («клод санет»), Claude Haiku, Arbitrum («орбитрум»),
+  «сеть манат» → «сеть Monad», git push («гитпуш»), CLI («кли»), private key, Land Cruiser, «на nast» → «на Rust» и др.
 - «1 600 МГ» → «1 600 МГц», «3 ГГ» → «3 ГГц» (модель теряет «ц» после числа).
 - Термины по живому тесту: «Си++», «Charb++» → C++, «Masila» → Mozilla, «Smos» → CMOS, «Дирам» → DRAM,
   «Родеон» → Radeon, «Jmile» → Gmail, «Open I» → OpenAI, «Deep Seak» → DeepSeek, «LM-модели» → «LLM-модели» и др.
