@@ -47,7 +47,7 @@ internal sealed class DictationService : IDisposable
     private volatile RecordingBuffer? _current;
 
     private readonly FieldWatcher _watcher = new();
-    private readonly CorrectionCandidates _candidates = new();
+    private readonly CorrectionCandidates _candidates;
     private readonly CursorContext _context = new();
 
     public DictationService(AudioCapture audio, Paster paster, Sounds sounds, VoxDatabase db, Settings settings, string modelsRoot)
@@ -59,6 +59,7 @@ internal sealed class DictationService : IDisposable
         _settings = settings;
         _modelsRoot = modelsRoot;
         _corrections = db.Corrections();
+        _candidates = new CorrectionCandidates(db);
         _processor = new Thread(ProcessLoop) { IsBackground = true, Name = "VoxProcessor" };
         _processor.Start();
         _watcher.Enabled = settings.LearnCorrections;

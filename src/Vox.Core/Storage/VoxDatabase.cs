@@ -1,4 +1,5 @@
 using Microsoft.Data.Sqlite;
+using Vox.Core.Text;
 
 namespace Vox.Core.Storage;
 
@@ -9,9 +10,10 @@ public sealed record DictionaryEntry(long Id, string Wrong, string Correct, stri
 
 /// <summary>
 /// History, user dictionary and settings in vox_data.db. The schema is the one Vox 1.x created,
-/// so an existing database opens as-is (see docs/csharp-migration.md §5).
+/// so an existing database opens as-is (see docs/csharp-migration.md §5); 2.0 only adds
+/// correction_candidates, which 1.x ignores.
 /// </summary>
-public sealed class VoxDatabase : IDisposable
+public sealed class VoxDatabase : IDisposable, ICandidateStore
 {
     private const string Schema = """
         CREATE TABLE IF NOT EXISTS transcriptions (
@@ -49,6 +51,11 @@ public sealed class VoxDatabase : IDisposable
             UNIQUE(wrong, lang)
         );
         CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS correction_candidates (
+            wrong      TEXT PRIMARY KEY,
+            correct    TEXT NOT NULL,
+            created_at REAL NOT NULL
+        );
         CREATE INDEX IF NOT EXISTS idx_transcriptions_created ON transcriptions(created_at DESC);
         CREATE INDEX IF NOT EXISTS idx_transcriptions_model ON transcriptions(model);
         CREATE INDEX IF NOT EXISTS idx_dictionary_wrong ON dictionary(wrong);
@@ -143,6 +150,32 @@ public sealed class VoxDatabase : IDisposable
     /// <summary>{wrong → correct} for <see cref="Text.UserCorrections.Apply"/>.</summary>
     public IReadOnlyDictionary<string, string> Corrections() =>
         DictionaryEntries().GroupBy(e => e.Wrong).ToDictionary(g => g.Key, g => g.First().Correct);
+
+    public IReadOnlyDictionary<string, string> LoadCandidates()
+    {
+        lock (_lock)
+        {
+            using var cmd = _connection.CreateCommand();
+            cmd.CommandText = "SELECT wrong, correct FROM correction_candidates";
+            using var r = cmd.ExecuteReader();
+            var candidates = new Dictionary<string, string>();
+            while (r.Read())
+            {
+                candidates[r.GetString(0)] = r.GetString(1);
+            }
+
+            return candidates;
+        }
+    }
+
+    public void SaveCandidate(string wrong, string correct) => Execute("""
+        INSERT INTO correction_candidates (wrong, correct, created_at) VALUES ($w, $c, $t)
+        ON CONFLICT(wrong) DO UPDATE SET correct = excluded.correct, created_at = excluded.created_at
+        """, ("$w", wrong), ("$c", correct), ("$t", DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0));
+
+    public void RemoveCandidate(string wrong) => Execute("DELETE FROM correction_candidates WHERE wrong = $w", ("$w", wrong));
+
+    public void ClearCandidates() => Execute("DELETE FROM correction_candidates");
 
     public void Dispose() => _connection.Dispose();
 
