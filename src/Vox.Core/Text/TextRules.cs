@@ -382,14 +382,25 @@ public static class UserCorrections
             text = Regex.Replace(text, pattern, correct.Replace("$", "$$", StringComparison.Ordinal), RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
         }
 
+        // Case forms of each entry: a learned pair is kept as the user fixed it ("керила" → "Кирилла"),
+        // so its base form ("керил" → "Кирилл") is worked out here and declined too.
         var declined = new Dictionary<string, (string Source, string Correct, string Ending)>();
         foreach (var (source, correct) in corrections)
         {
-            foreach (var (form, ending) in Declension.Forms(source))
+            var (baseSource, baseCorrect) = Declension.BaseForm(source, correct);
+            if (baseSource != source && !corrections.ContainsKey(baseSource))
             {
-                if (!corrections.ContainsKey(form))
+                declined.TryAdd(baseSource, (baseSource, baseCorrect, ""));
+            }
+
+            foreach (var (s, c) in new[] { (source, correct), (baseSource, baseCorrect) }.Distinct())
+            {
+                foreach (var (form, ending) in Declension.Forms(s))
                 {
-                    declined.TryAdd(form, (source, correct, ending));
+                    if (!corrections.ContainsKey(form))
+                    {
+                        declined.TryAdd(form, (s, c, ending));
+                    }
                 }
             }
         }

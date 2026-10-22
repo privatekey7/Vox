@@ -51,12 +51,21 @@ public sealed class DeclensionTests
         Assert.Equal("Это кота.", UserCorrections.Apply("Это кота.", new Dictionary<string, string> { ["кот"] = "Cat" }));
 
     [Fact]
-    public void Learned_case_forms_are_stored_in_their_base_form()
+    public void A_learned_pair_is_stored_as_the_user_fixed_it()
     {
-        // Fixing "керила" → "Кирилла" must not add one entry per case.
-        Assert.Equal(("керил", "Кирилл"), CorrectionDetector.Detect("Позови керила.", "Позови Кирилла.", "Позови керила."));
-        Assert.Equal(("гитхаб", "GitHub"), CorrectionDetector.Detect("Лежит на гитхабе.", "Лежит на GitHub.", "Лежит на гитхабе."));
+        // Regression (owner): "Лебовски" → "Lebowski" was stored and shown as "лебовск".
+        Assert.Equal(("Лебовски", "Lebowski"), CorrectionDetector.Detect("Пересмотрю Большого Лебовски.", "Пересмотрю Большого Lebowski.", "Пересмотрю Большого Лебовски."));
+        Assert.Equal(("керила", "Кирилла"), CorrectionDetector.Detect("Позови керила.", "Позови Кирилла.", "Позови керила."));
+        Assert.Equal(("гитхабе", "GitHub"), CorrectionDetector.Detect("Лежит на гитхабе.", "Лежит на GitHub.", "Лежит на гитхабе."));
     }
+
+    [Theory]
+    // One entry still covers every case: the base form is worked out when the dictionary is applied.
+    [InlineData("керила", "Кирилла", "Созвонимся с керилом.", "Созвонимся с Кириллом.")]
+    [InlineData("гитхабе", "GitHub", "Работаю с гитхабом.", "Работаю с GitHub.")]
+    [InlineData("лебовски", "Lebowski", "Пересмотрю Большого Лебовски.", "Пересмотрю Большого Lebowski.")]
+    public void A_learned_case_form_matches_other_cases(string wrong, string correct, string text, string expected) =>
+        Assert.Equal(expected, UserCorrections.Apply(text, new Dictionary<string, string> { [wrong] = correct }));
 
     [Fact]
     public void Numbers_and_currency_are_untouched() =>

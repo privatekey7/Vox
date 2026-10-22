@@ -64,8 +64,9 @@ internal sealed class DictationService : IDisposable
         _processor = new Thread(ProcessLoop) { IsBackground = true, Name = "VoxProcessor" };
         _processor.Start();
         _watcher.Enabled = settings.LearnCorrections;
-        _watcher.Learned += (wrong, correct) =>
+        _watcher.Learned += (shown, correct) =>
         {
+            var wrong = shown.ToLowerInvariant(); // dictionary keys are lower case; the pill shows "Лебовски"
             if (CorrectionCandidates.IsCommonWord(wrong))
             {
                 Log.Info("[LEARN] The fixed word is an ordinary Russian word: not learned (add it in the dictionary by hand)");
@@ -81,7 +82,7 @@ internal sealed class DictationService : IDisposable
             Log.Info("[LEARN] Seen twice — added to the dictionary");
             _db.AddDictionaryEntry(wrong, correct, "", "auto");
             ReloadCorrections();
-            CorrectionLearned?.Invoke(wrong, correct);
+            CorrectionLearned?.Invoke(shown, correct);
         };
     }
 

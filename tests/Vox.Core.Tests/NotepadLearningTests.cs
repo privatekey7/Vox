@@ -13,7 +13,7 @@ public sealed class NotepadLearningTests
     [InlineData("Задачи:\r\n Открой сервис PPFI.\r\n ", "Задачи:\r\n Открой сервис Pipify.\r\n ")] // auto-indent after Enter
     [InlineData("Задачи:\r\n Открой сервис PPFI.", "Задачи:\r\n Открой сервис Pipify.\r\n Дальше текст")] // the user typed on
     public void Latin_fix_in_a_notepad_document_is_detected(string before, string after) =>
-        Assert.Equal(("ppfi", "Pipify"), CorrectionDetector.Detect(before, after, Inserted));
+        Assert.Equal(("PPFI", "Pipify"), CorrectionDetector.Detect(before, after, Inserted));
 
     [Fact]
     public void Describe_lists_the_word_changes_for_the_log() =>
@@ -23,7 +23,7 @@ public sealed class NotepadLearningTests
     // Owner's test: the model split the term in two words, the user typed on after the fix.
     [Fact]
     public void A_split_term_fixed_into_one_word_is_learned() =>
-        Assert.Equal(("zena koder", "Zencoder"),
+        Assert.Equal(("Zena Koder", "Zencoder"),
             CorrectionDetector.Detect("Заметки:\r\n Открой Zena Koder.", "Заметки:\r\n Открой Zencoder. привет", "Открой Zena Koder."));
 
     [Fact]

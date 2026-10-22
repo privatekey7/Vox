@@ -67,7 +67,9 @@ public static class CorrectionDetector
             return null;
         }
 
-        return Declension.BaseForm(wrong.ToLowerInvariant(), correct); // one entry for all case forms
+        // As the user fixed it, case kept ("Лебовски" → "Lebowski"): the dictionary stores it lower-cased
+        // and UserCorrections works out the base form for other cases.
+        return (wrong, correct);
     }
 
     /// <summary>
