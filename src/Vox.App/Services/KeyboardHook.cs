@@ -98,6 +98,16 @@ internal sealed class KeyboardHook : IDisposable
         }
     }
 
+    private static long _lastUserKeyTick;
+
+    /// <summary>
+    /// When the user last pressed a non-modifier key (Enter, arrows, typing…): after that, the end of
+    /// Vox's previous paste no longer tells what is before the cursor (CursorContext).
+    /// </summary>
+    public static long LastUserKeyTick => Volatile.Read(ref _lastUserKeyTick);
+
+    private static bool IsModifier(uint vk) => vk is >= 0x10 and <= 0x12 or >= 0xA0 and <= 0xA5 or 0x5B or 0x5C or 0x14;
+
     private nint Callback(int nCode, nint wParam, nint lParam)
     {
         Volatile.Write(ref _lastEventTick, Environment.TickCount64);
@@ -108,6 +118,11 @@ internal sealed class KeyboardHook : IDisposable
             {
                 var down = wParam is Native.WM_KEYDOWN or Native.WM_SYSKEYDOWN;
                 var up = wParam is Native.WM_KEYUP or Native.WM_SYSKEYUP;
+                if (down && info.vkCode != _hotkeyVk && !IsModifier(info.vkCode))
+                {
+                    Volatile.Write(ref _lastUserKeyTick, Environment.TickCount64);
+                }
+
                 if (info.vkCode == _hotkeyVk)
                 {
                     if (down && !_hotkeyDown)

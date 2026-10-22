@@ -302,7 +302,8 @@ internal sealed class DictationService : IDisposable
         // Continue the sentence at the cursor instead of always starting a new one.
         var (before, after, source) = _context.Read();
         text = ContextJoiner.Apply(text, before, after);
-        Log.Info($"[CTX] {source}: {ContextJoiner.Describe(before)}; pasted: \"{text}\""); // Final is before the join
+        var shownBefore = before is null ? "?" : before.Replace("\r", "\\r", StringComparison.Ordinal).Replace("\n", "\\n", StringComparison.Ordinal);
+        Log.Info($"[CTX] {source}: {ContextJoiner.Describe(before)} (before: \"{shownBefore}\"); pasted: \"{text}\""); // Final is before the join
 
         _paster.Paste(text, _settings.RestoreClipboard);
         _context.Remember(text);
