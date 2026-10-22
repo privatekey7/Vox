@@ -228,13 +228,17 @@ internal sealed class AudioCapture : IDisposable
         Level?.Invoke(peak);
     }
 
+    // KSDATAFORMAT_SUBTYPE_IEEE_FLOAT
+    private static readonly Guid IeeeFloatSubFormat = new("00000003-0000-0010-8000-00aa00389b71");
+
     private static float[] ToMono(byte[] buffer, int bytes, WaveFormat format)
     {
         var channels = format.Channels;
         var bytesPerSample = format.BitsPerSample / 8;
         var frames = bytes / (bytesPerSample * channels);
+        // WAVE_FORMAT_EXTENSIBLE says float or PCM in SubFormat: 32-bit can be either.
         var isFloat = format.Encoding == WaveFormatEncoding.IeeeFloat
-            || (format.Encoding == WaveFormatEncoding.Extensible && format.BitsPerSample == 32);
+            || (format is WaveFormatExtensible extensible && extensible.SubFormat == IeeeFloatSubFormat);
         var mono = new float[frames];
         for (var f = 0; f < frames; f++)
         {
