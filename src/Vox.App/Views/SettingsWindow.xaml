@@ -116,8 +116,10 @@
       </Grid.RowDefinitions>
       <Grid>
         <TextBlock Text="История" Style="{StaticResource Vox.Section}"/>
-        <Button Content="Очистить" Style="{StaticResource Vox.LinkButton}" HorizontalAlignment="Right" VerticalAlignment="Center"
-                Click="OnClearHistory"/>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+          <Button Content="Открыть логи" Style="{StaticResource Vox.SecondaryButton}" Click="OnOpenLogs" Margin="0,0,16,0"/>
+          <Button Content="Очистить" Style="{StaticResource Vox.LinkButton}" VerticalAlignment="Center" Click="OnClearHistory"/>
+        </StackPanel>
       </Grid>
       <Grid Grid.Row="1" Margin="0,16,0,12">
         <TextBox x:Name="SearchBox" FontSize="14" Padding="34,8,8,8" TextChanged="OnSearchChanged"/>
