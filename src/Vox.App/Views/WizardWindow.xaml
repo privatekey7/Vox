@@ -17,7 +17,7 @@
 
     <!-- Step 1: language -->
     <StackPanel x:Name="StepLanguage" Grid.Row="1">
-      <TextBlock Text="Привет! Я Vox" Style="{StaticResource Vox.Title}" HorizontalAlignment="Center"/>
+      <TextBlock Text="Привет! Я Vox" Style="{StaticResource Vox.Title}" FontSize="32" FontWeight="Bold" HorizontalAlignment="Center"/>
       <TextBlock Style="{StaticResource Vox.Subtitle}" TextAlignment="Center" Margin="0,8,0,24" FontSize="15"
                  Text="Говорите, и текст появится там, где стоит курсор. В любой программе, без интернета."/>
       <TextBlock Text="На каком языке вы будете говорить?" Style="{StaticResource Vox.Question}"
