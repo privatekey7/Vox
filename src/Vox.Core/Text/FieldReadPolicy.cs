@@ -25,7 +25,9 @@ public static class FieldReadPolicy
     /// <param name="uiaHasText">UI Automation exposed the field's text.</param>
     /// <param name="isPassword">UIA IsPassword, or ES_PASSWORD on an EDIT control.</param>
     /// <param name="windowTextLength">WM_GETTEXTLENGTH of the focused control, -1 if it did not answer.</param>
-    public static FieldSource Choose(bool uiaHasText, bool isPassword, int windowTextLength)
+    /// <param name="isTextControl">The control is Scintilla or an EDIT: when it is empty or busy (still applying
+    /// the paste, the first dictation after Notepad++ started), it is read again a little later.</param>
+    public static FieldSource Choose(bool uiaHasText, bool isPassword, int windowTextLength, bool isTextControl = false)
     {
         if (isPassword)
         {
@@ -37,6 +39,8 @@ public static class FieldReadPolicy
             return FieldSource.Uia;
         }
 
-        return windowTextLength is > 0 and <= MaxWindowTextChars ? FieldSource.WindowText : FieldSource.None;
+        return windowTextLength is > 0 and <= MaxWindowTextChars || (isTextControl && windowTextLength is -1 or 0)
+            ? FieldSource.WindowText
+            : FieldSource.None;
     }
 }

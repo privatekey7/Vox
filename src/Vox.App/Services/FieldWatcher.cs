@@ -85,11 +85,7 @@ internal sealed class FieldWatcher : IDisposable
             || (hwnd != 0 && windowClass.Contains("Edit", StringComparison.OrdinalIgnoreCase)
                 && (Native.GetWindowLongPtr(hwnd, Native.GWL_STYLE) & Native.ES_PASSWORD) != 0);
         var length = hwnd != 0 ? Native.WindowTextLength(hwnd, WindowTextTimeoutMs) : -1;
-        var source = FieldReadPolicy.Choose(uiaText is not null, isPassword, length);
-        if (source == FieldSource.None && !isPassword && hwnd != 0 && length == 0 && IsTextControl(windowClass))
-        {
-            source = FieldSource.WindowText; // a new, still empty Notepad++ buffer: the paste has not landed yet
-        }
+        var source = FieldReadPolicy.Choose(uiaText is not null, isPassword, length, hwnd != 0 && IsTextControl(windowClass));
 
         Func<string?> read = source == FieldSource.Uia
             ? () => ReadText(element!)
@@ -113,6 +109,10 @@ internal sealed class FieldWatcher : IDisposable
         if (isPassword)
         {
             Log.Info($"[LEARN] Password field in {app}: not read");
+        }
+        else if (text is null && source == FieldSource.WindowText)
+        {
+            Log.Info($"[LEARN] {app} (window class {windowClass}) did not answer in time: not watched");
         }
         else if (text is null)
         {

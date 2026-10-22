@@ -16,4 +16,17 @@ public sealed class FieldReadPolicyTests
     [InlineData(false, false, FieldReadPolicy.MaxWindowTextChars + 1, FieldSource.None)] // a huge document
     public void Chooses_how_to_read_the_field(bool uia, bool password, int length, FieldSource expected) =>
         Assert.Equal(expected, FieldReadPolicy.Choose(uia, password, length));
+
+    // Owner's log (22.10, 15:54): the first dictation after Notepad++ started got no answer in time
+    // and was never read again ("does not expose the field's text").
+    [Theory]
+    [InlineData(-1, FieldSource.WindowText)] // busy applying the paste: read again
+    [InlineData(0, FieldSource.WindowText)] // a new, still empty buffer
+    [InlineData(500, FieldSource.WindowText)]
+    [InlineData(FieldReadPolicy.MaxWindowTextChars + 1, FieldSource.None)]
+    public void A_text_control_that_did_not_answer_yet_is_read_again(int length, FieldSource expected)
+    {
+        Assert.Equal(expected, FieldReadPolicy.Choose(false, false, length, isTextControl: true));
+        Assert.Equal(FieldSource.None, FieldReadPolicy.Choose(false, true, length, isTextControl: true)); // never a password
+    }
 }
