@@ -14,7 +14,10 @@ public static partial class Terms
     // generated against a frequency list: docs/declension.md).
     private static readonly Lazy<(Dictionary<string, Entry> Phrases, int MaxWords)> Index = new(BuildIndex);
 
-    private sealed record Entry(string Replacement, string LastSourceWord, string? Ending);
+    private sealed record Entry(string Replacement, string LastSourceWord, string? Ending, int MinLength = 4);
+
+    // The last word of a phrase may be short: the phrase itself guards against ordinary words.
+    private const int PhraseWordMinLength = 3;
 
     // A word is letters/digits/underscores; a hyphen joins parts into one word ("пиф-паф" is not "паф").
     [GeneratedRegex(@"[\p{L}\p{Nd}_]+(?:-[\p{L}\p{Nd}_]+)*")]
@@ -33,7 +36,7 @@ public static partial class Terms
             for (var n = Math.Min(maxWords, words.Count - i); n >= 1 && matched == 0; n--)
             {
                 if (Phrase(text, words, i, n) is { } key && phrases.TryGetValue(key, out var entry)
-                    && Replacement(entry) is { } replacement)
+                    && Replacement(entry, words[i].Value) is { } replacement)
                 {
                     result.Append(text, copied, words[i].Index - copied).Append(replacement);
                     copied = words[i + n - 1].Index + words[i + n - 1].Length;
@@ -67,8 +70,18 @@ public static partial class Terms
         return string.Join(' ', Enumerable.Range(i, n).Select(k => words[k].Value.ToLowerInvariant()));
     }
 
-    private static string? Replacement(Entry entry) =>
-        entry.Ending is null ? entry.Replacement : Declension.Inflect(entry.Replacement, entry.LastSourceWord, entry.Ending);
+    // A Cyrillic spelling fix keeps the spoken capital ("Промт" → "Промпт"); Latin terms keep their own case.
+    private static string? Replacement(Entry entry, string spoken)
+    {
+        var replacement = entry.Ending is null
+            ? entry.Replacement
+            : Declension.Inflect(entry.Replacement, entry.LastSourceWord, entry.Ending, entry.MinLength);
+        return replacement is { Length: > 0 } && char.IsUpper(spoken[0]) && char.IsLower(replacement[0]) && !HasLatin(replacement)
+            ? char.ToUpperInvariant(replacement[0]) + replacement[1..]
+            : replacement;
+    }
+
+    private static bool HasLatin(string s) => s.Any(c => c is >= 'a' and <= 'z' or >= 'A' and <= 'Z');
 
     private static (Dictionary<string, Entry>, int) BuildIndex()
     {
@@ -88,15 +101,16 @@ public static partial class Terms
             var source = pair[0].ToLowerInvariant();
             var space = source.LastIndexOf(' ');
             var (prefix, last) = space < 0 ? ("", source) : (source[..(space + 1)], source[(space + 1)..]);
-            foreach (var (form, ending) in Declension.Forms(last))
+            var minLength = space < 0 ? 4 : PhraseWordMinLength;
+            foreach (var (form, ending) in Declension.Forms(last, minLength))
             {
                 var key = prefix + form;
-                if (form.Length < 5 || phrases.ContainsKey(key) || (space < 0 && excluded.Contains(form)))
+                if (key.Length < 5 || phrases.ContainsKey(key) || (space < 0 && excluded.Contains(form)))
                 {
                     continue; // too short to be safe, a term of its own, or an ordinary word
                 }
 
-                if (!forms.TryAdd(key, new Entry(pair[1], last, ending)) && forms[key].Replacement != pair[1])
+                if (!forms.TryAdd(key, new Entry(pair[1], last, ending, minLength)) && forms[key].Replacement != pair[1])
                 {
                     ambiguous.Add(key); // two terms share this form: keep neither
                 }
@@ -114,13 +128,21 @@ public static partial class Terms
         return (phrases, phrases.Keys.Max(k => k.Count(c => c == ' ') + 1));
     }
 
+    // Latin terms ("Docker", "Claude Code") and one-word Cyrillic brands ("Шедеврум"); not "Дарт Вейдер",
+    // which is in the dictionary only to shield "дарт" from "Dart".
     private static readonly Lazy<HashSet<string>> TermWords = new(() =>
-        LoadPairs().SelectMany(p => p[1].Split(' ')).ToHashSet(StringComparer.Ordinal));
+        LoadPairs().Select(p => p[1]).Where(t => HasLatin(t) || !t.Contains(' ', StringComparison.Ordinal))
+            .SelectMany(t => t.Split(' ')).ToHashSet(StringComparer.Ordinal));
 
     /// <summary>Is this word (exact case) part of a term's spelling ("Docker", "GitHub")?</summary>
     public static bool IsTermForm(string word) => TermWords.Value.Contains(word);
 
-    private static string[][] LoadPairs() => LoadResource<string[][]>("Vox.Core.terms.json");
+    /// <summary>terms.json: { group: { target: [spoken sources] } }, flattened to (source, target).</summary>
+    internal static string[][] LoadPairs() =>
+        [.. LoadGroups().Values.SelectMany(g => g).SelectMany(t => t.Value.Select(source => new[] { source, t.Key }))];
+
+    internal static Dictionary<string, Dictionary<string, string[]>> LoadGroups() =>
+        LoadResource<Dictionary<string, Dictionary<string, string[]>>>("Vox.Core.terms.json");
 
     private static T LoadResource<T>(string name)
     {

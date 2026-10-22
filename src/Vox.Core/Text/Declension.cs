@@ -17,11 +17,14 @@ public static class Declension
 
     private static readonly string[] AllEndings = [.. Hard.Concat(AYa).Concat(Soft).Concat(Yot).Distinct().OrderByDescending(e => e.Length)];
 
-    /// <summary>Case forms of <paramref name="word"/> other than the word itself, with their endings.</summary>
-    public static IEnumerable<(string Form, string Ending)> Forms(string word)
+    /// <summary>
+    /// Case forms of <paramref name="word"/> other than the word itself, with their endings. The last word of
+    /// a phrase may be shorter (<paramref name="minLength"/> 3: "дата сет" → "дата сете").
+    /// </summary>
+    public static IEnumerable<(string Form, string Ending)> Forms(string word, int minLength = MinLength)
     {
         var lower = word.ToLowerInvariant();
-        if (Paradigm(lower) is not var (stem, endings))
+        if (Paradigm(lower, minLength) is not var (stem, endings))
         {
             yield break;
         }
@@ -38,24 +41,26 @@ public static class Declension
 
     /// <summary>
     /// The replacement for a case form of <paramref name="source"/>: a Latin target as is ("GitHub"),
-    /// a Cyrillic word with the same ending ("Кирилл" + "ом"), or null when the ending cannot carry over.
+    /// a Cyrillic word with the same ending ("Кирилл" + "ом", "ИИ-агент" + "ы"), or null when the ending
+    /// cannot carry over.
     /// </summary>
-    public static string? Inflect(string target, string source, string ending)
+    public static string? Inflect(string target, string source, string ending, int minLength = MinLength)
     {
         if (target.Any(c => c is >= 'a' and <= 'z' or >= 'A' and <= 'Z'))
         {
             return target;
         }
 
+        var head = target.LastIndexOf('-') + 1; // "ИИ-агент" declines "агент"
         if (target.Contains(' ', StringComparison.Ordinal)
-            || Paradigm(target.ToLowerInvariant()) is not var (stem, endings)
-            || Paradigm(source.ToLowerInvariant()) is not var (_, sourceEndings)
+            || Paradigm(target[head..].ToLowerInvariant(), Math.Min(minLength, MinLength)) is not var (stem, endings)
+            || Paradigm(source.ToLowerInvariant(), minLength) is not var (_, sourceEndings)
             || !ReferenceEquals(endings, sourceEndings))
         {
             return null;
         }
 
-        return target[..stem.Length] + ending;
+        return target[..(head + stem.Length)] + ending;
     }
 
     /// <summary>
@@ -91,9 +96,9 @@ public static class Declension
         return (wrong, correct);
     }
 
-    private static (string Stem, string[] Endings)? Paradigm(string word)
+    private static (string Stem, string[] Endings)? Paradigm(string word, int minLength = MinLength)
     {
-        if (word.Length < MinLength || !IsCyrillic(word))
+        if (word.Length < minLength || !IsCyrillic(word))
         {
             return null;
         }

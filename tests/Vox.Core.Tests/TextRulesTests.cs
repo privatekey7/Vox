@@ -65,6 +65,14 @@ public class TermsTests
     public void Replace_maps_phonetic_terms_to_latin(string text, string expected) =>
         Assert.Equal(expected, Terms.Replace(text));
 
+    // Owner's policy: settled borrowings stay Cyrillic, only the spelling is fixed — with case forms.
+    [Theory]
+    [InlineData("Промт готов.", "Промпт готов.")]
+    [InlineData("Напиши промты для агента.", "Напиши промпты для агента.")]
+    [InlineData("Ошибка в промте.", "Ошибка в промпте.")]
+    public void Cyrillic_spelling_fixes_keep_case_and_ending(string text, string expected) =>
+        Assert.Equal(expected, Terms.Replace(text));
+
     // Regression: a hyphen is part of the word — "пиф-паф" became "пиф-path", "Жан-Клод" "Жан-Claude".
     [Theory]
     [InlineData("Пиф-паф, ой-ой-ой.")]
