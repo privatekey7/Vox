@@ -24,7 +24,7 @@
 | Защиты самообучения: частые слова (CC BY-SA список), только набор пользователя, ≥3 букв, закрепление после 2 разворотов, дефисные части, слияние 2–3 слов | `SelfLearning.cs`, `CorrectionDetector.cs`, `KeyboardHook.UserTypedIn` |
 | Самообучение и контекст курсора без UIA (Notepad++/Scintilla, EDIT) | `FieldWatcher.cs`, `CursorContext.cs`, `FieldReadPolicy.cs` |
 | Хвосты ревью 9, 10, 12, 13, 14, 15 | см. CHANGELOG |
-| Шрифт Golos Text; плашка: знак Vox, «Запомнил» 2 с, без длинных тире | `Assets/Fonts`, `RecordingPill` |
+| Шрифт Golos Text (позже заменён на системный Segoe UI Variable); плашка: знак Vox, «Запомнил» 2 с, без длинных тире | `Assets/Fonts`, `RecordingPill` |
 | Установщик: мягкое закрытие Vox; удаление моделей всегда, данных — по вопросу | `vox.iss` |
 | Эксперимент hotwords | `tools/hotwords-experiment/README.md`, ADR D033 |
 
@@ -141,9 +141,10 @@ d) Если живые записи покажут пользу — включа
 - Облако: `learn.microsoft.com`, `signpath.org`, `about.signpath.io` не резолвятся — только через
   WebSearch. Артефакты Actions не скачать; `gh run list/view` работает. `dotnet-sdk-10.0` ставится
   только после `apt-get update`.
-- WPF рисует только начальное начертание вариативного шрифта — нужны статические файлы
-  (fontTools `instancer`, имена через `updateFontNames`). `FontFamily` с запасным шрифтом задавать
-  как `/Assets/Fonts/#Golos Text, Segoe UI` (у `pack://application:,,,` запятые ломают список).
+- WPF рисует только начальное начертание встроенного вариативного шрифта. Поэтому шрифт теперь
+  системный: `Segoe UI Variable Text/Display, Segoe UI`. Системная коллекция Windows отдаёт его
+  именованные начертания (Light, Semilight, Regular, Semibold, Bold) как отдельные; Medium (500)
+  берётся ближайшее. Встроенный Golos Text убран 22.10 (рвался на сетке, особенно на плашке).
 - `[GeneratedRegex]` + 1000 правил `terms.json` компилируются при первом вызове; склонение сделано
   одним проходом по словам (словарь форм), а не регулярками на каждый термин.
 - Модификатор хоткея проглатывается только для не-модификаторов (`Hotkeys.Swallow`); Alt-хоткей

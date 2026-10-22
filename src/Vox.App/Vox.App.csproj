@@ -27,6 +27,5 @@
     <Resource Include="..\..\assets\brand\vox-symbol.png" Link="Assets\vox-symbol.png" />
     <Resource Include="..\..\assets\brand\vox-symbol-66.png" Link="Assets\vox-symbol-66.png" />
     <Resource Include="..\..\assets\brand\vox-icon-light.png" Link="Assets\vox-icon-light.png" />
-    <Resource Include="Assets\Fonts\*.ttf" />
   </ItemGroup>
 </Project>
