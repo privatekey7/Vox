@@ -47,9 +47,15 @@ public class FillersTests
     [InlineData("А мы ам", "А мы ам")]
     // Regression: a capital was lost when a filler started the sentence.
     [InlineData("Да, у меня всегда это стоит. А-а, ещё не пробовал", "Да, у меня всегда это стоит. Ещё не пробовал")]
-    // Owner: a drawn-out "а-а" mid-sentence comes out as a capital "А".
-    [InlineData("как я в данном случае пользователь А говорит на русском", "как я в данном случае пользователь говорит на русском")]
-    [InlineData("Он сказал А, и ушёл", "Он сказал, и ушёл")]
+    // Owner: a drawn-out "а-а" mid-sentence comes out as a capital "А"; it is lowered, not removed.
+    [InlineData("как я в данном случае пользователь А говорит на русском", "как я в данном случае пользователь а говорит на русском")]
+    [InlineData("Он сказал А, и ушёл", "Он сказал а, и ушёл")]
+    // Regression (owner's corpus): the conjunction "а" and a letter-variant were removed.
+    [InlineData("старая версия была на Piton А новая на C#.", "старая версия была на Piton а новая на C#.")]
+    [InlineData("Да, выбираем А.", "Да, выбираем А.")]
+    [InlineData("Да, выбираем А", "Да, выбираем А")]
+    [InlineData("про часть А и Б.", "про часть А и Б.")]
+    [InlineData("часть А или Б", "часть А или Б")]
     [InlineData("пункт А говорит", "пункт А говорит")]
     [InlineData("вариант А лучше", "вариант А лучше")]
     [InlineData("витамин А полезен", "витамин А полезен")]

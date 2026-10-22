@@ -193,18 +193,24 @@ public static partial class Fillers
 
     [GeneratedRegex(@"(?<prev>\S+)\s+А(?![\p{L}\p{Nd}-])(?=\s+\p{Ll}|\s*[,;.!?…]|\s*$)")] private static partial Regex CapitalA();
 
+    // A letter, not a hesitation: "часть А и Б", "выбираем А." (end of the phrase).
+    [GeneratedRegex(@"^(?:\s+(?:и|или)\s+Б(?![\p{L}\p{Nd}-])|\s*[.!?…]|\s*$)")] private static partial Regex LetterAfterA();
+
     /// <summary>
-    /// "пользователь А говорит" → "пользователь говорит": GigaAM writes a hesitation "а-а" as a capital
-    /// "А" mid-sentence. Kept at a sentence start, after a number and after "пункт", "вариант", "витамин"…
+    /// "пользователь А говорит" → "пользователь а говорит": GigaAM writes a hesitation "а-а" or the
+    /// conjunction "а" as a capital "А" mid-sentence. It is lowered, never removed: "на Piton А новая"
+    /// keeps its "а". Kept as is at a sentence start, at the end of the phrase, before "и Б", after a
+    /// number and after "пункт", "вариант", "витамин"…
     /// </summary>
-    private static string RemoveHesitationA(string text) => !text.Contains(" А", StringComparison.Ordinal) ? text
+    private static string LowerHesitationA(string text) => !text.Contains(" А", StringComparison.Ordinal) ? text
         : CapitalA().Replace(text, m =>
         {
             var prev = m.Groups["prev"].Value;
             var word = prev.TrimEnd(',', ';', ':', '»', '"', ')').ToLowerInvariant();
             var keep = prev.Length == 0 || ".!?…".Contains(prev[^1], StringComparison.Ordinal) || char.IsDigit(prev[^1])
-                || LetterNouns.Any(n => word.StartsWith(n, StringComparison.Ordinal));
-            return keep ? m.Value : prev;
+                || LetterNouns.Any(n => word.StartsWith(n, StringComparison.Ordinal))
+                || LetterAfterA().IsMatch(text.AsSpan(m.Index + m.Length));
+            return keep ? m.Value : m.Value[..^1] + "а";
         });
 
     public static string Remove(string text)
@@ -214,7 +220,7 @@ public static partial class Fillers
             return text;
         }
 
-        text = RemoveHesitationA(text);
+        text = LowerHesitationA(text);
 
         // A capitalised filler leaves a marker, so the next word can take over its capital.
         var result = Pattern.Replace(text, m => char.IsUpper(m.Value[0]) ? Marker : "");
