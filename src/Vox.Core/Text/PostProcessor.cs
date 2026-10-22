@@ -4,7 +4,7 @@ namespace Vox.Core.Text;
 
 /// <summary>
 /// Turns raw model output into the text that is pasted:
-/// user dictionary → terms → fillers → ITN (if the model needs it) → currency → sentence spacing
+/// user dictionary → terms → key shortcuts → fillers → ITN (if the model needs it) → currency → sentence spacing
 /// → one leading space.
 /// </summary>
 public sealed class PostProcessor(SpeechModel model)
@@ -21,6 +21,7 @@ public sealed class PostProcessor(SpeechModel model)
 
         var text = corrections is null ? raw : UserCorrections.Apply(raw, corrections);
         text = Terms.Replace(text);
+        text = KeyCombos.Apply(text);
         text = Fillers.Remove(text);
         if (model.NeedsItn)
         {
