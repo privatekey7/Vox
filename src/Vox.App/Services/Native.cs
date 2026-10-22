@@ -264,4 +264,20 @@ internal static partial class Native
             return new string(p, 0, (int)Math.Min(copied, length));
         }
     }
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static unsafe partial bool EnumWindows(delegate* unmanaged<nint, nint, int> callback, nint lParam);
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool IsWindowVisible(nint hWnd);
+
+    [LibraryImport("user32.dll", EntryPoint = "GetWindowTextW")]
+    public static unsafe partial int GetWindowText(nint hWnd, char* lpString, int nMaxCount);
+
+    [LibraryImport("dwmapi.dll")]
+    public static partial int DwmGetWindowAttribute(nint hwnd, int dwAttribute, out int pvAttribute, int cbAttribute);
+
+    public const int DWMWA_CLOAKED = 14;
 }

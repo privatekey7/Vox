@@ -109,6 +109,7 @@ public partial class SettingsWindow : Window
         AutostartToggle.IsChecked = Autostart.IsEnabled;
         ClipboardToggle.IsChecked = _app.Settings.RestoreClipboard;
         LearnToggle.IsChecked = _app.Settings.LearnCorrections;
+        ScreenToggle.IsChecked = _app.Settings.ScreenHints;
     }
 
     private void OnHotkeyChanged(object sender, SelectionChangedEventArgs e)
@@ -203,6 +204,10 @@ public partial class SettingsWindow : Window
         {
             _app.Settings.LearnCorrections = LearnToggle.IsChecked == true;
             _app.Dictation.LearnCorrections = _app.Settings.LearnCorrections;
+        }
+        else if (sender == ScreenToggle)
+        {
+            _app.Settings.ScreenHints = ScreenToggle.IsChecked == true;
         }
 
         _app.Settings.Save();
@@ -311,6 +316,15 @@ public partial class SettingsWindow : Window
     }
 
     // ---- Dictionary ----------------------------------------------------------------------
+
+    private void OnClearScreenMemory(object sender, RoutedEventArgs e)
+    {
+        if (MessageBox.Show(this, "Забыть все названия, которые Vox видел на экране?", "Vox",
+                MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
+        {
+            _app.Dictation.ClearScreenMemory();
+        }
+    }
 
     private void LoadDictionary()
     {

@@ -14,7 +14,12 @@ public sealed class PostProcessor(SpeechModel model)
     private readonly string _lang = model.Language == "multi" ? "ru" : model.Language;
 
     /// <param name="fuzzy">Receives the phonetic replacements (<see cref="FuzzyTerms"/>) for the log.</param>
-    public string Process(string raw, IReadOnlyDictionary<string, string>? corrections = null, ICollection<FuzzyTerms.Match>? fuzzy = null)
+    /// <param name="screen">Names in open windows and remembered ones (<see cref="ScreenWords"/>).</param>
+    public string Process(
+        string raw,
+        IReadOnlyDictionary<string, string>? corrections = null,
+        ICollection<FuzzyTerms.Match>? fuzzy = null,
+        IReadOnlyCollection<ScreenName>? screen = null)
     {
         if (string.IsNullOrWhiteSpace(raw))
         {
@@ -26,7 +31,7 @@ public sealed class PostProcessor(SpeechModel model)
         text = ClaudeNames.Apply(text, latinCloud: model.Language == "ru"); // GigaAM hears Claude as "Cloud"
 
         text = Terms.Replace(text);
-        text = FuzzyTerms.Apply(text, fuzzy);
+        text = FuzzyTerms.Apply(text, fuzzy, screen);
         text = ModelVersions.Apply(text);
         text = FileExtensions.Apply(text);
         text = KeyCombos.Apply(text);

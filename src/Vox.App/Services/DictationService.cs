@@ -30,6 +30,7 @@ internal sealed class DictationService : IDisposable
     private const int ErrorSignalMinMs = 1000; // shorter presses are usually accidental
     private const float MinPeak = 100f / 32768f; // quieter than this is silence
     private static readonly TimeSpan Tail = TimeSpan.FromMilliseconds(150);
+    private static readonly TimeSpan TitlesTimeout = TimeSpan.FromMilliseconds(50);
 
     private readonly AudioCapture _audio;
     private readonly Paster _paster;
@@ -50,9 +51,11 @@ internal sealed class DictationService : IDisposable
     private readonly SelfLearning _learning;
     private readonly CancellationTokenSource _stopping = new(); // Vox is closing
     private readonly CursorContext _context = new();
+    private readonly ScreenMemory _screenMemory;
 
-    public DictationService(AudioCapture audio, Paster paster, Sounds sounds, VoxDatabase db, Settings settings, string modelsRoot)
+    public DictationService(AudioCapture audio, Paster paster, Sounds sounds, VoxDatabase db, Settings settings, string modelsRoot, ScreenMemory screenMemory)
     {
+        _screenMemory = screenMemory;
         _audio = audio;
         _paster = paster;
         _sounds = sounds;
@@ -154,6 +157,13 @@ internal sealed class DictationService : IDisposable
     });
 
     public void ReloadCorrections() => _corrections = _db.Corrections();
+
+    /// <summary>Settings: forget every remembered screen name (and its file).</summary>
+    public void ClearScreenMemory()
+    {
+        _screenMemory.Clear();
+        Log.Info("[SCREEN] Remembered names cleared");
+    }
 
     /// <summary>Hotkey down (hotkey thread).</summary>
     public void OnPressed()
@@ -293,10 +303,13 @@ internal sealed class DictationService : IDisposable
         }
 
         var fuzzy = new List<FuzzyTerms.Match>();
-        var text = pp?.Process(raw, _corrections, fuzzy) ?? raw;
+        var text = pp?.Process(raw, _corrections, fuzzy, _settings.ScreenHints ? ScreenNames() : null) ?? raw;
         foreach (var f in fuzzy)
         {
-            Log.Info($"{(f.English ? "[EN]" : "[FUZZY]")} \"{f.Spoken}\" → \"{f.Replacement}\" {f.Score.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)}");
+            var score = f.Score.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+            Log.Info(f.Screen is { } origin
+                ? $"[SCREEN] \"{f.Spoken}\" → \"{f.Replacement}\" {score} (источник: {origin})"
+                : $"{(f.English ? "[EN]" : "[FUZZY]")} \"{f.Spoken}\" → \"{f.Replacement}\" {score}");
         }
 
         Log.Info($"[STT] Final: \"{text}\"");
@@ -352,6 +365,50 @@ internal sealed class DictationService : IDisposable
     }
 
     /// <summary>Recognise, logging *why* when no text comes out.</summary>
+    // Names in window titles and the watched field of the foreground window, plus remembered ones. Titles and
+    // field text are never logged or saved; only names from titles are remembered.
+    private List<ScreenName> ScreenNames()
+    {
+        try
+        {
+            var sw = Stopwatch.StartNew();
+            var titles = ScreenTitles.Read(TitlesTimeout);
+            var fromTitles = titles.SelectMany(t => ScreenWords.Extract(t, FuzzyTerms.IsKnownName)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            var fromField = _watcher.LastField is var (window, field) && window == Native.GetForegroundWindow()
+                ? ScreenWords.Extract(field, FuzzyTerms.IsKnownName)
+                : [];
+            List<ScreenName> names =
+            [
+                .. fromTitles.Concat(fromField).Distinct(StringComparer.OrdinalIgnoreCase).Select(n => new ScreenName(n, OnScreen: true)),
+                .. _screenMemory.Entries.Select(e => new ScreenName(e.Name, OnScreen: false)),
+            ];
+            if (_screenMemory.See(fromTitles, DateTime.UtcNow))
+            {
+                _ = Task.Run(SaveScreenMemory);
+            }
+
+            Log.Info($"[SCREEN] {titles.Count} windows, {names.Count(n => n.OnScreen)} names on screen, {_screenMemory.Count} remembered, {sw.ElapsedMilliseconds} ms");
+            return names;
+        }
+        catch (Exception e)
+        {
+            Log.Error("[SCREEN] Reading names failed", e);
+            return [];
+        }
+    }
+
+    private void SaveScreenMemory()
+    {
+        try
+        {
+            _screenMemory.Save();
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            Log.Error("[SCREEN] Saving names failed", e);
+        }
+    }
+
     private string Recognize(float[] samples, int rate)
     {
         if (samples.Length == 0)

@@ -21,6 +21,7 @@ public sealed class AppPaths(string root, string sharedRoot)
     public string Logs => Path.Combine(Root, "logs");
     public string LogFile => Path.Combine(Logs, "vox.log");
     public string Database => Path.Combine(Root, "vox_data.db");
+    public string ScreenNames => Path.Combine(Root, "screen_names.json");
     public string Config => Path.Combine(Root, "config.json");
 }
 
@@ -78,6 +79,13 @@ public sealed class Settings
     {
         get => GetBool("learn_corrections", true);
         set => _json["learn_corrections"] = value;
+    }
+
+    /// <summary>Use names from open windows (titles, the field at the cursor) to spell what the model misheard.</summary>
+    public bool ScreenHints
+    {
+        get => GetBool("screen_hints", true);
+        set => _json["screen_hints"] = value;
     }
 
     /// <summary>Put the user's own clipboard back after pasting a dictation.</summary>
