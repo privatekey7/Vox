@@ -45,6 +45,12 @@ public sealed partial class TermsDictionaryTests
     [InlineData("Выложил на ютубе и в телеграме, ссылка в инстаграме.", "Выложил на YouTube и в Telegram, ссылка в Instagram.")]
     [InlineData("Пришла телеграмма, сделай зум.", "Пришла телеграмма, сделай зум.")]
     [InlineData("Ввожу в вээсэл команду, а в VSL потом curl.", "Ввожу в WSL команду, а в WSL потом curl.")]
+        // stage 2 (docs/dictionary.md)
+    [InlineData("Открой фотошоп и премьер про.", "Открой Photoshop и Premiere Pro.")]
+    [InlineData("Залей в эс три через хашикорп волт.", "Залей в S3 через HashiCorp Vault.")]
+    [InlineData("Скачай модель гемма и нампай.", "Скачай модель Gemma и NumPy.")]
+    [InlineData("Проверь кей пи ай и си ти ар.", "Проверь KPI и CTR.")]
+    [InlineData("Спроси клод про погоду.", "Спроси Claude про погоду.")] // "про" is not "Claude Pro" here
         public void Each_group_maps_its_terms(string spoken, string expected) =>
         Assert.Equal(expected, Terms.Replace(spoken));
 

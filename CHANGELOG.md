@@ -27,7 +27,7 @@ Vox переписан на C# (.NET 10, WPF) с новым дизайном VOX
   четыре» → Alt+F4; «шифт», «энтер», «таб» пишутся как Shift, Enter, Tab. «Контроль качества» и
   другие обычные фразы не меняются.
 
-- **IT/ИИ-словарь расширен** (~730 терминов, ~1370 вариантов произношения): компании и модели
+- **IT/ИИ-словарь расширен** (~3900 терминов, ~8700 вариантов произношения; этап 2 — `docs/dictionary.md`): компании и модели
   (Anthropic, OpenAI, DeepSeek, Qwen, Mistral, Grok, Kimi, GLM), инструменты (Claude Code, Cursor,
   Codex, Windsurf, Lovable, Perplexity, NotebookLM, Manus), автоматизация (n8n, Make, Zapier, Dify,
   LangChain, CrewAI), локальный запуск (Ollama, LM Studio, llama.cpp, vLLM, GGUF, QLoRA), картинки,
