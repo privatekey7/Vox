@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """Корпуса для проверки ложных замен: одна строка = один Raw для Vox.Replay.
 
-Использование: python tools/eval/make-corpora.py <выходная папка> [--ru ru_full.txt] [--scowl <scowl>/final]
+Использование: python tools/eval/make-corpora.py <выходная папка> [--ru ru_full.txt] [--scowl <scowl>/final] [--seed N]
 Создаёт:
   freq.txt     частые английские слова SCOWL (уровень <= 20), строчные и с заглавной
-  rare.txt     5000 случайных слов SCOWL-95 (из --scowl), которых нет в словаре Vox (seed 7)
+  rare.txt     5000 случайных слов SCOWL-95 (из --scowl), которых нет в словаре Vox (seed по умолчанию 7)
   docs.txt     строки доков и кода репозитория (без terms.json и закрытого контрольного набора)
   ru_rare.txt  (если дан --ru, файл hermitdave/FrequencyWords content/2018/ru/ru_full.txt) 20000 русских слов, не из первых 5000
-               по частоте, >= 5 букв (seed 7)
+               по частоте, >= 5 букв (seed по умолчанию 7)
 Сравнение: Replay на базовом коммите и на новом, затем `diff` двух результатов (или corpus-diff.py).
 """
 import gzip, os, random, re, subprocess, sys
@@ -43,7 +43,7 @@ if opt("--scowl"):
                 if w.isalpha() and w.isascii() and w not in known:
                     rare.add(w)
 rare = sorted(rare)
-random.Random(7).shuffle(rare)
+random.Random(int(opt("--seed") or 7)).shuffle(rare)
 with open(os.path.join(out, "rare.txt"), "w", encoding="utf8") as f:
     f.write("\n".join(rare[:5000]) + "\n")
 
@@ -71,7 +71,7 @@ if opt("--ru"):
         w = line.split(" ")[0]
         if i >= 5000 and len(w) >= 5 and re.fullmatch(r"[а-яё]+", w):
             ru.append(w)
-    random.Random(7).shuffle(ru)
+    random.Random(int(opt("--seed") or 7)).shuffle(ru)
     with open(os.path.join(out, "ru_rare.txt"), "w", encoding="utf8") as f:
         f.write("\n".join(ru[:20000]) + "\n")
 print("ok", {n: sum(1 for _ in open(os.path.join(out, n), encoding="utf8")) for n in os.listdir(out)})
