@@ -125,6 +125,12 @@ public static partial class Terms
             }
         }
 
+        // A phrase is also said with hyphens: "клод-код", "клод-кода" (owner's log).
+        foreach (var (key, entry) in phrases.Where(p => p.Key.Contains(' ', StringComparison.Ordinal)).ToList())
+        {
+            phrases.TryAdd(key.Replace(' ', '-'), entry);
+        }
+
         return (phrases, phrases.Keys.Max(k => k.Count(c => c == ' ') + 1));
     }
 
@@ -290,8 +296,9 @@ public static partial class SentenceSpacing
 
     [GeneratedRegex("([?!…]+)(" + Letter + ")")] private static partial Regex StrongEnd();
 
-    // A full stop starts a sentence only after two letters: protects "т.е.", "U.S.A.", "3.14".
-    [GeneratedRegex("(" + Letter + Letter + @"\.+)(" + Letter + ")")] private static partial Regex DotEnd();
+    // A full stop starts a sentence only after two letters and before a capital: protects "т.е.",
+    // "U.S.A.", "3.14", "github.com", "vox.log".
+    [GeneratedRegex("(" + Letter + Letter + @"\.+)(\p{Lu})")] private static partial Regex DotEnd();
 
     [GeneratedRegex("([,;:])(" + Letter + ")")] private static partial Regex Middle();
 

@@ -41,19 +41,18 @@ public static class Declension
 
     /// <summary>
     /// The replacement for a case form of <paramref name="source"/>: a Latin target as is ("GitHub"),
-    /// a Cyrillic word with the same ending ("Кирилл" + "ом", "ИИ-агент" + "ы"), or null when the ending
-    /// cannot carry over.
+    /// a Cyrillic last word with the same ending ("Кирилл" + "ом", "API-ключ" + "ами", "Дарт Вейдер" + "а"),
+    /// or null when the ending cannot carry over.
     /// </summary>
     public static string? Inflect(string target, string source, string ending, int minLength = MinLength)
     {
-        if (target.Any(c => c is >= 'a' and <= 'z' or >= 'A' and <= 'Z'))
+        var head = target.LastIndexOfAny([' ', '-']) + 1; // "API-ключ" declines "ключ"
+        if (IsLatin(target[head..]))
         {
             return target;
         }
 
-        var head = target.LastIndexOf('-') + 1; // "ИИ-агент" declines "агент"
-        if (target.Contains(' ', StringComparison.Ordinal)
-            || Paradigm(target[head..].ToLowerInvariant(), Math.Min(minLength, MinLength)) is not var (stem, endings)
+        if (Paradigm(target[head..].ToLowerInvariant(), Math.Min(minLength, MinLength)) is not var (stem, endings)
             || Paradigm(source.ToLowerInvariant(), minLength) is not var (_, sourceEndings)
             || !ReferenceEquals(endings, sourceEndings))
         {
@@ -62,6 +61,8 @@ public static class Declension
 
         return target[..(head + stem.Length)] + ending;
     }
+
+    private static bool IsLatin(string word) => word.Any(c => c is >= 'a' and <= 'z' or >= 'A' and <= 'Z' or >= '0' and <= '9' or '.' or '#' or '+');
 
     /// <summary>
     /// A learned pair in its base form, so one fix covers every case: "керила → Кирилла" →

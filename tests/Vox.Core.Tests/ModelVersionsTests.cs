@@ -34,6 +34,8 @@ public sealed class ModelVersionsTests
     [InlineData("опус номер четыре", "опус номер четыре")]
     [InlineData("лама жила в зоопарке", "лама жила в зоопарке")]
     [InlineData("дипсик в 3 раза быстрее", "DeepSeek в 3 раза быстрее")] // "в" is a preposition
+    [InlineData("клод восемнадцать плюс", "Claude восемнадцать плюс")] // regression (owner's log): not a version
+    [InlineData("клод 4 тоже", "Claude 4 тоже")]
     public void Ordinary_words_and_prepositions_stay(string spoken, string expected) =>
         Assert.Equal(expected, ModelVersions.Apply(Terms.Replace(spoken)));
 

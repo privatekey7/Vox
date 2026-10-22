@@ -88,6 +88,8 @@ public class SpacingTests
     [InlineData("т.е. так", "т.е. так")]
     [InlineData("версия 3.14 и v2.0", "версия 3.14 и v2.0")]
     [InlineData("раз,два", "раз, два")]
+    // Regression (owner's log): a domain became "github. Com".
+    [InlineData("открой github.com и vox.log", "открой github.com и vox.log")]
     public void SentenceSpacing_splits_glued_sentences_only(string text, string expected) =>
         Assert.Equal(expected, SentenceSpacing.Normalize(text));
 

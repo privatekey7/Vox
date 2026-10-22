@@ -13,8 +13,9 @@ public static partial class ModelVersions
     /// <param name="Prefixes">Spoken letter before the number → its letter ("эр" → "R").</param>
     /// <param name="Suffixes">Spoken word after the version → its spelling ("про" → " Pro").</param>
     /// <param name="DecimalOnly">An ordinary Russian word ("опус", "сонет"): only "4.5", never a bare "4".</param>
+    /// <param name="NeedsDetail">A bare number is not a version ("Claude 18 плюс"): only "3.5" or "4 Sonnet".</param>
     private sealed record Brand(string Name, string Join, Dictionary<string, string>? Prefixes = null,
-        Dictionary<string, string>? Suffixes = null, bool DecimalOnly = false);
+        Dictionary<string, string>? Suffixes = null, bool DecimalOnly = false, bool NeedsDetail = false);
 
     private static readonly Dictionary<string, string> ClaudeFamily = new()
     {
@@ -36,7 +37,7 @@ public static partial class ModelVersions
     private static readonly Dictionary<string, Brand> Brands = new Brand[]
     {
         new("Claude Opus", " "), new("Claude Sonnet", " "), new("Claude Haiku", " "),
-        new("Claude", " ", Suffixes: ClaudeFamily),
+        new("Claude", " ", Suffixes: ClaudeFamily, NeedsDetail: true),
         new("Opus", " "), new("Sonnet", " "), new("Haiku", " "),
         new("GPT", "-", Suffixes: Gpt), new("GLM", "-"), new("YandexGPT", " "), new("GigaChat", " "),
         new("Gemini", " ", Suffixes: Gemini), new("Gemma", " "), new("Grok", " "), new("Llama", " "),
@@ -99,17 +100,20 @@ public static partial class ModelVersions
             return m.Value; // "сонет 66" is a poem
         }
 
+        var spoken = m.Groups["suffix"];
+        var suffix = spoken.Success && brand.Suffixes?.TryGetValue(spoken.Value.ToLowerInvariant(), out var s) == true
+            && (!Ambiguous.Contains(spoken.Value.ToLowerInvariant()) || EndsPhrase(text, m.Index + m.Length))
+            ? s
+            : null;
+        if (brand.NeedsDetail && !minor.Success && suffix is null)
+        {
+            return m.Value;
+        }
+
         var result = brand.Name + brand.Join + prefix + Number(m.Groups["major"].Value)
             + (minor.Success ? "." + Number(minor.Value) : "");
         var versionEnd = minor.Success ? minor.Index + minor.Length : m.Groups["major"].Index + m.Groups["major"].Length;
-        var spoken = m.Groups["suffix"];
-        if (spoken.Success && brand.Suffixes?.TryGetValue(spoken.Value.ToLowerInvariant(), out var suffix) == true
-            && (!Ambiguous.Contains(spoken.Value.ToLowerInvariant()) || EndsPhrase(text, m.Index + m.Length)))
-        {
-            return result + suffix;
-        }
-
-        return result + text[versionEnd..(m.Index + m.Length)];
+        return suffix is not null ? result + suffix : result + text[versionEnd..(m.Index + m.Length)];
     }
 
     private static bool EndsPhrase(string text, int from)

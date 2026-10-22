@@ -16,6 +16,12 @@ public sealed class DeclensionTests
     [InlineData("Подними в докер компоузе.", "Подними в docker-compose.")]
     [InlineData("Сборка в гитхаб экшенсах.", "Сборка в GitHub Actions.")]
     [InlineData("Настрой с гитхаб экшенсом.", "Настрой с GitHub Actions.")]
+    // Regression (owner's log): a Latin+Cyrillic target lost the ending ("API-ключ,").
+    [InlineData("Работаю с апи ключами.", "Работаю с API-ключами.")]
+    [InlineData("Нет лора адаптера.", "Нет LoRA-адаптера.")]
+    // Regression (owner's log): "клод-код" said with a hyphen.
+    [InlineData("Открой клод-код.", "Открой Claude Code.")]
+    [InlineData("В клод-коде.", "В Claude Code.")]
     public void Built_in_terms_match_case_forms(string spoken, string expected) =>
         Assert.Equal(expected, Terms.Replace(spoken));
 
