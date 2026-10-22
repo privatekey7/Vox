@@ -46,6 +46,7 @@ internal sealed class DictationService : IDisposable
     private volatile RecordingBuffer? _current;
 
     private readonly FieldWatcher _watcher = new();
+    private readonly CorrectionCandidates _candidates = new();
 
     public DictationService(AudioCapture audio, Paster paster, Sounds sounds, VoxDatabase db, Settings settings, string modelsRoot)
     {
@@ -61,6 +62,13 @@ internal sealed class DictationService : IDisposable
         _watcher.Enabled = settings.LearnCorrections;
         _watcher.Learned += (wrong, correct) =>
         {
+            if (!_candidates.Confirm(wrong, correct))
+            {
+                Log.Info("[LEARN] Seen once — will learn it if the same fix happens again");
+                return;
+            }
+
+            Log.Info("[LEARN] Seen twice — added to the dictionary");
             _db.AddDictionaryEntry(wrong, correct, "", "auto");
             ReloadCorrections();
             CorrectionLearned?.Invoke(wrong, correct);

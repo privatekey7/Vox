@@ -54,7 +54,7 @@ internal sealed class FieldWatcher : IDisposable
         _poll = new Timer(_ => Enqueue(() => Check(requireStable: true)), null, StableFor, StableFor);
     }
 
-    /// <summary>A correction was learned: (wrong, correct).</summary>
+    /// <summary>The user fixed a dictated word: (wrong, correct).</summary>
     public event Action<string, string>? Learned;
 
     public bool Enabled { get; set; } = true;
@@ -145,7 +145,7 @@ internal sealed class FieldWatcher : IDisposable
         _pending = null;
         if (CorrectionDetector.Detect(p.Before, now, p.Inserted) is var (wrong, correct))
         {
-            Log.Info($"[LEARN] Learned: \"{wrong}\" → \"{correct}\"");
+            Log.Info($"[LEARN] Correction: \"{wrong}\" → \"{correct}\"");
             Learned?.Invoke(wrong, correct);
         }
         else

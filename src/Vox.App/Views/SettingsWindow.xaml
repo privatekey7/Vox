@@ -150,7 +150,7 @@
             </Grid.ColumnDefinitions>
             <StackPanel VerticalAlignment="Center">
               <TextBlock Text="Учиться на моих исправлениях" Style="{StaticResource Vox.Body}"/>
-              <TextBlock Text="Исправьте слово сразу после диктовки — Vox запомнит замену сам" Style="{StaticResource Vox.Caption}"/>
+              <TextBlock Text="Исправьте слово после диктовки — со второго раза Vox запомнит замену сам" Style="{StaticResource Vox.Caption}"/>
             </StackPanel>
             <CheckBox x:Name="LearnToggle" Grid.Column="1" Style="{StaticResource Vox.Toggle}" Click="OnToggle"/>
           </Grid>
