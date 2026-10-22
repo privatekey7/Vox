@@ -5,6 +5,8 @@ namespace Vox.Core.Models;
 /// <param name="Language">"ru" or "multi".</param>
 /// <param name="ExtractedDir">Folder the archive unpacks to, inside the models directory.</param>
 /// <param name="NeedsItn">False when the model already writes numbers as digits.</param>
+/// <param name="Kind">How sherpa-onnx runs it: NeMo transducer, or Qwen3-ASR (<see cref="Joiner"/> is its conv
+/// front end, <see cref="Tokens"/> its tokenizer folder).</param>
 public sealed record SpeechModel(
     string Id,
     string DisplayName,
@@ -16,7 +18,14 @@ public sealed record SpeechModel(
     string Decoder,
     string Joiner,
     string Tokens,
-    bool NeedsItn);
+    bool NeedsItn,
+    ModelKind Kind = ModelKind.NemoTransducer);
+
+public enum ModelKind
+{
+    NemoTransducer,
+    Qwen3Asr,
+}
 
 /// <summary>The two models of Vox 2.0 (D030): GigaAM v3 for Russian, Parakeet v3 for the rest.</summary>
 public static class ModelCatalog
@@ -51,6 +60,24 @@ public static class ModelCatalog
 
     public static IReadOnlyList<SpeechModel> All { get; } = [GigaAm, Parakeet];
 
+    /// <summary>Qwen3-ASR 0.6B: only for comparing models in tools/Vox.Replay, not offered in the app.</summary>
+    public static readonly SpeechModel Qwen3 = new(
+        Id: "qwen3-asr-0.6b",
+        DisplayName: "Qwen3-ASR 0.6B",
+        Language: "multi",
+        DownloadMb: 879,
+        Url: new Uri(SherpaReleases + "sherpa-onnx-qwen3-asr-0.6B-int8-2026-03-25.tar.bz2"),
+        ExtractedDir: "sherpa-onnx-qwen3-asr-0.6B-int8-2026-03-25",
+        Encoder: "encoder.int8.onnx",
+        Decoder: "decoder.int8.onnx",
+        Joiner: "conv_frontend.onnx",
+        Tokens: "tokenizer",
+        NeedsItn: false,
+        Kind: ModelKind.Qwen3Asr);
+
+    /// <summary>Models for tools: the app's ones and those only compared.</summary>
+    public static IReadOnlyList<SpeechModel> Experimental { get; } = [.. All, Qwen3];
+
     public static SpeechModel Default => GigaAm;
 
     public static SpeechModel? Find(string? id) => All.FirstOrDefault(m => m.Id == id);
@@ -58,5 +85,5 @@ public static class ModelCatalog
     public static string DirectoryOf(SpeechModel model, string modelsRoot) => Path.Combine(modelsRoot, model.ExtractedDir);
 
     public static bool IsInstalled(SpeechModel model, string modelsRoot) =>
-        File.Exists(Path.Combine(DirectoryOf(model, modelsRoot), model.Tokens));
+        Path.Exists(Path.Combine(DirectoryOf(model, modelsRoot), model.Tokens)); // Qwen3-ASR: a folder
 }

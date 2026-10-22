@@ -1,4 +1,5 @@
 using Vox.Core.Audio;
+using Vox.Core.Models;
 
 namespace Vox.Core.Tests;
 
@@ -82,5 +83,22 @@ public sealed class RecordingsTests : IDisposable
         Assert.True(high.Skip(500).Take(15000).Max(Math.Abs) < 0.05f);
         var same = Tone(16000, 0.1);
         Assert.Same(same, Resampler.Resample(same, 16000, 16000));
+    }
+}
+
+public sealed class ExperimentalModelsTests : IDisposable
+{
+    private readonly string _root = Directory.CreateTempSubdirectory("vox-models-").FullName;
+
+    public void Dispose() => Directory.Delete(_root, recursive: true);
+
+    [Fact]
+    public void Qwen3_is_only_for_tools_and_installed_by_its_tokenizer_folder()
+    {
+        Assert.DoesNotContain(ModelCatalog.Qwen3, ModelCatalog.All);
+        Assert.Contains(ModelCatalog.Qwen3, ModelCatalog.Experimental);
+        Assert.False(ModelCatalog.IsInstalled(ModelCatalog.Qwen3, _root));
+        Directory.CreateDirectory(Path.Combine(_root, ModelCatalog.Qwen3.ExtractedDir, "tokenizer"));
+        Assert.True(ModelCatalog.IsInstalled(ModelCatalog.Qwen3, _root));
     }
 }

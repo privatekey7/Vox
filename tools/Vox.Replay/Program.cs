@@ -12,12 +12,17 @@ using Vox.Engine;
 // Options: --model gigaam|parakeet (default gigaam), --dict file (user dictionary: wrong<TAB>correct).
 // Audio: --audio <folder> takes the saved recordings (recordings.tsv + WAV, Settings → "Сохранять записи
 // диктовок") through the model and the whole pipeline: file, recorded Raw, new Raw, new Final; models from
-// --models <folder> or VOX_TEST_MODELS (the extracted archives).
+// --models <folder> or VOX_TEST_MODELS (the extracted archives). --model qwen3: Qwen3-ASR, only compared.
+// --compare: every installed model (GigaAM, Parakeet, Qwen3-ASR) in columns: Final and seconds per recording,
+// speed per model at the end. --hotwords file: Qwen3-ASR prompt words, one per line. --threads N.
 var files = new List<string>();
 var model = ModelCatalog.GigaAm;
 Dictionary<string, string>? dict = null;
 var diff = false;
 string? audio = null;
+var compare = false;
+string? hotwords = null;
+int? threads = null;
 var modelsRoot = Environment.GetEnvironmentVariable("VOX_TEST_MODELS");
 for (var i = 0; i < args.Length; i++)
 {
@@ -25,8 +30,8 @@ for (var i = 0; i < args.Length; i++)
     {
         case "--model":
             var id = args[++i];
-            model = ModelCatalog.All.FirstOrDefault(m => m.Id.StartsWith(id, StringComparison.OrdinalIgnoreCase))
-                ?? throw new ArgumentException($"Unknown model {id}; known: {string.Join(", ", ModelCatalog.All.Select(m => m.Id))}");
+            model = ModelCatalog.Experimental.FirstOrDefault(m => m.Id.StartsWith(id, StringComparison.OrdinalIgnoreCase))
+                ?? throw new ArgumentException($"Unknown model {id}; known: {string.Join(", ", ModelCatalog.Experimental.Select(m => m.Id))}");
             break;
         case "--dict":
             dict = File.ReadLines(args[++i]).Select(l => l.Split('\t')).Where(p => p.Length == 2)
@@ -41,6 +46,15 @@ for (var i = 0; i < args.Length; i++)
         case "--models":
             modelsRoot = args[++i];
             break;
+        case "--compare":
+            compare = true;
+            break;
+        case "--hotwords":
+            hotwords = string.Join(", ", File.ReadLines(args[++i]).Select(l => l.Trim()).Where(l => l.Length > 0));
+            break;
+        case "--threads":
+            threads = int.Parse(args[++i], System.Globalization.CultureInfo.InvariantCulture);
+            break;
         default:
             files.Add(args[i]);
             break;
@@ -50,7 +64,7 @@ for (var i = 0; i < args.Length; i++)
 if (files.Count == 0 && audio is null)
 {
     Console.Error.WriteLine("usage: Vox.Replay [--model gigaam|parakeet] [--dict file] [--diff] input.txt|vox.log ...");
-    Console.Error.WriteLine("       Vox.Replay --audio recordings [--model gigaam|parakeet] [--models folder] [--dict file]");
+    Console.Error.WriteLine("       Vox.Replay --audio recordings [--model gigaam|parakeet|qwen3 | --compare] [--models folder] [--dict file] [--hotwords file] [--threads N]");
     return 2;
 }
 
@@ -58,7 +72,7 @@ Console.OutputEncoding = System.Text.Encoding.UTF8;
 var processor = new PostProcessor(model);
 if (audio is not null)
 {
-    return ReplayAudio(audio);
+    return compare ? CompareAudio(audio) : ReplayAudio(audio);
 }
 
 int total = 0, changed = 0;
@@ -104,7 +118,7 @@ int ReplayAudio(string folder)
     }
 
     var recordings = RecordingStore.Read(folder);
-    using var recognizer = Recognizers.Create(model, modelsRoot);
+    using var recognizer = Recognizers.Create(model, modelsRoot, threads, hotwords);
     int rawChanged = 0, finalChanged = 0, missing = 0;
     var sw = System.Diagnostics.Stopwatch.StartNew();
     Console.WriteLine("file\trecorded raw\tnew raw\tnew final");
@@ -127,5 +141,46 @@ int ReplayAudio(string folder)
 
     Console.Error.WriteLine($"{recordings.Count - missing} recordings through {model.Id} in {sw.Elapsed.TotalSeconds:F0}s: " +
         $"Raw differs in {rawChanged}, Final in {finalChanged}{(missing > 0 ? $", {missing} WAV files missing" : "")}");
+    return 0;
+}
+
+int CompareAudio(string folder)
+{
+    if (modelsRoot is null)
+    {
+        Console.Error.WriteLine("Models folder: --models or VOX_TEST_MODELS");
+        return 2;
+    }
+
+    var recordings = RecordingStore.Read(folder).Where(r => File.Exists(Path.Combine(folder, r.File))).ToList();
+    var audios = recordings.Select(r => Wav.Read(Path.Combine(folder, r.File))).ToList();
+    var seconds = audios.Sum(a => a.Samples.Length / (double)a.SampleRate);
+    var models = ModelCatalog.Experimental.Where(m => ModelCatalog.IsInstalled(m, modelsRoot)).ToList();
+    var results = new List<(string Final, double Seconds)[]>();
+    foreach (var m in models)
+    {
+        // One model in memory at a time; the first decode (warm-up) is not timed.
+        using var recognizer = Recognizers.Create(m, modelsRoot, threads, hotwords);
+        var pp = new PostProcessor(m);
+        recognizer.Transcribe(audios[0].Samples, audios[0].SampleRate);
+        results.Add([.. audios.Select(a =>
+        {
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            var raw = recognizer.Transcribe(a.Samples, a.SampleRate);
+            var elapsed = sw.Elapsed.TotalSeconds;
+            return (raw.Length == 0 ? "" : pp.Process(raw, dict).Trim(), elapsed);
+        })]);
+        var total = results[^1].Sum(r => r.Seconds);
+        Console.Error.WriteLine($"{m.Id}: {total:F1}s for {seconds:F1}s of audio, {total / seconds:F3}s per second");
+    }
+
+    var inv = System.Globalization.CultureInfo.InvariantCulture;
+    Console.WriteLine(string.Join('\t', ["file", "recorded raw", .. models.SelectMany(m => new[] { m.Id, "s" })]));
+    for (var i = 0; i < recordings.Count; i++)
+    {
+        Console.WriteLine(string.Join('\t', [recordings[i].File, recordings[i].Raw,
+            .. results.SelectMany(r => new[] { r[i].Final, r[i].Seconds.ToString("F2", inv) })]));
+    }
+
     return 0;
 }

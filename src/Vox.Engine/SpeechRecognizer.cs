@@ -13,7 +13,7 @@ public interface ISpeechRecognizer : IDisposable
     string Transcribe(float[] samples, int sampleRate = SpeechRecognizer.SampleRate);
 }
 
-/// <summary>sherpa-onnx NeMo transducer (GigaAM v3 / Parakeet v3).</summary>
+/// <summary>sherpa-onnx NeMo transducer (GigaAM v3 / Parakeet v3), or Qwen3-ASR for comparing models.</summary>
 public sealed class SpeechRecognizer : ISpeechRecognizer
 {
     public const int SampleRate = 16000;
@@ -25,25 +25,39 @@ public sealed class SpeechRecognizer : ISpeechRecognizer
     private readonly Lock _lock = new();
     private bool _disposed;
 
-    public SpeechRecognizer(SpeechModel model, string modelsRoot, int? threads = null)
+    /// <param name="hotwords">Qwen3-ASR only: words put in the model's prompt ("Claude Code, PostgreSQL").</param>
+    public SpeechRecognizer(SpeechModel model, string modelsRoot, int? threads = null, string? hotwords = null)
     {
         Model = model;
         var dir = ModelCatalog.DirectoryOf(model, modelsRoot);
         var config = new OfflineRecognizerConfig();
         config.FeatConfig.SampleRate = SampleRate;
         config.FeatConfig.FeatureDim = 80; // GigaAM's 64 is read from the model metadata
-        config.ModelConfig.Transducer.Encoder = Path.Combine(dir, model.Encoder);
-        config.ModelConfig.Transducer.Decoder = Path.Combine(dir, model.Decoder);
-        config.ModelConfig.Transducer.Joiner = Path.Combine(dir, model.Joiner);
-        config.ModelConfig.Tokens = Path.Combine(dir, model.Tokens);
-        config.ModelConfig.ModelType = "nemo_transducer";
+        if (model.Kind == ModelKind.Qwen3Asr)
+        {
+            config.ModelConfig.Qwen3Asr.Encoder = Path.Combine(dir, model.Encoder);
+            config.ModelConfig.Qwen3Asr.Decoder = Path.Combine(dir, model.Decoder);
+            config.ModelConfig.Qwen3Asr.ConvFrontend = Path.Combine(dir, model.Joiner);
+            config.ModelConfig.Qwen3Asr.Tokenizer = Path.Combine(dir, model.Tokens);
+            config.ModelConfig.Qwen3Asr.Hotwords = hotwords ?? "";
+            config.ModelConfig.Debug = Environment.GetEnvironmentVariable("VOX_SHERPA_DEBUG") == "1" ? 1 : 0;
+        }
+        else
+        {
+            config.ModelConfig.Transducer.Encoder = Path.Combine(dir, model.Encoder);
+            config.ModelConfig.Transducer.Decoder = Path.Combine(dir, model.Decoder);
+            config.ModelConfig.Transducer.Joiner = Path.Combine(dir, model.Joiner);
+            config.ModelConfig.Tokens = Path.Combine(dir, model.Tokens);
+            config.ModelConfig.ModelType = "nemo_transducer";
+        }
+
         config.ModelConfig.NumThreads = threads ?? Math.Max(1, Environment.ProcessorCount / 2);
         config.ModelConfig.Provider = "cpu";
         config.DecodingMethod = "greedy_search";
 
-        foreach (var file in new[] { config.ModelConfig.Transducer.Encoder, config.ModelConfig.Tokens })
+        foreach (var file in new[] { Path.Combine(dir, model.Encoder), Path.Combine(dir, model.Tokens) })
         {
-            if (!File.Exists(file))
+            if (!Path.Exists(file))
             {
                 throw new FileNotFoundException("Model file is missing", file);
             }

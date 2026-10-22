@@ -121,6 +121,7 @@ VOX_TEST_MODELS=/путь/к/моделям dotnet test Vox.sln     # + тест
 dotnet publish src/Vox.App -c Release -r win-x64 --self-contained -o publish
 # записи диктовок (Настройки → Основное → «Сохранять записи диктовок») через модель и весь постпроцессинг:
 dotnet run --project tools/Vox.Replay -- --audio путь/к/recordings --model gigaam --models /путь/к/моделям
+dotnet run --project tools/Vox.Replay -- --audio путь/к/recordings --compare --models /путь/к/моделям  # GigaAM, Parakeet, Qwen3-ASR рядом
 ```
 
 Установщик (`vox-setup.exe`) собирает GitHub Actions: `.github/workflows/build.yml` → Inno Setup (`vox.iss`).

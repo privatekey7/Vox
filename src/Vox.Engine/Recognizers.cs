@@ -8,6 +8,7 @@ namespace Vox.Engine;
 /// </summary>
 public static class Recognizers
 {
-    public static ISpeechRecognizer Create(SpeechModel model, string modelsRoot, int? threads = null) =>
-        new SpeechRecognizer(model, modelsRoot, threads);
+    /// <param name="hotwords">Qwen3-ASR only: words for the model's prompt ("Claude Code, PostgreSQL").</param>
+    public static ISpeechRecognizer Create(SpeechModel model, string modelsRoot, int? threads = null, string? hotwords = null) =>
+        new SpeechRecognizer(model, modelsRoot, threads, hotwords);
 }
