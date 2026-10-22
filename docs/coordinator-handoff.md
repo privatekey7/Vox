@@ -18,7 +18,8 @@
 
 | Сессия | Статус |
 |---|---|
-| `session_01VwkdDh2rcmCTiyi7ekb3K9` «Vox 2.0: английский словарь для поиска по звучанию» | текущая рабочая (22.10 ~14:13 UTC): слой 1 англицизмов, английский словарь для латинского FuzzyTerms |
+| `session_01JiwTQnh8EZpe4ArpVs5xzb` «Vox 2.0: слова с экрана» | текущая рабочая (22.10 ~15:57 UTC): слой 2, слова с экрана + память названий |
+| `session_01VwkdDh2rcmCTiyi7ekb3K9` | архивирована: SCOWL, латинский FuzzyTerms, живые тесты владельца (до 3bd91d8); передача в `docs/csharp-migration.md` |
 | `session_016XphibQAXHZd1pCxcb3s1K` | архивирована: «А» строчной, Notepad++, самоисправление, 5 с, запятые, Notepad++ гонка, термины, FuzzyTerms (кириллица); передача в `docs/csharp-migration.md` «22.10 (день)» |
 | `session_013e53jfMJZKi56TqeKFqG7j` | архивирована, передача в `docs/csharp-migration.md` (коммит 20eebb9) |
 | `session_012zXAdvAk2LZ6LQsuEay4Bs` | архивирована (ночная сессия) |
