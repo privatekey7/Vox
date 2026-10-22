@@ -23,6 +23,8 @@ public sealed class KeyCombosTests
     [InlineData("контрол плюс 1", "Ctrl+1")]
     [InlineData("Contrl C", "Ctrl+C")]
     [InlineData("contral V", "Ctrl+V")]
+    [InlineData("Contrul V", "Ctrl+V")] // owner's log
+    [InlineData("контрул си", "Ctrl+C")] // owner's log
     [InlineData("Контрол вэ", "Ctrl+V")]
     [InlineData("контрол зет", "Ctrl+Z")]
     [InlineData("Contrl A", "Ctrl+A")]

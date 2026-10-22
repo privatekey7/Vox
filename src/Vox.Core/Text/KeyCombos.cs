@@ -26,7 +26,7 @@ public static partial class KeyCombos
         modifier.ToLowerInvariant() is "контроль" or "кантроль" or "control"
         && (key is "a" or "A" or "i" or "I" || char.IsDigit(key[0]));
 
-    private const string Modifier = @"к[оа]нтр(?:[оа]?ль?)?|contr(?:[oa]?l)?|ctrl|шифт|shift|альт|alt";
+    private const string Modifier = @"к[оа]нтр(?:[оау]?ль?)?|contr(?:[oau]?l)?|ctrl|шифт|shift|альт|alt";
     private const string Separator = @"\s*(?:\+|плюс|plus)\s*|\s*[,-]?\s+";
 
     [GeneratedRegex(
