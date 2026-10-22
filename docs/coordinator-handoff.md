@@ -19,7 +19,8 @@
 | Сессия | Статус |
 |---|---|
 | `session_01JiwTQnh8EZpe4ArpVs5xzb` | архивирована: слова с экрана (только заголовки окон, OwnWords), живые тесты до ddd99ec; передача в `docs/csharp-migration.md` |
-| следующая рабочая | не создана: создавать под следующую задачу (окружение, репо, ветка, auto как раньше) |
+| `session_01BBYXw1ofhfeTWWo7yzckUc` (Opus) | живые тесты, записи диктовок, Qwen3 в Replay; сейчас эксперимент «LLM правит спорные слова» в tools/ |
+| `session_01JyLW3bKXxp8BWviPGUhFRP` (Sonnet) | словарь и правила по `tools/eval/anglicisms-30.tsv` |
 | `session_01VwkdDh2rcmCTiyi7ekb3K9` | архивирована: SCOWL, латинский FuzzyTerms, живые тесты владельца (до 3bd91d8); передача в `docs/csharp-migration.md` |
 | `session_016XphibQAXHZd1pCxcb3s1K` | архивирована: «А» строчной, Notepad++, самоисправление, 5 с, запятые, Notepad++ гонка, термины, FuzzyTerms (кириллица); передача в `docs/csharp-migration.md` «22.10 (день)» |
 | `session_013e53jfMJZKi56TqeKFqG7j` | архивирована, передача в `docs/csharp-migration.md` (коммит 20eebb9) |
