@@ -152,7 +152,7 @@ public class ScreenNamesTests
     [InlineData("Файл Термс.gson и config.джейсон.", "Файл Термс.json и config.json.")]
     [InlineData("Кошелёк Рэбби Воллетт, Рэбиволет, Фантом Воллет, Фантом.", "Кошелёк Rabby Wallet, Rabby Wallet, Phantom Wallet, Фантом.")]
     [InlineData("Тесты Пубитер, HDmell, rast.", "Тесты Puppeteer, HTML, Rust.")]
-    [InlineData("Сделай диплей, Jumper X Change.", "Сделай диплей, Jumper Exchange.")] // "диплей" by sound took "дисплей" too
+    [InlineData("Сделай диплей, Jumper X Change.", "Сделай деплой, Jumper Exchange.")] // "exact": not by sound
     [InlineData("Новый дисплей и дисплеем.", "Новый дисплей и дисплеем.")]
     public void Third_live_test_spellings(string raw, string expected) => Assert.Equal(expected, Fix(raw, null));
 
@@ -172,6 +172,43 @@ public class ScreenNamesTests
     [InlineData("Открой нотпад плюс-плюс и нотпад плюс плюс.", "Открой Notepad++ и Notepad++.")]
     [InlineData("Сони пришла, комет, пром, Фантом.", "Сони пришла, комет, пром, Фантом.")]
     public void Parakeet_live_test_spellings(string raw, string expected)
+    {
+        foreach (var model in ModelCatalog.All)
+        {
+            Assert.Equal(expected, new PostProcessor(model).Process(raw).Trim());
+        }
+    }
+
+    // Owner's live test on GigaAM (30 phrases): both models.
+    [Theory]
+    [InlineData("The Deploy проект на сервер.", "Задеплой проект на сервер.")]
+    [InlineData("Сделай комет и запуш.", "Сделай коммит и запушь.")]
+    [InlineData("Закинь комет в ветку.", "Закинь коммит в ветку.")]
+    [InlineData("Видел комет в небе.", "Видел комет в небе.")]
+    [InlineData("Подними Post Grass Q и пост грас кью.", "Подними PostgreSQL и PostgreSQL.")]
+    [InlineData("Новый индoint и эндпойнт.", "Новый эндпоинт и эндпоинт.")]
+    [InlineData("Сервер возвращает Джейсона.", "Сервер возвращает JSON.")]
+    [InlineData("Влюбилась в Джейсона.", "Влюбилась в Джейсона.")]
+    [InlineData("Пишу на Евроскрипт и Typescript.", "Пишу на JavaScript и TypeScript.")]
+    [InlineData("Работаю на Claude Опус.", "Работаю на Claude Opus.")]
+    [InlineData("Запусти VM Studio.", "Запусти LM Studio.")]
+    [InlineData("Картинки в меджорни и мид джорни.", "Картинки в Midjourney и Midjourney.")]
+    [InlineData("Подключи MCR сервер и настрой MCB сервера.", "Подключи MCP-сервер и настрой MCP-сервера.")]
+    [InlineData("Новые индoint-ы, Dockerе и GitHubе, бaза.", "Новые эндпоинт-ы, Docker и GitHubе, бaза.")] // an unknown mix stays
+    [InlineData("Пишу в lode Code и лод код.", "Пишу в Claude Code и Claude Code.")]
+    [InlineData("Запиши в ОБС, смонтируй в да винчи резолв.", "Запиши в OBS, смонтируй в DaVinci Resolve.")]
+    [InlineData("Подключись к Сити арбитру.", "Подключись к сети Arbitrum.")]
+    [InlineData("Курс эфиру и эфира растёт.", "Курс эфиру и эфира растёт.")]
+    [InlineData("Проверь баланс на Dank и сделай сваб.", "Проверь баланс на DeBank и сделай свап.")]
+    [InlineData("Видеокарта Envidia, процессор IMD Rise и АМД Райзен.", "Видеокарта NVIDIA, процессор AMD Ryzen и AMD Ryzen.")]
+    [InlineData("Зайди в Bios.", "Зайди в BIOS.")]
+    [InlineData("Проверь PIN D Server.", "Проверь пинг до сервера.")]
+    [InlineData("Подключи колонку GBL.", "Подключи колонку JBL.")]
+    [InlineData("Кошелёк фантом. Это фантом.", "Кошелёк Phantom. Это фантом.")] // a sentence start keeps its capital
+    [InlineData("Сервер возвращает Джейсона в формате джейсон.", "Сервер возвращает JSON в формате JSON.")]
+    [InlineData("Поставь через PUP, комета, Lama.", "Поставь через pip, комета, Lama.")]
+    [InlineData("Это int end, indentee, untaint, свопы.", "Это int end, indentee, untaint, свопы.")] // "exact" targets are not searched by sound
+    public void GigaAM_live_test_spellings(string raw, string expected)
     {
         foreach (var model in ModelCatalog.All)
         {

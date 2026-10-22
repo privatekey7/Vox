@@ -104,7 +104,7 @@ public sealed partial class TermsDictionaryTests
             foreach (var target in terms.Keys)
             {
                 var cyrillicOnly = target.All(c => !char.IsLetter(c) || c is >= 'а' and <= 'я' or >= 'А' and <= 'Я' or 'ё' or 'Ё');
-                Assert.True(group == "spelling" || !cyrillicOnly, $"{group}: \"{target}\" is Cyrillic — it belongs in \"spelling\"");
+                Assert.True(group is "spelling" or "exact" || !cyrillicOnly, $"{group}: \"{target}\" is Cyrillic — it belongs in \"spelling\" or \"exact\"");
             }
         }
     }

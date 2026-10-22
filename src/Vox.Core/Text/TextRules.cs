@@ -106,7 +106,7 @@ public static partial class Terms
         var replacement = entry.Ending is null
             ? entry.Replacement
             : Declension.Inflect(entry.Replacement, entry.LastSourceWord, entry.Ending, entry.MinLength);
-        return replacement is { Length: > 0 } && char.IsUpper(spoken[0]) && char.IsLower(replacement[0]) && !HasLatin(replacement)
+        return replacement is { Length: > 0 } && char.IsUpper(spoken[0]) && char.IsLower(replacement[0]) && !HasLatin(replacement[..1])
             && (sentenceStart || !HasLatin(spoken))
             ? char.ToUpperInvariant(replacement[0]) + replacement[1..]
             : replacement;
@@ -300,6 +300,109 @@ public static partial class Fillers
 }
 
 /// <summary>"1600 МГ" → "1600 МГц": the model drops "ц" after a number; lower-case "мг" (milligrams) stays.</summary>
+/// <summary>
+/// A word of mixed alphabets ("индoint") is read in one: the Latin letters spelled in Cyrillic or the other way
+/// round, and kept only if the dictionary knows the result ("индоинт" → "эндпоинт").
+/// </summary>
+public static partial class MixedScript
+{
+    [GeneratedRegex(@"\p{L}+")] private static partial Regex Word();
+
+    private static readonly Dictionary<string, string> ToCyrillic = new()
+    {
+        ["sh"] = "ш", ["ch"] = "ч", ["zh"] = "ж", ["ts"] = "ц", ["ya"] = "я", ["yu"] = "ю",
+        ["a"] = "а", ["b"] = "б", ["c"] = "к", ["d"] = "д", ["e"] = "е", ["f"] = "ф", ["g"] = "г", ["h"] = "х",
+        ["i"] = "и", ["j"] = "дж", ["k"] = "к", ["l"] = "л", ["m"] = "м", ["n"] = "н", ["o"] = "о", ["p"] = "п",
+        ["q"] = "к", ["r"] = "р", ["s"] = "с", ["t"] = "т", ["u"] = "у", ["v"] = "в", ["w"] = "в", ["x"] = "кс",
+        ["y"] = "й", ["z"] = "з",
+    };
+
+    private static readonly Dictionary<char, string> ToLatin = new()
+    {
+        ['а'] = "a", ['б'] = "b", ['в'] = "v", ['г'] = "g", ['д'] = "d", ['е'] = "e", ['ё'] = "e", ['ж'] = "zh",
+        ['з'] = "z", ['и'] = "i", ['й'] = "y", ['к'] = "k", ['л'] = "l", ['м'] = "m", ['н'] = "n", ['о'] = "o",
+        ['п'] = "p", ['р'] = "r", ['с'] = "s", ['т'] = "t", ['у'] = "u", ['ф'] = "f", ['х'] = "h", ['ц'] = "ts",
+        ['ч'] = "ch", ['ш'] = "sh", ['щ'] = "sch", ['ъ'] = "", ['ы'] = "y", ['ь'] = "", ['э'] = "e", ['ю'] = "yu",
+        ['я'] = "ya",
+    };
+
+    public static string Fix(string text) => Word().Replace(text, m =>
+    {
+        var word = m.Value;
+        if (!word.Any(IsCyrillic) || !word.Any(c => c is >= 'a' and <= 'z' or >= 'A' and <= 'Z'))
+        {
+            return word;
+        }
+
+        foreach (var candidate in new[] { Cyrillic(word), Latin(word) })
+        {
+            if (candidate is null)
+            {
+                continue;
+            }
+
+            var known = FuzzyTerms.Apply(Terms.Replace(candidate));
+            if (known != candidate)
+            {
+                return known;
+            }
+        }
+
+        return word;
+    });
+
+    private static bool IsCyrillic(char c) => c is >= 'а' and <= 'я' or >= 'А' and <= 'Я' or 'ё' or 'Ё';
+
+    private static string? Cyrillic(string word)
+    {
+        var result = new System.Text.StringBuilder();
+        for (var i = 0; i < word.Length;)
+        {
+            if (IsCyrillic(word[i]))
+            {
+                result.Append(word[i++]);
+                continue;
+            }
+
+            var lower = char.ToLowerInvariant(word[i]);
+            var two = i + 1 < word.Length ? $"{lower}{char.ToLowerInvariant(word[i + 1])}" : null;
+            var (letters, length) = two is not null && ToCyrillic.TryGetValue(two, out var d) ? (d, 2)
+                : ToCyrillic.TryGetValue(lower.ToString(), out var one) ? (one, 1) : (null, 0);
+            if (letters is null)
+            {
+                return null;
+            }
+
+            result.Append(char.IsUpper(word[i]) ? char.ToUpperInvariant(letters[0]) + letters[1..] : letters);
+            i += length;
+        }
+
+        return result.ToString();
+    }
+
+    private static string? Latin(string word)
+    {
+        var result = new System.Text.StringBuilder();
+        foreach (var c in word)
+        {
+            if (!IsCyrillic(c))
+            {
+                result.Append(c);
+            }
+            else if (ToLatin.TryGetValue(char.ToLowerInvariant(c), out var letters))
+            {
+                result.Append(char.IsUpper(c) && letters.Length > 0 ? char.ToUpperInvariant(letters[0]) + letters[1..] : letters);
+            }
+            else
+            {
+                return null;
+            }
+        }
+
+        return result.ToString();
+    }
+}
+
 /// <summary>"Сити Arbitrum" → "сети Arbitrum": the model hears "сети" before a blockchain as "Сити".</summary>
 public static partial class Networks
 {

@@ -4,7 +4,7 @@ namespace Vox.Core.Text;
 
 /// <summary>
 /// Turns raw model output into the text that is pasted:
-/// &lt;unk&gt; → user dictionary → Claude → terms → phonetic terms → model versions → file extensions → key shortcuts → fillers → ITN (if the model needs it)
+/// &lt;unk&gt; → user dictionary → Claude → mixed alphabets → terms → phonetic terms → model versions → file extensions → key shortcuts → fillers → ITN (if the model needs it)
 /// → dashes → currency → sentence spacing
 /// → one leading space.
 /// </summary>
@@ -31,6 +31,7 @@ public sealed class PostProcessor(SpeechModel model)
         text = ClaudeNames.Apply(text, latinCloud: model.Language == "ru"); // GigaAM hears Claude as "Cloud"
 
         text = FileExtensions.FixGlued(text);
+        text = MixedScript.Fix(text);
         text = Terms.Replace(text);
         text = FuzzyTerms.Apply(text, fuzzy, screen);
         text = Networks.Fix(text);

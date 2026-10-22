@@ -76,7 +76,8 @@ public sealed partial class FuzzyTerms
     {
         var groups = Terms.LoadGroups();
         return new FuzzyTerms(
-            groups.Values.SelectMany(g => g).SelectMany(t => t.Value.Select(s => (s, t.Key))),
+            // "exact": spellings found only as listed ("диплей" by sound would take "дисплей" too).
+            groups.Where(g => g.Key != "exact").SelectMany(g => g.Value).SelectMany(t => t.Value.Select(s => (s, t.Key))),
             groups.TryGetValue("spelling", out var spelling) ? spelling.SelectMany(t => t.Value.Select(s => (s, t.Key))) : [],
             latin: true,
             LoadEnglish());
