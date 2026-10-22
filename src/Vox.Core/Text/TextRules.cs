@@ -21,6 +21,12 @@ public static class Terms
         return text;
     }
 
+    private static readonly Lazy<HashSet<string>> TermWords = new(() =>
+        Rules.Value.SelectMany(r => r.Replacement.Split(' ')).ToHashSet(StringComparer.Ordinal));
+
+    /// <summary>Is this word (exact case) part of a term's spelling ("Docker", "GitHub")?</summary>
+    public static bool IsTermForm(string word) => TermWords.Value.Contains(word);
+
     private static (Regex, string)[] Load()
     {
         using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("Vox.Core.terms.json")
