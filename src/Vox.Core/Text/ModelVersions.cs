@@ -71,9 +71,11 @@ public static partial class ModelVersions
         var prefixes = string.Join('|', Brands.Values.SelectMany(b => (IEnumerable<string>?)b.Prefixes?.Keys ?? []).Distinct().OrderByDescending(k => k.Length));
         var suffixes = string.Join('|', Brands.Values.SelectMany(b => (IEnumerable<string>?)b.Suffixes?.Keys ?? []).Distinct().OrderByDescending(k => k.Length));
         var number = @"\d+|" + string.Join('|', Numbers.Keys.OrderByDescending(k => k.Length));
+        var digit = @"\d(?!\d)|" + string.Join('|', Numbers.Where(n => n.Value < 10).Select(n => n.Key).OrderByDescending(k => k.Length));
         return new Regex(
             $@"(?<![\p{{L}}\p{{Nd}}-])(?<name>{names})(?:\s+|-|(?=\d))(?:(?<pre>{prefixes})\s*)?(?<major>{number})" +
-            $@"(?:(?:\s+и\s+|\s*(?:\.|точка)\s*|,)(?<minor>{number}))?(?![\p{{L}}\p{{Nd}}])" +
+            // "четыре и пять", "4.5", "4,5" — or "два пять" (owner's corpus): a single digit after a space.
+            $@"(?:(?:\s+и\s+|\s*(?:\.|точка)\s*|,)(?<minor>{number})|\s+(?<minor>{digit}))?(?![\p{{L}}\p{{Nd}}])" +
             $@"(?:\s*(?<suffix>{suffixes})(?![\p{{L}}\p{{Nd}}]))?",
             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
     });

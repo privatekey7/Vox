@@ -278,14 +278,32 @@ public static partial class Dashes
         text.AsSpan().IndexOfAny('—', '–') < 0 ? text : AnyDash().Replace(BetweenDigits().Replace(text, "-"), "-");
 }
 
-/// <summary>Drops the "&lt;unk&gt;" token Parakeet sometimes leaves in the text ("команду &lt;unk&gt;Поговорим").</summary>
+/// <summary>
+/// Parakeet's "&lt;unk&gt;" token: it has no "ё", so inside a Cyrillic word or at the end of a short one it
+/// stands for "ё" ("ч&lt;unk&gt;" → "чё", "бо&lt;unk&gt;к" → "боёк"); anywhere else it is dropped
+/// ("&lt;unk&gt;Поговорим&lt;unk&gt;." → "Поговорим.").
+/// </summary>
 public static partial class UnknownToken
 {
-    [GeneratedRegex(@"\s*<unk>\s*")] private static partial Regex Token();
+    private const int ShortWord = 4; // "чё", "всё", "ещё", "твоё"; not "Поговорим<unk>"
 
-    public static string Remove(string text) =>
-        !text.Contains("<unk>", StringComparison.Ordinal) ? text
-            : Token().Replace(text, m => m.Index == 0 || m.Index + m.Length == text.Length ? "" : " ").Trim();
+    [GeneratedRegex(@"(?<=[а-яё])<unk>(?=[а-яё])", RegexOptions.IgnoreCase)] private static partial Regex InsideWord();
+    [GeneratedRegex(@"(?<![а-яё])([а-яё]{1,3})<unk>(?![\p{L}\p{Nd}])", RegexOptions.IgnoreCase)] private static partial Regex EndOfShortWord();
+    [GeneratedRegex(@"\s*<unk>\s*")] private static partial Regex Token();
+    [GeneratedRegex(@"\s+([.,!?;:…])")] private static partial Regex SpaceBeforePunct();
+
+    public static string Remove(string text)
+    {
+        if (!text.Contains("<unk>", StringComparison.Ordinal))
+        {
+            return text;
+        }
+
+        text = InsideWord().Replace(text, "ё");
+        text = EndOfShortWord().Replace(text, m => m.Groups[1].Value.Length < ShortWord ? m.Groups[1].Value + "ё" : m.Value);
+        text = Token().Replace(text, m => m.Index == 0 || m.Index + m.Length == text.Length ? "" : " ");
+        return SpaceBeforePunct().Replace(text, "$1").Trim();
+    }
 }
 
 /// <summary>Inserts the space a punctuation-aware model glues away: "Привет.Что" → "Привет. Что".</summary>

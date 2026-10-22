@@ -29,6 +29,8 @@ public sealed class ModelVersionsTests
     [InlineData("чат GPT6.1", "ChatGPT 6.1")]
     [InlineData("GPT6.1", "GPT-6.1")]
     [InlineData("джипити имейдж два", "GPT Image 2")]
+    [InlineData("джипити имейдж два пять", "GPT Image 2.5")] // owner's corpus: no "и"
+    [InlineData("клод опус пять пять", "Claude Opus 5.5")]
     public void Brand_and_version_are_written_as_the_model_name(string spoken, string expected) =>
         Assert.Equal(expected, ModelVersions.Apply(Terms.Replace(spoken)));
 

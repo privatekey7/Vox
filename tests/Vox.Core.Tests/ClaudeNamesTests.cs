@@ -28,6 +28,15 @@ public sealed class ClaudeNamesTests
     [InlineData("Деплой в Cloud Run.", "Деплой в Cloud Run.")]
     public void Cloud_products_stay(string raw, string expected) => Assert.Equal(expected, Ru(raw));
 
+    // Regression (owner's corpus): Cyrillic forms mean Claude for Parakeet too; only Latin "cloud" is a cloud.
+    [Theory]
+    [InlineData("спроси клода.", "спроси Claude.")]
+    [InlineData("Клауд и клоуд код.", "Claude и Claude Code.")]
+    [InlineData("Поставь Клот Ин Хром.", "Поставь Claude in Chrome.")]
+    [InlineData("Поставь клаудан хром.", "Поставь Claude in Chrome.")]
+    public void Parakeet_cyrillic_forms_are_claude(string raw, string expected) =>
+        Assert.Equal(expected, new PostProcessor(ModelCatalog.Parakeet).Process(raw).Trim());
+
     [Fact]
     public void English_model_keeps_the_cloud() =>
         Assert.Equal("Save it to the cloud.", new PostProcessor(ModelCatalog.Parakeet).Process("Save it to the cloud.").Trim());

@@ -40,6 +40,7 @@ public sealed partial class TermsDictionaryTests
     [InlineData("Кошелёк рэби уоллет на арбитрум.", "Кошелёк Rabby Wallet на Arbitrum.")]
     [InlineData("Лежит в гугл драйв, а не на гугл диске.", "Лежит в Google Drive, а не на Google Диске.")]
     [InlineData("Надо закомитить промп.", "Надо закоммитить промпт.")]
+    [InlineData("Мы в гите храним, рендер в ремоушен студио.", "Мы в Git храним, рендер в Remotion Studio.")]
         // social (owner: brands in Latin too); "телеграмма" is a telegram, "зум" alone is a zoom
     [InlineData("Выложил на ютубе и в телеграме, ссылка в инстаграме.", "Выложил на YouTube и в Telegram, ссылка в Instagram.")]
     [InlineData("Пришла телеграмма, сделай зум.", "Пришла телеграмма, сделай зум.")]

@@ -136,7 +136,11 @@ public class UnknownTokenTests
     [Theory]
     [InlineData("команду <unk>Поговорим", "команду Поговорим")]
     [InlineData("<unk> привет <unk>", "привет")]
-    [InlineData("раз<unk>два", "раз два")]
+    // Regression (owner's corpus): Parakeet has no "ё" token and writes <unk> instead.
+    [InlineData("Ты ч<unk>, серьёзно?", "Ты чё, серьёзно?")]
+    [InlineData("сломался бо<unk>к.", "сломался боёк.")]
+    [InlineData("<unk>Поговорим<unk>.", "Поговорим.")]
+    [InlineData("вс<unk> готово, ещ<unk> раз", "всё готово, ещё раз")]
     public void Unk_is_removed(string text, string expected) => Assert.Equal(expected, UnknownToken.Remove(text));
 
     [Fact]
