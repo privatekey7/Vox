@@ -186,6 +186,17 @@ public partial class App : Application
         Log.Info($"[SETTINGS] Hotkey changed to {Hotkeys.Display(name)}");
     }
 
+    internal bool CanUndoLearned => _dictation?.CanUndoLearned == true;
+
+    /// <summary>Tray: forget the last pair self-learning added.</summary>
+    internal void UndoLastLearned()
+    {
+        if (_dictation?.UndoLastLearned() is var (wrong, correct))
+        {
+            _pill?.ShowUndone(wrong, correct);
+        }
+    }
+
     internal void ShowSettings(string page = "general")
     {
         if (_settingsWindow is null)

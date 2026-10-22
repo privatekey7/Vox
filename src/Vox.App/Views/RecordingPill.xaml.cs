@@ -86,9 +86,17 @@ public partial class RecordingPill : Window
     internal void ShowLearned(string wrong, string correct)
     {
         _hide.Stop();
-        SetMessage(Mark, "", $"Запомнил: {wrong} → {correct}", "отменить: Настройки → Словарь");
+        SetMessage(Mark, "", $"Запомнил: {wrong} → {correct}", "отменить: меню Vox в трее");
         ShowAtBottom();
         HideAfter(TimeSpan.FromSeconds(2)); // owner: long enough to read, short enough not to bother
+    }
+
+    internal void ShowUndone(string wrong, string correct)
+    {
+        _hide.Stop();
+        SetMessage("\uE7A7", "#60CDFF", $"Отменено: {wrong} → {correct}", "");
+        ShowAtBottom();
+        HideAfter(TimeSpan.FromSeconds(2));
     }
 
     // The Vox mark instead of a glyph ("Вставлено", "Запомнил"; owner's variant B).

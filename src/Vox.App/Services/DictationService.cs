@@ -47,7 +47,7 @@ internal sealed class DictationService : IDisposable
     private volatile RecordingBuffer? _current;
 
     private readonly FieldWatcher _watcher = new();
-    private readonly CorrectionCandidates _candidates;
+    private readonly SelfLearning _learning;
     private readonly CancellationTokenSource _stopping = new(); // Vox is closing
     private readonly CursorContext _context = new();
 
@@ -60,30 +60,37 @@ internal sealed class DictationService : IDisposable
         _settings = settings;
         _modelsRoot = modelsRoot;
         _corrections = db.Corrections();
-        _candidates = new CorrectionCandidates(db);
+        _learning = new SelfLearning(db);
         _processor = new Thread(ProcessLoop) { IsBackground = true, Name = "VoxProcessor" };
         _processor.Start();
         _watcher.Enabled = settings.LearnCorrections;
         _watcher.Learned += (shown, correct) =>
         {
-            var wrong = shown.ToLowerInvariant(); // dictionary keys are lower case; the pill shows "Лебовски"
-            if (CorrectionCandidates.IsCommonWord(wrong))
+            if (_learning.Learn(shown, correct) == LearnResult.CommonWord)
             {
                 Log.Info("[LEARN] The fixed word is an ordinary Russian word: not learned (add it in the dictionary by hand)");
                 return;
             }
 
-            if (!_candidates.Confirm(wrong, correct))
-            {
-                Log.Info("[LEARN] Seen once — will learn it if the same fix happens again");
-                return;
-            }
-
-            Log.Info("[LEARN] Seen twice — added to the dictionary");
-            _db.AddDictionaryEntry(wrong, correct, "", "auto");
+            Log.Info("[LEARN] Added to the dictionary");
             ReloadCorrections();
             CorrectionLearned?.Invoke(shown, correct);
         };
+    }
+
+    public bool CanUndoLearned => _learning.CanUndo;
+
+    /// <summary>Tray: forget the last learned pair; (wrong, correct) or null.</summary>
+    public (string Wrong, string Correct)? UndoLastLearned()
+    {
+        var undone = _learning.UndoLast();
+        if (undone is not null)
+        {
+            Log.Info("[LEARN] Last learned pair undone");
+            ReloadCorrections();
+        }
+
+        return undone;
     }
 
     /// <summary>A dictionary entry was learned from the user's fix: (wrong, correct).</summary>

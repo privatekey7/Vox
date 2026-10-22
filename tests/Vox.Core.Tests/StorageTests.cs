@@ -25,24 +25,6 @@ public sealed class StorageTests : IDisposable
     }
 
     [Fact]
-    public void Learning_candidates_survive_a_restart()
-    {
-        // Regression: a fix seen once before Vox restarted had to be seen twice again.
-        var path = Path.Combine(_dir, "vox_data.db");
-        using (var db = new VoxDatabase(path))
-        {
-            Assert.False(new Vox.Core.Text.CorrectionCandidates(db).Confirm("кубернетис", "Kubernetes"));
-        }
-
-        using (var db = new VoxDatabase(path))
-        {
-            var candidates = new Vox.Core.Text.CorrectionCandidates(db);
-            Assert.True(candidates.Confirm("кубернетис", "Kubernetes"));
-            Assert.False(candidates.Confirm("кубернетис", "Kubernetes")); // learned: the candidate is gone
-        }
-    }
-
-    [Fact]
     public void Dictionary_entries_upsert_by_word()
     {
         using var db = new VoxDatabase(Path.Combine(_dir, "vox_data.db"));

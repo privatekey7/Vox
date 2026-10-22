@@ -13,6 +13,7 @@ internal sealed class TrayController : IDisposable
     private readonly App _app;
     private readonly TaskbarIcon _icon;
     private readonly MenuItem _status;
+    private readonly MenuItem _undoLearned;
     private bool _recording;
 
     public TrayController(App app)
@@ -25,6 +26,9 @@ internal sealed class TrayController : IDisposable
         menu.Items.Add(Item("Скопировать последнюю диктовку", "", CopyLast));
         menu.Items.Add(Item("История", "", () => _app.ShowSettings("history")));
         menu.Items.Add(Item("Настройки", "", () => _app.ShowSettings()));
+        _undoLearned = Item("Отменить последнее запоминание", "\uE7A7", () => _app.UndoLastLearned());
+        menu.Items.Add(_undoLearned);
+        menu.Opened += (_, _) => _undoLearned.IsEnabled = _app.CanUndoLearned; // nothing learned yet: greyed out
         menu.Items.Add(new Separator());
         menu.Items.Add(Item("Выход", "", () => Application.Current.Shutdown()));
 
