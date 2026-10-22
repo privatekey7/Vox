@@ -7,3 +7,17 @@
 Как мерить правки текста без звука: Raw → `Vox.Replay` (TSV `Raw<TAB>Raw`) → сравнить Final с
 `expected` по терминам (список терминов на фразу — в `score-terms.py`, `K`). На 22.10:
 GigaAM 48/64, Parakeet 44/64, Qwen3-ASR 0.6B 34/64.
+
+## Прогон по тексту (без звука)
+
+`tools/eval/run-set.sh [--misses]`: Raw каждой колонки через `Vox.Replay` (GigaAM и Parakeet) и подсчёт терминов
+`score-set.py` (`--misses`: каждый промах с эталоном, Raw и Final). Нужен .NET 10; запускать из корня репозитория.
+Прогон по тексту совпадает с прогоном по звуку, пока модели дают тот же Raw. Список терминов `K` в `score-set.py`.
+
+| | GigaAM | Parakeet |
+|---|---|---|
+| 22.10, до правок (по тексту) | 48/64 | 44/64 |
+| 22.10, после `Recorded_model_spellings_of_terms` | 61/64 | 62/64 |
+
+Оставшееся: «Om» → Ollama, «фантом/Фантом» → Phantom (обычное слово), «I'm De Risen» → AMD Ryzen (апостроф рвёт слова),
+«Термс точка Джейсон» → terms.json (имя файла).
