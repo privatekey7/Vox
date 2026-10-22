@@ -30,6 +30,66 @@ public static class CorrectionDetector
     /// <param name="inserted">The pasted dictation (without the leading separator).</param>
     public static (string Wrong, string Correct)? Detect(string before, string after, string inserted)
     {
+        if (Changes(before, after, inserted) is not var (old, now, changes, first, last))
+        {
+            return null;
+        }
+
+        if (changes is not [{ OldStart: var os, OldEnd: var oe, NewStart: var ns, NewEnd: var ne }] || oe - os != 1)
+        {
+            return null;
+        }
+
+        // The user went on typing right after (or before) the fixed word: "PPFI." → "Pipify. Дальше".
+        if (ne - ns > 1 && os == last)
+        {
+            ne = ns + 1;
+        }
+        else if (ne - ns > 1 && os == first)
+        {
+            ns = ne - 1;
+        }
+
+        if (ne - ns != 1)
+        {
+            return null;
+        }
+
+        var wrong = old[os].Text.Trim(WordPunct.ToCharArray());
+        var correct = now[ns].Text.Trim(WordPunct.ToCharArray());
+        if (wrong.Length == 0 || correct.Length == 0
+            || string.Equals(wrong, correct, StringComparison.OrdinalIgnoreCase)
+            || !LookAlike(wrong, correct)
+            || IsGrammarEdit(wrong, correct))
+        {
+            return null;
+        }
+
+        return Declension.BaseForm(wrong.ToLowerInvariant(), correct); // one entry for all case forms
+    }
+
+    /// <summary>
+    /// Short log line for an edit that was not learned: how many word changes touch the dictation and
+    /// which ("2 changes: \"PPFI.\" → \"Pipify.\", \"\" → \"тест\"").
+    /// </summary>
+    public static string Describe(string before, string after, string inserted)
+    {
+        if (Changes(before, after, inserted) is not var (old, now, changes, _, _))
+        {
+            return "the dictation is no longer in the field";
+        }
+
+        string Span(List<Word> words, int from, int to) =>
+            Clip(string.Join(' ', words.Skip(from).Take(to - from).Select(w => w.Text)));
+        var shown = changes.Take(3).Select(c => $"\"{Span(old, c.OldStart, c.OldEnd)}\" → \"{Span(now, c.NewStart, c.NewEnd)}\"");
+        return $"{changes.Count} change{(changes.Count == 1 ? "" : "s")}: {string.Join(", ", shown)}{(changes.Count > 3 ? ", …" : "")}";
+    }
+
+    private static string Clip(string s) => s.Length > 40 ? s[..40] + "…" : s;
+
+    private static (List<Word> Old, List<Word> Now, List<Change> Changes, int First, int Last)? Changes(
+        string before, string after, string inserted)
+    {
         inserted = inserted.Trim();
         var start = before.LastIndexOf(inserted, StringComparison.Ordinal);
         if (inserted.Length == 0 || start < 0)
@@ -64,23 +124,7 @@ public static class CorrectionDetector
         var changes = Diff(old.Select(w => w.Text).ToList(), now.Select(w => w.Text).ToList())
             .Where(c => c.OldEnd > first && c.OldStart <= last)
             .ToList();
-        if (changes is not [{ OldStart: var os, OldEnd: var oe, NewStart: var ns, NewEnd: var ne }]
-            || oe - os != 1 || ne - ns != 1)
-        {
-            return null;
-        }
-
-        var wrong = old[os].Text.Trim(WordPunct.ToCharArray());
-        var correct = now[ns].Text.Trim(WordPunct.ToCharArray());
-        if (wrong.Length == 0 || correct.Length == 0
-            || string.Equals(wrong, correct, StringComparison.OrdinalIgnoreCase)
-            || !LookAlike(wrong, correct)
-            || IsGrammarEdit(wrong, correct))
-        {
-            return null;
-        }
-
-        return Declension.BaseForm(wrong.ToLowerInvariant(), correct); // one entry for all case forms
+        return (old, now, changes, first, last);
     }
 
     /// <summary>Do two words look like spellings of the same sound (across Cyrillic and Latin)?</summary>
