@@ -20,7 +20,9 @@
     <Setter Property="FontFamily" Value="{StaticResource Vox.FontText}"/>
     <Setter Property="FontSize" Value="14"/>
     <Setter Property="UseLayoutRounding" Value="True"/>
-    <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
+    <!-- Ideal, not Display: Display snaps Golos Text (weak hinting) to the pixel grid, which made it
+         jagged in the settings window (owner, 22.10). ClearType stays on in these opaque windows. -->
+    <Setter Property="TextOptions.TextFormattingMode" Value="Ideal"/>
   </Style>
 
   <!-- Text -->
