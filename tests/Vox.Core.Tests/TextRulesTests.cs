@@ -78,6 +78,12 @@ public class TermsTests
     [InlineData("Пишу на Pithon.", "Пишу на Python.")]
     [InlineData("Ругается Smart Screen.", "Ругается SmartScreen.")]
     [InlineData("Добавь юзстейт для счётчика", "Добавь useState для счётчика")]
+    // Owner's log: the model's own "+" tail is swallowed, not doubled.
+    [InlineData("Открой Нотпад+.", "Открой Notepad++.")]
+    [InlineData("Открой Нот пат++.", "Открой Notepad++.")]
+    [InlineData("открой нотпад", "открой Notepad++")]
+    [InlineData("в нот паде", "в Notepad++")]
+    [InlineData("Правлю в нотпаде.", "Правлю в Notepad++.")]
     [InlineData("обычный текст без терминов", "обычный текст без терминов")]
     public void Replace_maps_phonetic_terms_to_latin(string text, string expected) =>
         Assert.Equal(expected, Terms.Replace(text));

@@ -40,6 +40,15 @@ public static partial class Terms
                 {
                     result.Append(text, copied, words[i].Index - copied).Append(replacement);
                     copied = words[i + n - 1].Index + words[i + n - 1].Length;
+                    if (replacement.EndsWith('+'))
+                    {
+                        // The model's own tail: "нотпад++" → "Notepad++", not "Notepad++++".
+                        while (copied < text.Length && text[copied] == '+')
+                        {
+                            copied++;
+                        }
+                    }
+
                     matched = n;
                 }
             }
