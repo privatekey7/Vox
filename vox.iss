@@ -81,12 +81,15 @@ Name: "hebrew";     MessagesFile: "compiler:Languages\Hebrew.isl"
 english.AutostartDescription=Start Vox with Windows
 english.AutostartGroup=Additional options:
 english.LaunchAfterInstall=Launch {#MyAppName} now
+english.DeletePersonalData=Also delete your dictation history, personal dictionary and settings?
 russian.AutostartDescription=Запускать Vox при старте Windows
 russian.AutostartGroup=Дополнительно:
 russian.LaunchAfterInstall=Запустить {#MyAppName} сейчас
+russian.DeletePersonalData=Удалить также историю диктовок, личный словарь и настройки?
 ukrainian.AutostartDescription=Запускати Vox разом з Windows
 ukrainian.AutostartGroup=Додатково:
 ukrainian.LaunchAfterInstall=Запустити {#MyAppName} зараз
+ukrainian.DeletePersonalData=Видалити також історію диктовок, особистий словник і налаштування?
 german.AutostartDescription=Vox mit Windows starten
 german.AutostartGroup=Weitere Optionen:
 german.LaunchAfterInstall={#MyAppName} jetzt starten
@@ -176,10 +179,6 @@ Root: HKLM; Subkey: "SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDum
 Filename: "{sys}\ie4uinit.exe"; Parameters: "-show"; Flags: runhidden runasoriginaluser skipifdoesntexist
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchAfterInstall}"; Flags: nowait postinstall skipifsilent
 
-[UninstallRun]
-; Kill any running Vox before uninstalling
-Filename: "{sys}\taskkill.exe"; Parameters: "/F /IM vox.exe"; Flags: runhidden; RunOnceId: "KillVox"
-
 [Code]
 const
   EVENT_MODIFY_STATE = $0002;
@@ -193,7 +192,7 @@ function CloseHandle(hObject: THandle): BOOL;
 
 // Close a running Vox so its files can be replaced: 2.0 is asked to quit (named event, it logs
 // "[EXIT] Bye" instead of looking crashed next start) and gets up to 3 s; 1.x and a hung 2.0 are killed.
-function PrepareToInstall(var NeedsRestart: Boolean): String;
+procedure CloseVox();
 var
   ResultCode, Waited: Integer;
   Quit: THandle;
@@ -212,5 +211,36 @@ begin
     Sleep(300); // the process is exiting after it released the mutex
   end;
   Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /IM vox.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-  Result := '';
+end;
+
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+begin
+  CloseVox();
+  Result := ''; // an update over an existing install keeps every user file
+end;
+
+function InitializeUninstall(): Boolean;
+begin
+  CloseVox();
+  Result := True;
+end;
+
+// Uninstall only (never on update): models always go (they are large and Vox-only); history,
+// dictionary, settings, logs and crash dumps only if the user agrees. A silent uninstall keeps them.
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+begin
+  if CurUninstallStep <> usPostUninstall then
+    exit;
+
+  DelTree(ExpandConstant('{userappdata}\vox\models'), True, True, True);
+  DelTree(ExpandConstant('{commonappdata}\Vox\models'), True, True, True); // non-ASCII user name fallback
+  RemoveDir(ExpandConstant('{commonappdata}\Vox'));
+  RegDeleteValue(HKEY_CURRENT_USER, 'Software\Microsoft\Windows\CurrentVersion\Run', 'Vox');
+
+  if not UninstallSilent() and
+     (MsgBox(CustomMessage('DeletePersonalData'), mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDYES) then
+  begin
+    DelTree(ExpandConstant('{userappdata}\vox'), True, True, True);
+    DelTree(ExpandConstant('{localappdata}\vox'), True, True, True);
+  end;
 end;
