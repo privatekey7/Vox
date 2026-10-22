@@ -190,6 +190,9 @@ public static partial class Fillers
     [GeneratedRegex(@"[,;]\s*[,;]")] private static partial Regex DoubledComma();
     [GeneratedRegex(@"\s[,;]\s")] private static partial Regex LoneComma();
     [GeneratedRegex(@"[,;]\s*([.!?…]|$)")] private static partial Regex CommaBeforeEnd();
+    [GeneratedRegex(@"^\s*(?:ну|вот|то есть|кстати|короче|в общем|значит|наверное|кажется|видимо)\s*,", RegexOptions.IgnoreCase)]
+    private static partial Regex IntroWord();
+    [GeneratedRegex(@"(?<=[.!?…])\s*(?:\.{3}|…)(?=\s|$)")] private static partial Regex EllipsisAfterEnd();
     [GeneratedRegex(@"\s+([.!?…])")] private static partial Regex SpaceBeforeEnd();
     [GeneratedRegex(@"\s{2,}")] private static partial Regex ManySpaces();
     [GeneratedRegex("[а-яёa-z0-9]", RegexOptions.IgnoreCase)] private static partial Regex AnyWordChar();
@@ -244,7 +247,9 @@ public static partial class Fillers
 
         // Tidy punctuation left behind: "Э-э, запусти" → ", запусти" → "запусти".
         result = LeadingPunct().Replace(result, "");
-        result = DoubledComma().Replace(result, " "); // "если мы, а-а, уменьшим" → "если мы уменьшим"
+        // "если мы, а-а, уменьшим" → "если мы уменьшим", but "в словарь, э-э, ну, не факт" keeps "в словарь, ну,".
+        result = DoubledComma().Replace(result, m => IntroWord().IsMatch(result.AsSpan(m.Index + m.Length)) ? ", " : " ");
+        result = EllipsisAfterEnd().Replace(result, ""); // "Угу. А-а-а... Как бы" → "Угу. Как бы"
         result = CommaBeforeEnd().Replace(result, "$1"); // "если мы, а-а." → "если мы."
         result = LoneComma().Replace(result, " ");
         result = SpaceBeforeEnd().Replace(result, "$1");

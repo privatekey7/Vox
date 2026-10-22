@@ -78,6 +78,19 @@ public sealed class ModelVersionsTests
     [InlineData("Клодопус 5,5 лучше.", " Claude Opus 5.5 лучше.")]
     [InlineData("Опуск 5 и пять.", " Opus 5.5.")]
     [InlineData("Цена 5,5 рубля.", " Цена 5,5 рубля.")] // an ordinary number stays
+    [InlineData("Фронтент и фронтанд.", " Фронтенд и фронтенд.")]
+    [InlineData("Это Frount End.", " Это Фронтенд.")]
+    [InlineData("Нужен фронт-энд-инженер.", " Нужен фронтенд-инженер.")]
+    [InlineData("Это вэкенд и бэкэнд.", " Это бэкенд и бэкенд.")]
+    [InlineData("Нужна Лэм полировка.", " Нужна LLM-полировка.")]
+    [InlineData("Это Лэлмэ.", " Это LLM.")]
+    [InlineData("Модель LM.", " Модель LM.")] // a bare LM stays
+    [InlineData("Piton, Pyton, Pigon.", " Python, Python, Python.")]
+    [InlineData("пишу на Питоне", " пишу на Python")]
+    [InlineData("Живёт питон в зоопарке.", " Живёт питон в зоопарке.")] // the snake stays
+    [InlineData("Cisharp лучше.", " C# лучше.")]
+    [InlineData("Открой Hrome.", " Открой Chrome.")]
+    [InlineData("Sounddesign трека.", " Саунд-дизайн трека.")]
     public void Live_log_spellings_are_fixed(string raw, string expected) =>
         Assert.Equal(expected, new PostProcessor(ModelCatalog.GigaAm).Process(raw));
 }

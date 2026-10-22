@@ -69,6 +69,10 @@ public class FillersTests
     [InlineData("Ну, э-э, давай", "Ну давай")]
     [InlineData("если мы, э-э.", "если мы.")]
     [InlineData("Э-э, запусти, ммм, тесты", "Запусти тесты")]
+    // Owner's log: an introductory word after the hesitation keeps its comma; no "...." after a removed filler.
+    [InlineData("Если просто добавлять слова в словарь, э-э-э, ну, не факт.", "Если просто добавлять слова в словарь, ну, не факт.")]
+    [InlineData("Мы, э-э, в общем, решили", "Мы, в общем, решили")]
+    [InlineData("Угу. А-а-а... Как бы", "Угу. Как бы")]
     public void Remove_strips_hesitation_sounds_only(string text, string expected) =>
         Assert.Equal(expected, Fillers.Remove(text));
 }
