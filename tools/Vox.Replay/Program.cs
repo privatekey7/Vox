@@ -17,8 +17,9 @@ for (var i = 0; i < args.Length; i++)
     switch (args[i])
     {
         case "--model":
-            model = ModelCatalog.All.FirstOrDefault(m => m.Id.StartsWith(args[++i], StringComparison.OrdinalIgnoreCase))
-                ?? throw new ArgumentException($"Unknown model {args[i]}; known: {string.Join(", ", ModelCatalog.All.Select(m => m.Id))}");
+            var id = args[++i];
+            model = ModelCatalog.All.FirstOrDefault(m => m.Id.StartsWith(id, StringComparison.OrdinalIgnoreCase))
+                ?? throw new ArgumentException($"Unknown model {id}; known: {string.Join(", ", ModelCatalog.All.Select(m => m.Id))}");
             break;
         case "--dict":
             dict = File.ReadLines(args[++i]).Select(l => l.Split('\t')).Where(p => p.Length == 2)
