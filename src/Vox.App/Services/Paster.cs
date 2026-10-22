@@ -74,7 +74,10 @@ internal sealed class Paster(Dispatcher ui)
         return true;
     });
 
-    /// <summary>Another app may hold the clipboard open for a moment (CLIPBRD_E_CANT_OPEN).</summary>
+    /// <summary>
+    /// Another app may hold the clipboard open for a moment (CLIPBRD_E_CANT_OPEN). WPF already retries
+    /// for about a second inside (10 × 100 ms), so one more round here — ten made the UI wait ~10 s.
+    /// </summary>
     private static T? Retry<T>(Func<T?> action)
     {
         for (var attempt = 1; ; attempt++)
@@ -83,7 +86,7 @@ internal sealed class Paster(Dispatcher ui)
             {
                 return action();
             }
-            catch (ExternalException e) when (attempt < 10)
+            catch (ExternalException e) when (attempt < 2)
             {
                 Log.Info($"[CLIP] Clipboard busy ({e.Message}), retrying");
                 Thread.Sleep(30);
