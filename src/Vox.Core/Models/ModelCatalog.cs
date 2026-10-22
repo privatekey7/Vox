@@ -72,7 +72,7 @@ public static class ModelCatalog
         Decoder: "decoder.int8.onnx",
         Joiner: "conv_frontend.onnx",
         Tokens: "tokenizer",
-        NeedsItn: false,
+        NeedsItn: true, // numbers mostly as words ("одиннадцать тридцать"); digits it writes stay
         Kind: ModelKind.Qwen3Asr);
 
     /// <summary>Models for tools: the app's ones and those only compared.</summary>
