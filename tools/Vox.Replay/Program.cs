@@ -57,7 +57,14 @@ return 0;
 void Emit(string raw, string? logged)
 {
     total++;
-    var final = processor.Process(raw, dict).Trim();
+    var fuzzy = new List<FuzzyTerms.Match>();
+    var final = processor.Process(raw, dict, fuzzy).Trim();
+    foreach (var f in fuzzy)
+    {
+        // To stderr, as the app logs it: the stdout columns stay as they are.
+        Console.Error.WriteLine($"{(f.English ? "[EN]" : "[FUZZY]")} \"{f.Spoken}\" → \"{f.Replacement}\" {f.Score.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)}\t{raw}");
+    }
+
     if (!diff)
     {
         Console.WriteLine($"{raw}\t{final}");

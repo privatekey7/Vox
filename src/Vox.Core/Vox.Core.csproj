@@ -13,5 +13,6 @@
     <EmbeddedResource Include="Text\Data\terms.json" LogicalName="Vox.Core.terms.json" />
     <EmbeddedResource Include="Text\Data\no-declension.json" LogicalName="Vox.Core.no-declension.json" />
     <EmbeddedResource Include="Text\Data\common-words.txt.gz" LogicalName="Vox.Core.common-words.txt.gz" />
+    <EmbeddedResource Include="Text\Data\english.txt.gz" LogicalName="Vox.Core.english.txt.gz" />
   </ItemGroup>
 </Project>

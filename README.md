@@ -138,6 +138,7 @@ dotnet publish src/Vox.App -c Release -r win-x64 --self-contained -o publish
 | Файл | Что | Лицензия |
 |---|---|---|
 | `src/Vox.Core/Text/Data/common-words.txt.gz` | 48 тыс. частых русских словоформ ([hermitdave/FrequencyWords](https://github.com/hermitdave/FrequencyWords)), чтобы самообучение не трогало обычные слова | CC BY-SA 4.0 (`common-words.LICENSE.md`) |
+| `src/Vox.Core/Text/Data/english.txt.gz` | 281 тыс. английских словоформ ([SCOWL](http://wordlist.aspell.net/), Kevin Atkinson), чтобы поиск по звучанию не превращал обычные слова в бренды | MIT-подобная, части public domain (`english.LICENSE.md`) |
 | `src/Vox.App/Assets/Fonts/GolosText-*.ttf` | шрифт Golos Text (Paratype) | SIL OFL 1.1 (`OFL-GolosText.txt`) |
 | модели распознавания (скачиваются при первом запуске) | GigaAM, Parakeet через sherpa-onnx | лицензии авторов моделей |
 

@@ -138,6 +138,7 @@ internal sealed class DictationService : IDisposable
         Report(DictationState.ModelLoading);
         var sw = Stopwatch.StartNew();
         Log.Info($"[INIT] Loading model {model.Id}");
+        _ = Task.Run(FuzzyTerms.Prepare); // alongside the model
         var recognizer = new SpeechRecognizer(model, _modelsRoot);
         SpeechRecognizer? old;
         lock (_engineLock)
@@ -295,7 +296,7 @@ internal sealed class DictationService : IDisposable
         var text = pp?.Process(raw, _corrections, fuzzy) ?? raw;
         foreach (var f in fuzzy)
         {
-            Log.Info($"[FUZZY] \"{f.Spoken}\" → \"{f.Replacement}\" {f.Score.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)}");
+            Log.Info($"{(f.English ? "[EN]" : "[FUZZY]")} \"{f.Spoken}\" → \"{f.Replacement}\" {f.Score.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)}");
         }
 
         Log.Info($"[STT] Final: \"{text}\"");
