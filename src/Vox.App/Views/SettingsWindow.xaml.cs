@@ -253,7 +253,7 @@ public partial class SettingsWindow : Window
             {
                 if (!first)
                 {
-                    card.Children.Add(new Border { Height = 1, Background = (System.Windows.Media.Brush)FindResource("Vox.CardStroke") });
+                    card.Children.Add(Divider());
                 }
 
                 first = false;
@@ -332,7 +332,7 @@ public partial class SettingsWindow : Window
         {
             if (card.Children.Count > 0)
             {
-                card.Children.Add(new Border { Height = 1, Background = (System.Windows.Media.Brush)FindResource("Vox.CardStroke") });
+                card.Children.Add(Divider());
             }
 
             var row = new Grid { Margin = new Thickness(16, 10, 16, 10) };
@@ -381,5 +381,13 @@ public partial class SettingsWindow : Window
     {
         Directory.CreateDirectory(path);
         Process.Start(new ProcessStartInfo { FileName = path, UseShellExecute = true });
+    }
+
+    // A dynamic reference, so the line follows a theme switch (FindResource froze the old brush).
+    private static Border Divider()
+    {
+        var line = new Border { Height = 1 };
+        line.SetResourceReference(Border.BackgroundProperty, "Vox.CardStroke");
+        return line;
     }
 }

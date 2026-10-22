@@ -58,15 +58,9 @@ public partial class WizardWindow : Window
         Steps.Children.Clear();
         for (var i = 1; i <= 3; i++)
         {
-            Steps.Children.Add(new Rectangle
-            {
-                Width = 22,
-                Height = 4,
-                RadiusX = 2,
-                RadiusY = 2,
-                Margin = new Thickness(0, 0, 6, 0),
-                Fill = (System.Windows.Media.Brush)FindResource(i <= step ? "Vox.Accent" : "Vox.ProgressTrack"),
-            });
+            var dot = new Rectangle { Width = 22, Height = 4, RadiusX = 2, RadiusY = 2, Margin = new Thickness(0, 0, 6, 0) };
+            dot.SetResourceReference(Shape.FillProperty, i <= step ? "Vox.Accent" : "Vox.ProgressTrack"); // follows the theme
+            Steps.Children.Add(dot);
         }
 
         if (step == 3)
