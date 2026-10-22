@@ -55,6 +55,11 @@ public class TermsTests
 {
     [Theory]
     [InlineData("Запушь в гитхаб.", "Запушь в GitHub.")]
+    // Regression (owner's log): brand in lower case, and the model's own misspellings.
+    [InlineData("Привет, Вокс.", "Привет, Vox.")]
+    [InlineData("Залей на гитхап.", "Залей на GitHub.")]
+    [InlineData("Пишу на Pithon.", "Пишу на Python.")]
+    [InlineData("Ругается Smart Screen.", "Ругается SmartScreen.")]
     [InlineData("Добавь юзстейт для счётчика", "Добавь useState для счётчика")]
     [InlineData("обычный текст без терминов", "обычный текст без терминов")]
     public void Replace_maps_phonetic_terms_to_latin(string text, string expected) =>
