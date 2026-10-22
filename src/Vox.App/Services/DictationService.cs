@@ -47,6 +47,7 @@ internal sealed class DictationService : IDisposable
 
     private readonly FieldWatcher _watcher = new();
     private readonly CorrectionCandidates _candidates = new();
+    private readonly CursorContext _context = new();
 
     public DictationService(AudioCapture audio, Paster paster, Sounds sounds, VoxDatabase db, Settings settings, string modelsRoot)
     {
@@ -263,7 +264,13 @@ internal sealed class DictationService : IDisposable
             Thread.Sleep(20); // the next dictation's key is held: Ctrl+V now would become Alt+Ctrl+V etc.
         }
 
+        // Continue the sentence at the cursor instead of always starting a new one.
+        var (before, after, source) = _context.Read();
+        text = ContextJoiner.Apply(text, before, after);
+        Log.Info($"[CTX] {source}: {ContextJoiner.Describe(before)}");
+
         _paster.Paste(text, _settings.RestoreClipboard);
+        _context.Remember(text);
         LastText = text.TrimStart();
         _watcher.AfterPaste(LastText);
         Report(DictationState.Inserted);
