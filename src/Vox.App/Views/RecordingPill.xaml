@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Vox" WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         ResizeMode="NoResize" ShowInTaskbar="False" ShowActivated="False" Topmost="True" Focusable="False"
-        SizeToContent="WidthAndHeight" FontFamily="{StaticResource Vox.FontText}" IsHitTestVisible="False">
+        SizeToContent="WidthAndHeight" UseLayoutRounding="True" FontFamily="{StaticResource Vox.FontText}" IsHitTestVisible="False">
   <!-- Floating status pill (docs/design/v2/ui-4-pill.jpg). Never takes focus: the dictation must
        land in the window the user is typing in. -->
   <Border Background="{StaticResource Vox.PillBackground}" CornerRadius="22" Padding="16,0,20,0" Height="44" Margin="16">
@@ -26,6 +26,9 @@
       </StackPanel>
       <!-- Other states: icon + text -->
       <StackPanel x:Name="Message" Orientation="Horizontal" VerticalAlignment="Center" Visibility="Collapsed">
+        <!-- Vox mark for "Вставлено" and "Запомнил" (owner's variant B); 66 px source for crisp 22 px at 300% -->
+        <Image x:Name="MessageMark" Source="/Assets/vox-symbol-66.png" Width="22" Height="22" Margin="0,0,10,0"
+               VerticalAlignment="Center" Visibility="Collapsed" RenderOptions.BitmapScalingMode="HighQuality"/>
         <TextBlock x:Name="MessageIcon" FontFamily="{StaticResource Vox.FontIcons}" FontSize="16" VerticalAlignment="Center"
                    Margin="0,0,10,0" Foreground="White"/>
         <TextBlock x:Name="MessageText" Foreground="White" FontSize="15" FontWeight="Medium" VerticalAlignment="Center"/>

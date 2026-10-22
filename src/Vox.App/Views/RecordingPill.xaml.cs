@@ -61,7 +61,7 @@ public partial class RecordingPill : Window
                 SetMessage("", "#60CDFF", "Распознаю…", "");
                 break;
             case DictationState.Inserted:
-                SetMessage("", "#6CCB5F", "Вставлено", "");
+                SetMessage(Mark, "", "Вставлено", "");
                 HideAfter(TimeSpan.FromSeconds(0.5));
                 break;
             case DictationState.NotHeard:
@@ -86,18 +86,27 @@ public partial class RecordingPill : Window
     internal void ShowLearned(string wrong, string correct)
     {
         _hide.Stop();
-        SetMessage("\uE82D", "#60CDFF", $"Запомнил: {wrong} → {correct}", "отменить: Настройки → Словарь");
+        SetMessage(Mark, "", $"Запомнил: {wrong} → {correct}", "отменить: Настройки → Словарь");
         ShowAtBottom();
         HideAfter(TimeSpan.FromSeconds(2)); // owner: long enough to read, short enough not to bother
     }
+
+    // The Vox mark instead of a glyph ("Вставлено", "Запомнил"; owner's variant B).
+    private const string Mark = "mark";
 
     private void SetMessage(string glyph, string color, string text, string hint)
     {
         _tick.Stop();
         Listening.Visibility = Visibility.Collapsed;
         Message.Visibility = Visibility.Visible;
-        MessageIcon.Text = glyph;
-        MessageIcon.Foreground = (Brush)new BrushConverter().ConvertFromString(color)!;
+        var mark = glyph == Mark;
+        MessageMark.Visibility = mark ? Visibility.Visible : Visibility.Collapsed;
+        MessageIcon.Visibility = mark ? Visibility.Collapsed : Visibility.Visible;
+        if (!mark)
+        {
+            MessageIcon.Text = glyph;
+            MessageIcon.Foreground = (Brush)new BrushConverter().ConvertFromString(color)!;
+        }
         MessageText.Text = text;
         MessageHint.Text = hint;
         MessageHint.Visibility = hint.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
