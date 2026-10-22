@@ -82,6 +82,11 @@ internal sealed class FieldWatcher : IDisposable
                 && (Native.GetWindowLongPtr(hwnd, Native.GWL_STYLE) & Native.ES_PASSWORD) != 0);
         var length = hwnd != 0 ? Native.WindowTextLength(hwnd, WindowTextTimeoutMs) : -1;
         var source = FieldReadPolicy.Choose(uiaText is not null, isPassword, length);
+        if (source == FieldSource.None && !isPassword && hwnd != 0 && length == 0 && IsTextControl(windowClass))
+        {
+            source = FieldSource.WindowText; // a new, still empty Notepad++ buffer: the paste has not landed yet
+        }
+
         Func<string?> read = source == FieldSource.Uia
             ? () => ReadText(element!)
             : () => ReadWindowText(hwnd);
@@ -94,7 +99,9 @@ internal sealed class FieldWatcher : IDisposable
             FieldSource.WindowText => read(),
             _ => null,
         };
-        for (var attempt = 0; attempt < 5 && text is not null && !text.Contains(inserted.Trim(), StringComparison.Ordinal); attempt++)
+        for (var attempt = 0;
+             attempt < 5 && source != FieldSource.None && (text is null || !text.Contains(inserted.Trim(), StringComparison.Ordinal));
+             attempt++)
         {
             Thread.Sleep(200);
             text = read();
@@ -174,7 +181,10 @@ internal sealed class FieldWatcher : IDisposable
         }
         else
         {
-            Log.Info($"[LEARN] The field was edited, but not as a one-word fix: nothing learned ({CorrectionDetector.Describe(p.Before, now, p.Inserted)})");
+            var diff = CorrectionDetector.Describe(p.Before, now, p.Inserted);
+            Log.Info(diff.StartsWith("no change", StringComparison.Ordinal)
+                ? "[LEARN] The field changed outside the dictation: nothing learned"
+                : $"[LEARN] The field was edited, but not as a one-word fix: nothing learned ({diff})");
         }
     }
 
@@ -190,6 +200,10 @@ internal sealed class FieldWatcher : IDisposable
             return "?";
         }
     }
+
+    private static bool IsTextControl(string windowClass) =>
+        windowClass.Equals("Scintilla", StringComparison.OrdinalIgnoreCase)
+        || windowClass.Contains("Edit", StringComparison.OrdinalIgnoreCase); // Edit, RichEdit20W, RICHEDIT50W
 
     private static string? ReadWindowText(nint hwnd)
     {
