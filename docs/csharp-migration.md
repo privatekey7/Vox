@@ -30,8 +30,18 @@
   (`VowelSkeleton`: а/о/я, е/и/ы/э, у/ю), источники термина с разными гласными больше не схлопываются
   («pithon» и «пайтон» у Python). Ушли Vender → Finder, pluggy → Black, rowid → Revit, middl → Moodle.
   Остались (настоящие совпадения по звучанию, правилом не убрать, нужен список dev-слов или контекст):
-  Pipify → PPV, uinit → Unity, mutator → MediatR, webhooks → Webex, creds → crates.io. Этих слов в terms.json
+  Pipify → PPV, uinit → Unity, mutator → MediatR, creds → crates.io (webhooks ушло с термином webhook). Этих слов в terms.json
   нет (проверено), защита целями terms.json их не закрывает. SCOWL-95: 375 → 297.
+- **Живой тест владельца на 9901c96 (тестовые фразы):** (а) FuzzyTerms: слово-часть термина («Deep» из «Deep
+  Learning», «Unreal») больше не блокирует пару, пара не склеивается, только если все её слова известны
+  (Deep Seak → DeepSeek); замена на «C++» съедает «++» после слова. (б) terms.json точными записями: букенд,
+  Webook → webhook, Gadot, Unreal Ingine, Си++/Charb++/Елиси плюс плюс → C++ (источник с «+» на конце
+  совпадает только со словом, за которым идёт «+»: `Terms.Lookup`), Masila → Mozilla, Smos, Дирам, Родеон,
+  Jmile, Open I, Хьюжен/Хаген Фейс, Kimia → Kimi, Larch Langige Models / Large Langisch Modules → Large
+  Language Models, Msubisi → Mitsubishi, LM-модели → LLM-модели, Defolt → default. (в) `Frequency.Fix`:
+  «1 600 МГ» → «1 600 МГц», «ГГ» → «ГГц» после числа (строчные «мг» не трогаются; пробел в числе оставлен,
+  это допустимая запись). Не делал: «или го» → Go (рискованно), «Альяс». «Defolt»: частое англ. слово
+  обходит термин только точной записью; общее правило «частое слово бьёт термин» вернуло бы Pigon → pigeon.
 - **Данные:** 7 ключей «сеть сеть X» в terms.json (Optimism, Polygon, Cardano, TRON, TON, Celestia, Monad)
   исправлены на «сеть X»: Terms писал «сеть сеть Optimism» на «сеть оптимизм».
 - **Дефис:** слово целиком (термин «фронтенд-дизайн» добавлен в spelling), иначе по частям.

@@ -35,7 +35,7 @@ public static partial class Terms
             var matched = 0;
             for (var n = Math.Min(maxWords, words.Count - i); n >= 1 && matched == 0; n--)
             {
-                if (Phrase(text, words, i, n) is { } key && phrases.TryGetValue(key, out var entry)
+                if (Phrase(text, words, i, n) is { } key && Lookup(phrases, key, text, words[i + n - 1]) is { } entry
                     && Replacement(entry, words[i].Value, StartsSentence(text, words[i].Index)) is { } replacement)
                 {
                     result.Append(text, copied, words[i].Index - copied).Append(replacement);
@@ -57,6 +57,15 @@ public static partial class Terms
         }
 
         return copied == 0 ? text : result.Append(text, copied, text.Length - copied).ToString();
+    }
+
+    // "Си++": a source ending in "+" ("си++" → C++) matches only a word the model wrote with a "+" after it.
+    private static Entry? Lookup(Dictionary<string, Entry> phrases, string key, string text, Match last)
+    {
+        var end = last.Index + last.Length;
+        return phrases.TryGetValue(key, out var entry) ? entry
+            : end < text.Length && text[end] == '+' && phrases.TryGetValue(key + "+", out entry) ? entry
+            : null;
     }
 
     // Words i..i+n-1 as a lookup key, or null when they are not separated by whitespace only.
@@ -108,13 +117,14 @@ public static partial class Terms
         foreach (var pair in pairs)
         {
             var source = pair[0].ToLowerInvariant();
+            source = source.EndsWith('+') ? source.TrimEnd('+') + "+" : source; // see Lookup
             phrases[source] = new Entry(pair[1], source.Split(' ')[^1], null);
         }
 
         var excluded = LoadResource<string[]>("Vox.Core.no-declension.json").ToHashSet();
         var forms = new Dictionary<string, Entry>();
         var ambiguous = new HashSet<string>();
-        foreach (var pair in pairs)
+        foreach (var pair in pairs.Where(p => !p[0].EndsWith('+')))
         {
             var source = pair[0].ToLowerInvariant();
             var space = source.LastIndexOf(' ');
@@ -277,6 +287,16 @@ public static partial class Fillers
 
         return result;
     }
+}
+
+/// <summary>"1600 МГ" → "1600 МГц": the model drops "ц" after a number; lower-case "мг" (milligrams) stays.</summary>
+public static partial class Frequency
+{
+    [GeneratedRegex(@"(?<=\d)\s*([МГ]Г)(?!\p{L})")]
+    private static partial Regex Unit();
+
+    public static string Fix(string text) =>
+        text.Contains('Г', StringComparison.Ordinal) ? Unit().Replace(text, m => " " + m.Groups[1].Value + "ц") : text;
 }
 
 /// <summary>"500 ₽" → "500 рублей", agreeing with the number before the sign.</summary>

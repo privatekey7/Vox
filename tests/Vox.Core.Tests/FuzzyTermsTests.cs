@@ -109,6 +109,27 @@ public class FuzzyTermsTests
     public void Live_log_spellings_are_found(string text, string expected) =>
         Assert.Equal(expected, FuzzyTerms.Apply(text));
 
+    // Owner's live test of 9901c96: exact terms.json spellings, "+" sources, units, a term word in a pair.
+    [Theory]
+    [InlineData("А букенд на Rust или го?", "А бэкенд на Rust или го?")]
+    [InlineData("Настроить Webook", "Настроить webhook")]
+    [InlineData("Движок Gadot и Unreal Ingine", "Движок Godot и Unreal Engine")]
+    [InlineData("Пишу на Си++ и Charb++, а также Елиси плюс плюс", "Пишу на C++ и C++, а также C++")]
+    [InlineData("Пишу на Си и Python", "Пишу на Си и Python")] // "си" alone stays
+    [InlineData("Firefox от Masila", "Firefox от Mozilla")]
+    [InlineData("Smos и Дирам, видеокарта Родеон, 1 600 МГ и 3 ГГ", "CMOS и DRAM, видеокарта Radeon, 1 600 МГц и 3 ГГц")]
+    [InlineData("Принял 500 мг лекарства", "Принял 500 мг лекарства")]
+    [InlineData("Почта Jmile, Open I и Хьюжен Фейс", "Почта Gmail, OpenAI и Hugging Face")]
+    [InlineData("Deep Seak и Kimia 3", "DeepSeek и Kimi 3")] // "Deep" of "Deep Learning" no longer blocks the pair
+    [InlineData("Larch Langige Models", "Large Language Models")]
+    [InlineData("Машина Msubisi, Альяс", "Машина Mitsubishi, Альяс")]
+    [InlineData("Локальные LM-модели", "Локальные LLM-модели")]
+    [InlineData("в папку Defolt", "в папку default")]
+    [InlineData("Optimising Hub, Хоум, Директори, Паспайдер, Мимо, Бэ дрок", "Optimising Hub, Хоум, Директори, Паспайдер, Мимо, Бэ дрок")]
+    [InlineData("Sishar, Orbitrum, Dipsic, Becande, Pyton, Promice", "C#, Arbitrum, DeepSeek, бэкенд, Python, promise")]
+    public void Live_test_phrases(string raw, string expected) =>
+        Assert.Equal(expected, new PostProcessor(ModelCatalog.GigaAm).Process(raw).Trim());
+
     [Fact]
     public void Frequent_english_words_stay()
     {

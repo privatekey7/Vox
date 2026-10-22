@@ -40,6 +40,7 @@ public sealed class PostProcessor(SpeechModel model)
         if (_lang == "ru")
         {
             text = Currency.SpellOut(text);
+            text = Frequency.Fix(text);
         }
 
         text = SentenceSpacing.Normalize(text);

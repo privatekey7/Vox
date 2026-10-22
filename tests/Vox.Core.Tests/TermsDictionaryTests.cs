@@ -110,13 +110,13 @@ public sealed partial class TermsDictionaryTests
     }
 
     [Fact]
-    public void Every_source_is_unique_and_made_of_words()
+    public void Every_source_is_unique_and_made_of_words() // a trailing "+" is allowed: "си++" → C++
     {
         var seen = new HashSet<string>();
         foreach (var pair in Terms.LoadPairs())
         {
             var source = pair[0];
-            Assert.True(SourceShape().IsMatch(source), $"\"{source}\" → {pair[1]}: words separated by single spaces");
+            Assert.True(SourceShape().IsMatch(source.TrimEnd('+')), $"\"{source}\" → {pair[1]}: words separated by single spaces");
             Assert.True(seen.Add(source.ToLowerInvariant()), $"\"{source}\" appears twice");
         }
     }

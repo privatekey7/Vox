@@ -197,6 +197,10 @@ public sealed partial class FuzzyTerms
             log?.Add(new Match(spoken, replacement, Math.Round(found.Score, 2), found.English));
             result.Append(text, copied, start - copied).Append(replacement);
             copied = end;
+            while (replacement.EndsWith('+') && copied < text.Length && text[copied] == '+')
+            {
+                copied++; // "Charb++" → "C++", as Terms does
+            }
         }
 
         for (var i = 0; i < words.Count;)
@@ -263,18 +267,18 @@ public sealed partial class FuzzyTerms
             return false;
         }
 
-        var english = 0;
+        var known = 0;
         for (var k = i; k < i + n; k++)
         {
             var word = words[k].Value;
-            if (word.Length < 2 || SelfLearning.IsCommonWord(word) || Terms.IsTermForm(word) || IsIdentifier(word))
+            if (word.Length < 2 || SelfLearning.IsCommonWord(word) || IsIdentifier(word))
             {
-                return false; // an ordinary word, a term already, code ("TextRules", "APPDATA")
+                return false; // an ordinary word, code ("TextRules", "APPDATA")
             }
 
-            if (!IsCyrillic(word) && IsEnglish(word))
+            if (Terms.IsTermForm(word) || (!IsCyrillic(word) && IsEnglish(word)))
             {
-                english++;
+                known++; // a term already ("Deep" of "Deep Learning") or an English word
             }
 
             name |= IsCyrillic(word) && char.IsUpper(word[0]) && !StartsSentence(text, words[k].Index);
@@ -289,7 +293,7 @@ public sealed partial class FuzzyTerms
             }
         }
 
-        return english < n; // "water"; "Bek End" has one unknown word
+        return known < n; // "water", "Docker"; "Bek End", "Deep Seak" have an unknown word
     }
 
     private bool Eligible(string part, bool sentenceStart, out bool name)
