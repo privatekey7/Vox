@@ -86,9 +86,28 @@ public class FuzzyTermsTests
     public void A_more_frequent_term_wins_a_tie()
     {
         (string, string)[] pairs = [("пайтон", "Python"), ("пайтан", "Paitan")]; // the same sound skeleton
-        Assert.Equal("Python", new FuzzyTerms(pairs, [], latin: true, [("python", 20)]).Replace("Paiten"));
-        Assert.Equal("Paiten", new FuzzyTerms(pairs, [], latin: true).Replace("Paiten"));
+        Assert.Equal("Python", new FuzzyTerms(pairs, [], latin: true, [("python", 20)]).Replace("Paiton"));
+        Assert.Equal("Paiton", new FuzzyTerms(pairs, [], latin: true).Replace("Paiton"));
     }
+
+    // False matches seen on the docs and the owner's log, with the full dictionaries.
+    [Theory]
+    [InlineData("Так, GTA Vender.")] // "Finder": the first sound differs (в/ф)
+    [InlineData("это pluggy")] // "Black": п/б
+    [InlineData("это rowid")] // "Revit": a short word must match by vowels too
+    [InlineData("это middl")] // "Moodle"
+    [InlineData("это segmenter")] // "segmented" 0.89: an English word only from 0.9
+    [InlineData("это backprop")] // "backdrop"
+    public void Look_alikes_stay(string text) =>
+        Assert.Equal(text, FuzzyTerms.Apply(text));
+
+    [Theory]
+    [InlineData("Открой Hrome.", "Открой Chrome.")] // h/ch at the start
+    [InlineData("Пишу на Cishar.", "Пишу на C#.")]
+    [InlineData("это Paiton", "это Python")]
+    [InlineData("это Gigat", "это GigaAM")]
+    public void Live_log_spellings_are_found(string text, string expected) =>
+        Assert.Equal(expected, FuzzyTerms.Apply(text));
 
     [Fact]
     public void Frequent_english_words_stay()

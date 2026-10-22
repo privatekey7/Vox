@@ -32,9 +32,12 @@ public sealed partial class FuzzyTerms
     private sealed record Candidate(string Key, string Source, string Target, int Rank, bool English = false, string? Ending = null)
     {
         public ulong Letters { get; } = Mask(Source); // for English words: a quick check before the edit distance
+
+        public string Vowels { get; } = English ? "" : VowelSkeleton(Source); // for short Latin words
     }
 
     private const int MinLetters = 5;
+    private const int ShortKey = 5; // a Latin skeleton this short is checked with vowels
     private const double Threshold = 0.85;
     private const double LatinThreshold = 0.85; // under it, dev words SCOWL lacks: "webhook" ~ "Webpack" 0.83
     private const double Margin = 0.05;
@@ -135,7 +138,7 @@ public sealed partial class FuzzyTerms
             index[key] = bucket = [];
         }
 
-        if (!bucket.Any(b => b.Key == c.Key && b.Target == c.Target))
+        if (!bucket.Any(b => b.Key == c.Key && b.Target == c.Target && b.Vowels == c.Vowels))
         {
             bucket.Add(c);
         }
@@ -313,6 +316,8 @@ public sealed partial class FuzzyTerms
         var floor = threshold - Margin;
         var first = Class(key[0]);
         var letters = LettersOf(spoken);
+        var vowels = !cyrillic && key.Length <= ShortKey ? VowelSkeleton(spoken) : null; // see ShortKey
+        double ByVowels(Candidate c) => vowels is null || c.English ? 1 : Similarity(vowels, c.Vowels);
         // The best score per target; candidates under the floor can neither win nor stand in the way.
         List<(Candidate C, double Score)> hits = [];
         Scan(cyrillic ? _cyrillic : _latin);
@@ -349,7 +354,11 @@ public sealed partial class FuzzyTerms
 
                 foreach (var c in bucket)
                 {
-                    Hit(c, Similarity(key, c.Key, floor));
+                    // The first sound is heard best: "Vender" is not "Finder"; h/ch ("Hrome", "Chrome") alike.
+                    if (cyrillic || c.Key[0] == key[0] || (c.Key[0] is 'к' or 'х' && key[0] is 'к' or 'х'))
+                    {
+                        Hit(c, Similarity(key, c.Key, floor));
+                    }
                 }
             }
         }
@@ -366,7 +375,7 @@ public sealed partial class FuzzyTerms
             {
                 hits.Add((c, score));
             }
-            else if (score > hits[at].Score)
+            else if (score > hits[at].Score || (score == hits[at].Score && vowels is not null && ByVowels(c) > ByVowels(hits[at].C)))
             {
                 hits[at] = (c, score);
             }
@@ -398,9 +407,10 @@ public sealed partial class FuzzyTerms
             }
         }
 
-        if (bestScore < threshold)
+        if (bestScore < threshold
+            || ByVowels(best) < threshold)
         {
-            return null; // nothing close enough
+            return null; // nothing close enough; a short word must match by vowels too
         }
 
         // "фронтанде" ~ "фронтенде": the case form carries over to the term.
@@ -469,7 +479,13 @@ public sealed partial class FuzzyTerms
     /// The sound skeleton: Latin read as Cyrillic, every vowel run one "а", no ь/ъ/й, no doubled
     /// consonants, no final vowel, a devoiced final consonant ("Frount End" and "фронтенд" → "франтант").
     /// </summary>
-    public static string Skeleton(string word)
+    public static string Skeleton(string word) => Key(word, vowels: false);
+
+    // The skeleton with vowel groups kept (а/о/я, е/и/ы/э/ё, у/ю): a short skeleton matches too much by consonants
+    // alone ("rowid" ~ "ревит", "middl" ~ "мудл").
+    private static string VowelSkeleton(string word) => Key(word, vowels: true);
+
+    private static string Key(string word, bool vowels)
     {
         var s = word.ToLowerInvariant();
         foreach (var (latin, cyrillic) in Digraphs)
@@ -491,14 +507,15 @@ public sealed partial class FuzzyTerms
                 continue;
             }
 
-            var c = "аеёиоуыэюя".Contains(ch, StringComparison.Ordinal) ? 'а' : ch;
-            if (sb.Length == 0 || sb[^1] != c)
+            var vowel = "аеёиоуыэюя".Contains(ch, StringComparison.Ordinal);
+            var c = !vowel ? ch : !vowels ? 'а' : ch switch { 'а' or 'о' or 'я' => 'а', 'у' or 'ю' => 'у', _ => 'е' };
+            if (sb.Length == 0 || (sb[^1] != c && !(vowel && IsVowelGroup(sb[^1]))))
             {
                 sb.Append(c);
             }
         }
 
-        if (sb.Length > 1 && sb[^1] == 'а')
+        if (sb.Length > 1 && IsVowelGroup(sb[^1]))
         {
             sb.Length--;
         }
@@ -510,6 +527,8 @@ public sealed partial class FuzzyTerms
 
         return sb.ToString();
     }
+
+    private static bool IsVowelGroup(char c) => c is 'а' or 'е' or 'у';
 
     private static readonly Dictionary<char, char> Devoiced = new() { ['б'] = 'п', ['в'] = 'ф', ['г'] = 'к', ['д'] = 'т', ['ж'] = 'ш', ['з'] = 'с' };
 
