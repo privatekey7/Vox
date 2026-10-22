@@ -156,7 +156,9 @@ public partial class RecordingPill : Window
     private void PlaceAtBottom()
     {
         var area = SystemParameters.WorkArea;
-        Left = area.Left + (area.Width - ActualWidth) / 2;
-        Top = area.Bottom - ActualHeight - 24;
+        // Whole device pixels: a window at a fractional position blurs the text it draws.
+        var dpi = VisualTreeHelper.GetDpi(this);
+        Left = Math.Round((area.Left + (area.Width - ActualWidth) / 2) * dpi.DpiScaleX) / dpi.DpiScaleX;
+        Top = Math.Round((area.Bottom - ActualHeight - 24) * dpi.DpiScaleY) / dpi.DpiScaleY;
     }
 }

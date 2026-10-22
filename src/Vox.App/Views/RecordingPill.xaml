@@ -3,37 +3,46 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Vox" WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         ResizeMode="NoResize" ShowInTaskbar="False" ShowActivated="False" Topmost="True" Focusable="False"
-        SizeToContent="WidthAndHeight" UseLayoutRounding="True" FontFamily="{StaticResource Vox.FontText}" IsHitTestVisible="False">
+        SizeToContent="WidthAndHeight" UseLayoutRounding="True" SnapsToDevicePixels="True" FontFamily="{StaticResource Vox.FontText}"
+        TextOptions.TextFormattingMode="Ideal" TextOptions.TextRenderingMode="Grayscale" TextOptions.TextHintingMode="Fixed"
+        IsHitTestVisible="False">
   <!-- Floating status pill (docs/design/v2/ui-4-pill.jpg). Never takes focus: the dictation must
-       land in the window the user is typing in. -->
-  <Border Background="{StaticResource Vox.PillBackground}" CornerRadius="22" Padding="16,0,20,0" Height="44" Margin="16">
-    <Border.Effect>
-      <DropShadowEffect BlurRadius="24" ShadowDepth="8" Opacity="0.3" Direction="270"/>
-    </Border.Effect>
-    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-      <!-- Listening: red dot + level bars + timer -->
-      <StackPanel x:Name="Listening" Orientation="Horizontal" VerticalAlignment="Center">
-        <Ellipse Width="10" Height="10" Fill="{StaticResource Vox.Recording}" Margin="0,0,10,0"/>
-        <ItemsControl x:Name="Bars" VerticalAlignment="Center" Margin="0,0,10,0">
-          <ItemsControl.ItemsPanel>
-            <ItemsPanelTemplate>
-              <StackPanel Orientation="Horizontal"/>
-            </ItemsPanelTemplate>
-          </ItemsControl.ItemsPanel>
-        </ItemsControl>
-        <TextBlock Text="Слушаю…" Foreground="White" FontSize="15" FontWeight="Medium" VerticalAlignment="Center"/>
-        <TextBlock x:Name="Timer" Text="0:00" Foreground="#BDBDBD" FontSize="13" Margin="10,0,0,0" VerticalAlignment="Center"/>
+       land in the window the user is typing in.
+       Text: a transparent (layered) window has no ClearType, so grayscale with ideal glyph spacing.
+       The shadow sits on its own empty Border: an Effect on the text's parent renders the text
+       through an offscreen bitmap, which made it blurry and jagged. -->
+  <Grid Margin="16" Height="44">
+    <Border Background="{StaticResource Vox.PillBackground}" CornerRadius="22">
+      <Border.Effect>
+        <DropShadowEffect BlurRadius="24" ShadowDepth="8" Opacity="0.3" Direction="270"/>
+      </Border.Effect>
+    </Border>
+    <Border Background="{StaticResource Vox.PillBackground}" CornerRadius="22" Padding="16,0,20,0">
+      <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+        <!-- Listening: red dot + level bars + timer -->
+        <StackPanel x:Name="Listening" Orientation="Horizontal" VerticalAlignment="Center">
+          <Ellipse Width="10" Height="10" Fill="{StaticResource Vox.Recording}" Margin="0,0,10,0"/>
+          <ItemsControl x:Name="Bars" VerticalAlignment="Center" Margin="0,0,10,0">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Orientation="Horizontal"/>
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+          </ItemsControl>
+          <TextBlock Text="Слушаю…" Foreground="White" FontSize="15" FontWeight="Medium" VerticalAlignment="Center"/>
+          <TextBlock x:Name="Timer" Text="0:00" Foreground="#BDBDBD" FontSize="13" Margin="10,0,0,0" VerticalAlignment="Center"/>
+        </StackPanel>
+        <!-- Other states: icon + text -->
+        <StackPanel x:Name="Message" Orientation="Horizontal" VerticalAlignment="Center" Visibility="Collapsed">
+          <!-- Vox mark for "Вставлено" and "Запомнил" (owner's variant B); 66 px source for crisp 22 px at 300% -->
+          <Image x:Name="MessageMark" Source="/Assets/vox-symbol-66.png" Width="22" Height="22" Margin="0,0,10,0"
+                 VerticalAlignment="Center" Visibility="Collapsed" RenderOptions.BitmapScalingMode="HighQuality"/>
+          <TextBlock x:Name="MessageIcon" FontFamily="{StaticResource Vox.FontIcons}" FontSize="16" VerticalAlignment="Center"
+                     Margin="0,0,10,0" Foreground="White"/>
+          <TextBlock x:Name="MessageText" Foreground="White" FontSize="15" FontWeight="Medium" VerticalAlignment="Center"/>
+          <TextBlock x:Name="MessageHint" Foreground="#BDBDBD" FontSize="13" Margin="10,0,0,0" VerticalAlignment="Center"/>
+        </StackPanel>
       </StackPanel>
-      <!-- Other states: icon + text -->
-      <StackPanel x:Name="Message" Orientation="Horizontal" VerticalAlignment="Center" Visibility="Collapsed">
-        <!-- Vox mark for "Вставлено" and "Запомнил" (owner's variant B); 66 px source for crisp 22 px at 300% -->
-        <Image x:Name="MessageMark" Source="/Assets/vox-symbol-66.png" Width="22" Height="22" Margin="0,0,10,0"
-               VerticalAlignment="Center" Visibility="Collapsed" RenderOptions.BitmapScalingMode="HighQuality"/>
-        <TextBlock x:Name="MessageIcon" FontFamily="{StaticResource Vox.FontIcons}" FontSize="16" VerticalAlignment="Center"
-                   Margin="0,0,10,0" Foreground="White"/>
-        <TextBlock x:Name="MessageText" Foreground="White" FontSize="15" FontWeight="Medium" VerticalAlignment="Center"/>
-        <TextBlock x:Name="MessageHint" Foreground="#BDBDBD" FontSize="13" Margin="10,0,0,0" VerticalAlignment="Center"/>
-      </StackPanel>
-    </StackPanel>
-  </Border>
+    </Border>
+  </Grid>
 </Window>
