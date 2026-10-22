@@ -15,12 +15,14 @@ using Vox.Engine;
 // --models <folder> or VOX_TEST_MODELS (the extracted archives). --model qwen3: Qwen3-ASR, only compared.
 // --compare: every installed model (GigaAM, Parakeet, Qwen3-ASR) in columns: Final and seconds per recording,
 // speed per model at the end. --hotwords file: Qwen3-ASR prompt words, one per line. --threads N.
+// --contested: one JSON line per dictation, Final with the words no list knows and their closest terms (tools/llm-fix).
 var files = new List<string>();
 var model = ModelCatalog.GigaAm;
 Dictionary<string, string>? dict = null;
 var diff = false;
 string? audio = null;
 var compare = false;
+var contested = false;
 string? hotwords = null;
 int? threads = null;
 var modelsRoot = Environment.GetEnvironmentVariable("VOX_TEST_MODELS");
@@ -48,6 +50,9 @@ for (var i = 0; i < args.Length; i++)
             break;
         case "--compare":
             compare = true;
+            break;
+        case "--contested":
+            contested = true;
             break;
         case "--hotwords":
             hotwords = string.Join(", ", File.ReadLines(args[++i]).Select(l => l.Trim()).Where(l => l.Length > 0));
@@ -98,7 +103,11 @@ void Emit(string raw, string? logged)
         Console.Error.WriteLine($"{(f.English ? "[EN]" : "[FUZZY]")} \"{f.Spoken}\" → \"{f.Replacement}\" {f.Score.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)}\t{raw}");
     }
 
-    if (!diff)
+    if (contested)
+    {
+        Console.WriteLine(Contested.Line(raw, final));
+    }
+    else if (!diff)
     {
         Console.WriteLine($"{raw}\t{final}");
     }
