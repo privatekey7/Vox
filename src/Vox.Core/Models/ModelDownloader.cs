@@ -34,7 +34,7 @@ public sealed class ModelDownloader(HttpClient http, string modelsRoot)
             await DownloadAsync(model.Url, archive, progress, ct).ConfigureAwait(false);
 
             progress?.Report(new DownloadProgress(0, -1, DownloadStage.Extracting));
-            await Task.Run(() => Extract(archive, staging), ct).ConfigureAwait(false);
+            await Task.Run(() => Extract(archive, staging, ct), ct).ConfigureAwait(false);
 
             var extracted = Path.Combine(staging, model.ExtractedDir);
             if (!Directory.Exists(extracted))
@@ -90,12 +90,39 @@ public sealed class ModelDownloader(HttpClient http, string modelsRoot)
         }
     }
 
-    private static void Extract(string archive, string destination)
+    /// <summary>
+    /// Deletes archives and staging folders an install left behind when Vox was closed mid-way
+    /// (<c>{id}-{guid}.tar.bz2</c>, <c>{id}-stage-{guid}</c>). Installed models are not touched.
+    /// </summary>
+    public static void RemoveLeftovers(string modelsRoot)
+    {
+        if (!Directory.Exists(modelsRoot))
+        {
+            return;
+        }
+
+        foreach (var model in ModelCatalog.All)
+        {
+            foreach (var archive in Directory.EnumerateFiles(modelsRoot, $"{model.Id}-*.tar.bz2"))
+            {
+                TryDelete(() => File.Delete(archive));
+            }
+
+            foreach (var staging in Directory.EnumerateDirectories(modelsRoot, $"{model.Id}-stage-*"))
+            {
+                TryDelete(() => Directory.Delete(staging, recursive: true));
+            }
+        }
+    }
+
+    // Cancellable per entry, so closing the wizard stops a long extraction and the finally cleans up.
+    private static void Extract(string archive, string destination, CancellationToken ct)
     {
         Directory.CreateDirectory(destination);
         using var file = File.OpenRead(archive);
         using var bz = new BZip2InputStream(file);
         using var tar = TarArchive.CreateInputTarArchive(bz, System.Text.Encoding.UTF8);
+        tar.ProgressMessageEvent += (_, _, _) => ct.ThrowIfCancellationRequested();
         tar.ExtractContents(destination, allowParentTraversal: false);
     }
 

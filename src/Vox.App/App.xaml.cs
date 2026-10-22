@@ -52,6 +52,7 @@ public partial class App : Application
         }
 
         Log.Init(Paths.LogFile);
+        ModelDownloader.RemoveLeftovers(Paths.Models); // an install interrupted by closing Vox
         DispatcherUnhandledException += OnUiException;
         AppDomain.CurrentDomain.UnhandledException += (_, a) => Log.Error("[FATAL] Unhandled", (Exception)a.ExceptionObject);
         TaskScheduler.UnobservedTaskException += (_, a) =>
