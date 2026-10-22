@@ -16,6 +16,7 @@ namespace Vox.App;
 public partial class App : Application
 {
     private Mutex? _singleInstance;
+    private EventWaitHandle? _quitRequest;
     private AudioCapture? _audio;
     private KeyboardHook? _hook;
     private DictationService? _dictation;
@@ -41,6 +42,9 @@ public partial class App : Application
 
     internal static new App Current => (App)Application.Current;
 
+    /// <summary>Named event the installer sets to close Vox gracefully (keep in sync with vox.iss).</summary>
+    private const string QuitEventName = @"Local\Vox.Quit";
+
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
@@ -52,6 +56,14 @@ public partial class App : Application
         }
 
         Log.Init(Paths.LogFile);
+
+        // The installer asks a running Vox to quit (vox.iss), so an update is not logged as a crash.
+        _quitRequest = new EventWaitHandle(false, EventResetMode.AutoReset, QuitEventName);
+        ThreadPool.RegisterWaitForSingleObject(_quitRequest, (_, _) => Dispatcher.BeginInvoke(() =>
+        {
+            Log.Info("[EXIT] Asked to quit (installer)");
+            Shutdown();
+        }), null, Timeout.Infinite, executeOnlyOnce: true);
         ModelDownloader.RemoveLeftovers(Paths.Models); // an install interrupted by closing Vox
         DispatcherUnhandledException += OnUiException;
         AppDomain.CurrentDomain.UnhandledException += (_, a) => Log.Error("[FATAL] Unhandled", (Exception)a.ExceptionObject);
@@ -116,8 +128,9 @@ public partial class App : Application
         _audio?.Dispose();
         _sounds?.Dispose();
         _db?.Dispose();
-        _singleInstance?.Dispose();
         Log.Info("[EXIT] Bye");
+        _quitRequest?.Dispose();
+        _singleInstance?.Dispose(); // last: the installer waits for this mutex to disappear
         base.OnExit(e);
     }
 

@@ -181,11 +181,36 @@ Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchAfterInstall}"; Flags
 Filename: "{sys}\taskkill.exe"; Parameters: "/F /IM vox.exe"; Flags: runhidden; RunOnceId: "KillVox"
 
 [Code]
-// Close a running Vox (1.x or 2.0) so its files can be replaced.
+const
+  EVENT_MODIFY_STATE = $0002;
+
+function OpenEvent(dwDesiredAccess: DWORD; bInheritHandle: BOOL; lpName: String): THandle;
+  external 'OpenEventW@kernel32.dll stdcall';
+function SetEvent(hEvent: THandle): BOOL;
+  external 'SetEvent@kernel32.dll stdcall';
+function CloseHandle(hObject: THandle): BOOL;
+  external 'CloseHandle@kernel32.dll stdcall';
+
+// Close a running Vox so its files can be replaced: 2.0 is asked to quit (named event, it logs
+// "[EXIT] Bye" instead of looking crashed next start) and gets up to 3 s; 1.x and a hung 2.0 are killed.
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 var
-  ResultCode: Integer;
+  ResultCode, Waited: Integer;
+  Quit: THandle;
 begin
+  Quit := OpenEvent(EVENT_MODIFY_STATE, False, 'Local\Vox.Quit');
+  if Quit <> 0 then
+  begin
+    SetEvent(Quit);
+    CloseHandle(Quit);
+    Waited := 0;
+    while CheckForMutexes('Local\Vox.Dictation') and (Waited < 3000) do
+    begin
+      Sleep(100);
+      Waited := Waited + 100;
+    end;
+    Sleep(300); // the process is exiting after it released the mutex
+  end;
   Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /IM vox.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   Result := '';
 end;
