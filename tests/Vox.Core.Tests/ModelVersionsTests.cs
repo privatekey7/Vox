@@ -35,6 +35,7 @@ public sealed class ModelVersionsTests
     [InlineData("на опусе версии 5.5", "на Opus 5.5")]
     [InlineData("GPT версии 5", "GPT-5")]
     [InlineData("GPT Mage 2.5", "GPT Image 2.5")]
+    [InlineData("GTA Шесть", "GTA 6")]
     [InlineData("код-код на опусе версии 5.5", "Claude Code на Opus 5.5")]
     public void Brand_and_version_are_written_as_the_model_name(string spoken, string expected) =>
         Assert.Equal(expected, ModelVersions.Apply(Terms.Replace(spoken)));

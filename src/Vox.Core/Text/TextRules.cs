@@ -266,6 +266,20 @@ public static partial class Currency
 }
 
 /// <summary>
+/// "точка" before a file extension: "Точка MP4" → ".mp4", "index точка html" → "index.html" (glued only
+/// after a Latin file name; "файл точка пдф" → "файл .pdf").
+/// </summary>
+public static partial class FileExtensions
+{
+    [GeneratedRegex(@"(?<![\p{L}\p{Nd}])(?<name>[A-Za-z][\w-]*\s+)?точка\s+\.?(?<ext>mp4|mp3|html|js|ts|py|json|md|txt|exe|png|jpg|pdf|docx|xlsx|csv|zip|log)(?![\p{L}\p{Nd}])",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex Spoken();
+
+    public static string Apply(string text) => !text.Contains("точка", StringComparison.OrdinalIgnoreCase) ? text
+        : Spoken().Replace(text, m => (m.Groups["name"].Success ? m.Groups["name"].Value.TrimEnd() : "") + "." + m.Groups["ext"].Value.ToLowerInvariant());
+}
+
+/// <summary>
 /// Long dashes become hyphens (owner: people do not type "—", it reads as machine text):
 /// "1—2" → "1-2", " — " → " - ", any other "—"/"–" → "-".
 /// </summary>

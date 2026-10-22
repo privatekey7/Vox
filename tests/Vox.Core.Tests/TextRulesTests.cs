@@ -147,3 +147,15 @@ public class UnknownTokenTests
     public void Only_unk_gives_nothing() =>
         Assert.Equal("", new PostProcessor(Vox.Core.Models.ModelCatalog.Parakeet).Process("<unk>"));
 }
+
+/// <summary>Owner's corpus: "точка" before a file extension.</summary>
+public class FileExtensionsTests
+{
+    [Theory]
+    [InlineData("Сохрани в Точка MP4.", " Сохрани в .mp4.")]
+    [InlineData("Открой index точка html", " Открой index.html")]
+    [InlineData("Скинь файл точка пдф", " Скинь файл .pdf")]
+    [InlineData("Поставь точка и запятая", " Поставь точка и запятая")]
+    public void Spoken_dot_before_an_extension(string raw, string expected) =>
+        Assert.Equal(expected, new PostProcessor(Vox.Core.Models.ModelCatalog.GigaAm).Process(raw));
+}

@@ -44,7 +44,7 @@ public static partial class ModelVersions
         new("DeepSeek", " ", new() { ["ви"] = "V", ["вэ"] = "V", ["v"] = "V", ["эр"] = "R", ["r"] = "R" }),
         new("Qwen", ""), new("Mistral", " "), new("Mixtral", " "), new("Kimi", " ", K),
         new("Midjourney", " ", V), new("Suno", " ", V), new("Stable Diffusion", " "), new("Sora", " "),
-        new("Veo", " "), new("Kling", " "), new("Flux", " "), new("Kandinsky", " "),
+        new("Veo", " "), new("Kling", " "), new("Flux", " "), new("Kandinsky", " "), new("GTA", " "),
     }.ToDictionary(b => b.Name, StringComparer.OrdinalIgnoreCase);
 
     // Ordinary Russian words that name a model only next to a version ("сонет четыре и пять").
