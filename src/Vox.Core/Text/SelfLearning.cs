@@ -6,6 +6,9 @@ public enum LearnResult
 {
     Learned,
 
+    /// <summary>The fixed word was the target of an entry ("GitHbu" from "гитхап → GitHbu"): its target was fixed.</summary>
+    TargetFixed,
+
     /// <summary>"рак" → "RAG": an ordinary Russian word is never learned (add it by hand).</summary>
     CommonWord,
 }
@@ -22,7 +25,7 @@ public sealed class SelfLearning(VoxDatabase db)
     private static readonly Lazy<HashSet<string>> CommonWords = new(LoadCommonWords);
 
     private readonly Lock _lock = new();
-    private (string Wrong, string Correct, DictionaryEntry? Replaced)? _last;
+    private (string Wrong, string Correct, IReadOnlyList<DictionaryEntry> Replaced)? _last;
 
     /// <summary>Is this an ordinary Russian word form ("рак", "блоге")?</summary>
     public static bool IsCommonWord(string word) => CommonWords.Value.Contains(word.ToLowerInvariant());
@@ -39,20 +42,37 @@ public sealed class SelfLearning(VoxDatabase db)
     }
 
     /// <param name="wrong">As the user fixed it ("Лебовски"); stored lower-cased.</param>
-    public LearnResult Learn(string wrong, string correct)
+    /// <returns>What happened, and the pair to show ("гитхап → GitHub" when a target was fixed).</returns>
+    public (LearnResult Result, string Wrong, string Correct) Learn(string wrong, string correct)
     {
         var key = wrong.ToLowerInvariant();
-        if (IsCommonWord(key))
-        {
-            return LearnResult.CommonWord;
-        }
-
         lock (_lock)
         {
-            var replaced = db.DictionaryEntries().FirstOrDefault(e => e.Wrong == key && e.Lang == "");
+            var entries = db.DictionaryEntries();
+
+            // The user fixed a word Vox itself wrote from their dictionary (a typo when it was learned):
+            // fix that entry's target instead of chaining "GitHbu → GitHub" onto "гитхап → GitHbu".
+            var producedBy = entries.Where(e => string.Equals(e.Correct, wrong, StringComparison.OrdinalIgnoreCase)).ToList();
+            if (producedBy.Count > 0)
+            {
+                foreach (var e in producedBy)
+                {
+                    db.AddDictionaryEntry(e.Wrong, correct, e.Lang, e.Source);
+                }
+
+                _last = (producedBy[0].Wrong, correct, producedBy);
+                return (LearnResult.TargetFixed, producedBy[0].Wrong, correct);
+            }
+
+            if (IsCommonWord(key))
+            {
+                return (LearnResult.CommonWord, wrong, correct);
+            }
+
+            var replaced = entries.Where(e => e.Wrong == key && e.Lang == "").ToList();
             db.AddDictionaryEntry(key, correct, "", "auto");
             _last = (key, correct, replaced);
-            return LearnResult.Learned;
+            return (LearnResult.Learned, wrong, correct);
         }
     }
 
@@ -67,9 +87,12 @@ public sealed class SelfLearning(VoxDatabase db)
             }
 
             _last = null;
-            if (replaced is not null)
+            if (replaced.Count > 0)
             {
-                db.AddDictionaryEntry(replaced.Wrong, replaced.Correct, replaced.Lang, replaced.Source);
+                foreach (var e in replaced)
+                {
+                    db.AddDictionaryEntry(e.Wrong, e.Correct, e.Lang, e.Source);
+                }
             }
             else if (db.DictionaryEntries().FirstOrDefault(e => e.Wrong == wrong && e.Lang == "" && e.Source == "auto") is { } entry)
             {

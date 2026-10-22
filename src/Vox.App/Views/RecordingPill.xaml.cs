@@ -83,10 +83,10 @@ public partial class RecordingPill : Window
         ShowAtBottom();
     }
 
-    internal void ShowLearned(string wrong, string correct)
+    internal void ShowLearned(string wrong, string correct, bool fixedTarget)
     {
         _hide.Stop();
-        SetMessage(Mark, "", $"Запомнил: {wrong} → {correct}", "отменить: меню Vox в трее");
+        SetMessage(Mark, "", $"{(fixedTarget ? "Исправил" : "Запомнил")}: {wrong} → {correct}", "отменить: меню Vox в трее");
         ShowAtBottom();
         HideAfter(TimeSpan.FromSeconds(2)); // owner: long enough to read, short enough not to bother
     }

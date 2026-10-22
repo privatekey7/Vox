@@ -66,15 +66,16 @@ internal sealed class DictationService : IDisposable
         _watcher.Enabled = settings.LearnCorrections;
         _watcher.Learned += (shown, correct) =>
         {
-            if (_learning.Learn(shown, correct) == LearnResult.CommonWord)
+            var (result, wrong, target) = _learning.Learn(shown, correct);
+            if (result == LearnResult.CommonWord)
             {
                 Log.Info("[LEARN] The fixed word is an ordinary Russian word: not learned (add it in the dictionary by hand)");
                 return;
             }
 
-            Log.Info("[LEARN] Added to the dictionary");
+            Log.Info(result == LearnResult.TargetFixed ? "[LEARN] Fixed the target of a dictionary entry" : "[LEARN] Added to the dictionary");
             ReloadCorrections();
-            CorrectionLearned?.Invoke(shown, correct);
+            CorrectionLearned?.Invoke(wrong, target, result == LearnResult.TargetFixed);
         };
     }
 
@@ -93,8 +94,8 @@ internal sealed class DictationService : IDisposable
         return undone;
     }
 
-    /// <summary>A dictionary entry was learned from the user's fix: (wrong, correct).</summary>
-    public event Action<string, string>? CorrectionLearned;
+    /// <summary>A dictionary entry was learned from the user's fix: (wrong, correct, an existing target was fixed).</summary>
+    public event Action<string, string, bool>? CorrectionLearned;
 
     public bool LearnCorrections
     {

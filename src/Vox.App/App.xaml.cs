@@ -86,7 +86,7 @@ public partial class App : Application
             _hook.Released += _dictation.OnReleased;
             _pill = new RecordingPill(_audio);
             _dictation.StateChanged += s => Dispatcher.BeginInvoke(() => OnDictationState(s));
-            _dictation.CorrectionLearned += (w, c) => Dispatcher.BeginInvoke(() => _pill?.ShowLearned(w, c));
+            _dictation.CorrectionLearned += (w, c, fixedTarget) => Dispatcher.BeginInvoke(() => _pill?.ShowLearned(w, c, fixedTarget));
             Log.Info($"[INIT] Hotkey: {Hotkeys.Display(Settings.Hotkey)}; models: {Paths.Models}");
 
             var model = InstalledModel();

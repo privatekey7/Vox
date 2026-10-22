@@ -26,7 +26,7 @@ public sealed class SelfLearningTests : IDisposable
     [Fact]
     public void The_first_fix_goes_into_the_dictionary()
     {
-        Assert.Equal(LearnResult.Learned, _learning.Learn("Лебовски", "Lebowski"));
+        Assert.Equal((LearnResult.Learned, "Лебовски", "Lebowski"), _learning.Learn("Лебовски", "Lebowski"));
         Assert.Equal("Lebowski", _db.Corrections()["лебовски"]);
     }
 
@@ -35,7 +35,7 @@ public sealed class SelfLearningTests : IDisposable
     {
         // Regression (owner's log): "рак" → "RAG" turned every "рак" into RAG.
         Assert.True(SelfLearning.IsCommonWord("рак"));
-        Assert.Equal(LearnResult.CommonWord, _learning.Learn("рак", "RAG"));
+        Assert.Equal(LearnResult.CommonWord, _learning.Learn("рак", "RAG").Result);
         Assert.Empty(_db.Corrections());
     }
 
@@ -63,4 +63,25 @@ public sealed class SelfLearningTests : IDisposable
 
     [Fact]
     public void Nothing_to_undo_at_start() => Assert.False(_learning.CanUndo);
+
+    [Fact]
+    public void A_typo_in_a_learned_target_is_fixed_in_place()
+    {
+        // Owner: "гитхап → GitHbu" learned with a typo; Vox then writes "GitHbu" and the user fixes it.
+        _learning.Learn("гитхап", "GitHbu");
+
+        Assert.Equal((LearnResult.TargetFixed, "гитхап", "GitHub"), _learning.Learn("GitHbu", "GitHub"));
+        Assert.Equal(new Dictionary<string, string> { ["гитхап"] = "GitHub" }, _db.Corrections()); // no "githbu" chain
+    }
+
+    [Fact]
+    public void Undo_brings_back_the_previous_target()
+    {
+        _db.AddDictionaryEntry("кубер", "Kubernets", "", "manual");
+        _learning.Learn("Kubernets", "Kubernetes");
+
+        _learning.UndoLast();
+
+        Assert.Equal(("кубер", "Kubernets", "manual"), _db.DictionaryEntries().Select(e => (e.Wrong, e.Correct, e.Source)).Single());
+    }
 }
