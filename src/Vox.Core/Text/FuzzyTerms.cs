@@ -47,6 +47,13 @@ public sealed partial class FuzzyTerms
     private const int EnglishRank = 30;
     private const int MaxCandidateLevel = 60; // rarer words (70) only protect themselves
 
+    // Latin in Russian speech is a term more often than an English word: an English word competes with a
+    // term at its score minus TermBonus, and replaces only from EnglishThreshold and a common level
+    // ("Pigon" stays rather than becoming "pigeon" or a rare word).
+    private const double TermBonus = 0.04;
+    private const double EnglishThreshold = 0.9;
+    private const int RareLevel = 50;
+
     private static readonly Lazy<FuzzyTerms> Default = new(() =>
     {
         var groups = Terms.LoadGroups();
@@ -324,7 +331,7 @@ public sealed partial class FuzzyTerms
                         var edits = Math.Max(BitOperations.PopCount(mask & ~c.Letters), BitOperations.PopCount(c.Letters & ~mask));
                         if (edits <= (1 - LatinThreshold) * Math.Max(length, letters.Length) && Similarity(letters, c.Source, LatinThreshold) >= LatinThreshold)
                         {
-                            Hit(c, Similarity(key, c.Key, floor));
+                            Hit(c, Similarity(key, c.Key, floor) - TermBonus);
                         }
                     }
                 }
@@ -382,6 +389,15 @@ public sealed partial class FuzzyTerms
         }
 
         var (best, bestScore) = winners[0];
+        if (best.English)
+        {
+            bestScore += TermBonus;
+            if (bestScore < EnglishThreshold || best.Rank - EnglishRank >= RareLevel)
+            {
+                return null; // an English word only when close and common
+            }
+        }
+
         if (bestScore < threshold)
         {
             return null; // nothing close enough

@@ -65,6 +65,8 @@ public class FuzzyTermsTests
     [InlineData("Это well-known факт.")]
     [InlineData("Это Water.")]
     [InlineData("TextRules и APPDATA")] // code and acronyms
+    [InlineData("Пишу на Pigon.")] // "pigeon" is closest, but an English word must be close and common; nothing else is
+    [InlineData("это segmenter")] // "segmented" 0.89: an English word only from 0.9
     public void English_words_stay(string text) =>
         Assert.Equal(text, WithLatin.Replace(text));
 
