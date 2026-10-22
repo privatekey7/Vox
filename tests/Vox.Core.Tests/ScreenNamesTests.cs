@@ -17,7 +17,7 @@ public class ScreenNamesTests
         new PostProcessor(ModelCatalog.GigaAm).Process(raw, null, log, screen).Trim();
 
     [Theory]
-    [InlineData("Superwhisper Settings - Google Chrome", "Superwhisper,Superwhisper Settings")]
+    [InlineData("Sunwhisper Settings - Google Chrome", "Sunwhisper,Sunwhisper Settings")]
     [InlineData("Tldraw | Excalidraw", "Tldraw,Excalidraw")] // a term on screen too (short words, below)
     [InlineData("HAPP VPN — Telegram", "HAPP,VPN,HAPP VPN")] // "telegram" is an English word
     [InlineData("Ideogram Wispr", "Wispr,Ideogram Wispr")]
@@ -75,9 +75,9 @@ public class ScreenNamesTests
     {
         var path = Path.Combine(Path.GetTempPath(), $"vox-screen-{Guid.NewGuid():N}.json");
         var memory = new ScreenMemory(path);
-        memory.See(["Superwhisper", "Qwen3"], DateTime.UtcNow);
+        memory.See(["Sunwhisper", "Qwen3"], DateTime.UtcNow);
         memory.Save();
-        Assert.Equal(["Superwhisper"], ScreenMemory.Load(path).Entries.Select(e => e.Name)); // digits: never saved
+        Assert.Equal(["Sunwhisper"], ScreenMemory.Load(path).Entries.Select(e => e.Name)); // digits: never saved
         Assert.DoesNotContain("Qwen3", File.ReadAllText(path), StringComparison.Ordinal);
 
         memory.Clear();
@@ -86,13 +86,13 @@ public class ScreenNamesTests
     }
 
     [Theory]
-    [InlineData("Открой супервиспер", "Открой Superwhisper")]
-    [InlineData("Открой Superwisper", "Открой Superwhisper")]
+    [InlineData("Открой санвиспер", "Открой Sunwhisper")]
+    [InlineData("Открой Sunwisper", "Открой Sunwhisper")]
     [InlineData("Включи хап", "Включи HAPP")]
     [InlineData("Сделай в люмалабс", "Сделай в Lumalabs")]
     public void Screen_names_are_found_by_sound(string raw, string expected)
     {
-        var screen = OnScreen("Superwhisper Settings - Google Chrome", "HAPP VPN", "Tldraw", "Lumalabs Dream Machine");
+        var screen = OnScreen("Sunwhisper Settings - Google Chrome", "HAPP VPN", "Tldraw", "Lumalabs Dream Machine");
         var log = new List<FuzzyTerms.Match>();
         Assert.Equal(expected, Fix(raw, screen, log));
         Assert.Equal("окно", Assert.Single(log).Screen);
@@ -229,11 +229,11 @@ public class ScreenNamesTests
     [Fact]
     public void A_remembered_name_is_found_a_short_one_is_not()
     {
-        ScreenName[] memory = [new("Superwhisper", false), new("HAPP", false)];
+        ScreenName[] memory = [new("Sunwhisper", false), new("HAPP", false)];
         var log = new List<FuzzyTerms.Match>();
-        Assert.Equal("Открой Superwhisper и хап", Fix("Открой Superwisper и хап", memory, log));
+        Assert.Equal("Открой Sunwhisper и хап", Fix("Открой Sunwisper и хап", memory, log));
         Assert.Equal("память", Assert.Single(log).Screen);
-        Assert.Equal("Открой супервиспер", Fix("Открой супервиспер", memory)); // Cyrillic: only a window now
+        Assert.Equal("Открой санвиспер", Fix("Открой санвиспер", memory)); // Cyrillic: only a window now
     }
 
     [Theory]
@@ -250,7 +250,7 @@ public class ScreenNamesTests
 
     private static readonly string[] TypicalTitles =
     [
-        "Remotion Studio - Google Chrome", "Telegram", "Visual Studio Code", "Superwhisper", "HAPP VPN", "Tldraw",
+        "Remotion Studio - Google Chrome", "Telegram", "Visual Studio Code", "Sunwhisper", "HAPP VPN", "Tldraw",
         "Lumalabs Dream Machine", "Wispr Flow", "Ideogram Wispr", "Krea AI - Mozilla Firefox", "Spotify Premium",
         "LMArena - Chatbot Arena", "Zencoder - Docs", "Explorer", "Discord | #general", "Steam", "Vox.sln - Rider",
         "privatekey7/Vox: Voice typing - GitHub", "Pikaso Studio", "Kandinsky 3 - Sber", "Shedevrum", "Lovart Canvas",
@@ -297,8 +297,8 @@ public class ScreenNamesTests
     {
         var names = Terms.LoadPairs().Select(p => p[1]).Where(t => t.All(char.IsAsciiLetter) && t.Length >= 3).Distinct()
             .Select((n, i) => n + "x" + (char)('a' + (i % 26))).Take(ScreenMemory.Limit).ToList(); // unknown names
-        ScreenName[] screen = [.. names.Select(n => new ScreenName(n, false)), .. OnScreen("Superwhisper Settings - Google Chrome")];
-        const string text = "Открой супервиспер, проверь фронтенд и Bek End в нашем проекте, потом напиши отчёт";
+        ScreenName[] screen = [.. names.Select(n => new ScreenName(n, false)), .. OnScreen("Sunwhisper Settings - Google Chrome")];
+        const string text = "Открой санвиспер, проверь фронтенд и Bek End в нашем проекте, потом напиши отчёт";
         FuzzyTerms.Apply(text, null, screen); // warm up: skeletons are cached
         var sw = Stopwatch.StartNew();
         for (var i = 0; i < 20; i++)
@@ -319,7 +319,7 @@ public class ScreenNamesTests
 
         var text = string.Join("\n", Directory.GetFiles(Path.Combine(root, "docs"), "*.md", SearchOption.AllDirectories)
             .Append(Path.Combine(root, "CHANGELOG.md")).Append(Path.Combine(root, "README.md")).Select(File.ReadAllText));
-        string[] examples = ["супервиспер", "хап", "ремоушн", "люмалабс"]; // the docs describe these very replacements
+        string[] examples = ["санвиспер", "хап", "ремоушн", "люмалабс"]; // the docs describe these very replacements
         return [.. Regex.Matches(text, @"[а-яё]+(?:-[а-яё]+)*", RegexOptions.IgnoreCase).Select(m => m.Value).Distinct()
             .Where(w => !examples.Contains(w.ToLowerInvariant()))];
     }
