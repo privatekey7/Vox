@@ -33,7 +33,7 @@ public partial class SettingsWindow : Window
         _app.Audio.Level += onLevel;
         _micMeter.Tick += (_, _) =>
         {
-            MicHint.Text = _micPeak > 0.02f ? "Сейчас слышу вас хорошо" : "Скажите что-нибудь — проверю, слышно ли вас";
+            MicHint.Text = _micPeak > 0.02f ? "Сейчас слышу вас хорошо" : "Скажите что-нибудь, проверю, слышно ли вас";
             _micPeak = 0;
         };
         _micMeter.Start();
@@ -209,9 +209,9 @@ public partial class SettingsWindow : Window
     }
 
     private void ShowHowTo() => HowTo.Text =
-        "1. Поставьте курсор туда, где нужен текст — в любой программе.\n" +
+        "1. Поставьте курсор туда, где нужен текст, в любой программе.\n" +
         $"2. Зажмите {Hotkeys.Display(_app.Settings.Hotkey)} и говорите.\n" +
-        "3. Отпустите — текст появится у курсора.";
+        "3. Отпустите, и текст появится у курсора.";
 
     // ---- History -------------------------------------------------------------------------
 

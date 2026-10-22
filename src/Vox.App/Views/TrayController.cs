@@ -53,7 +53,7 @@ internal sealed class TrayController : IDisposable
                 new TextBlock { Text = $"Зажмите {hotkey} и говорите", Opacity = 0.7, FontSize = 12 },
             },
         };
-        _icon.ToolTipText = $"Vox — зажмите {hotkey} и говорите";
+        _icon.ToolTipText = $"Vox: зажмите {hotkey} и говорите";
     }
 
     /// <summary>"Vox is up" toast, so the user knows it is Vox (not something else) holding the microphone.</summary>

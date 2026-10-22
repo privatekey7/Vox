@@ -65,7 +65,7 @@ public partial class RecordingPill : Window
                 HideAfter(TimeSpan.FromSeconds(0.5));
                 break;
             case DictationState.NotHeard:
-                SetMessage("", "#FCE100", "Не расслышал — скажите ещё раз", "или проверьте микрофон");
+                SetMessage("", "#FCE100", "Не расслышал, скажите ещё раз", "или проверьте микрофон");
                 HideAfter(TimeSpan.FromSeconds(3));
                 break;
             case DictationState.ModelNotReady:
@@ -86,9 +86,9 @@ public partial class RecordingPill : Window
     internal void ShowLearned(string wrong, string correct)
     {
         _hide.Stop();
-        SetMessage("\uE82D", "#60CDFF", $"Запомнил: {wrong} → {correct}", "отменить — в Настройки → Словарь");
+        SetMessage("\uE82D", "#60CDFF", $"Запомнил: {wrong} → {correct}", "отменить: Настройки → Словарь");
         ShowAtBottom();
-        HideAfter(TimeSpan.FromSeconds(4));
+        HideAfter(TimeSpan.FromSeconds(2)); // owner: long enough to read, short enough not to bother
     }
 
     private void SetMessage(string glyph, string color, string text, string hint)
