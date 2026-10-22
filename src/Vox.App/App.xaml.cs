@@ -96,6 +96,7 @@ public partial class App : Application
             }
 
             _tray = new TrayController(this);
+            _tray.ShowStarted(); // the model is loaded: dictation works from now on
         }
         catch (Exception ex)
         {

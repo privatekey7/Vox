@@ -56,6 +56,19 @@ internal sealed class TrayController : IDisposable
         _icon.ToolTipText = $"Vox — зажмите {hotkey} и говорите";
     }
 
+    /// <summary>"Vox is up" toast, so the user knows it is Vox (not something else) holding the microphone.</summary>
+    public void ShowStarted()
+    {
+        try
+        {
+            _icon.ShowNotification("Vox запущен", $"Зажмите {Hotkeys.Display(_app.Settings.Hotkey)} и говорите");
+        }
+        catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            Log.Error("[TRAY] Start notification failed", e); // cosmetic: never fail startup over it
+        }
+    }
+
     public void SetRecording(bool recording)
     {
         if (_recording != recording)
