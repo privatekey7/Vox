@@ -50,7 +50,7 @@ public static partial class ModelVersions
     // Ordinary Russian words that name a model only next to a version ("сонет четыре и пять").
     private static readonly Dictionary<string, Brand> CyrillicNames = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["опус"] = new("Opus", " ", DecimalOnly: true), ["сонет"] = new("Sonnet", " ", DecimalOnly: true),
+        ["опус"] = new("Opus", " ", DecimalOnly: true), ["опуск"] = new("Opus", " ", DecimalOnly: true), ["сонет"] = new("Sonnet", " ", DecimalOnly: true),
         ["соннет"] = new("Sonnet", " ", DecimalOnly: true), ["хайку"] = new("Haiku", " ", DecimalOnly: true),
         ["лама"] = new("Llama", " "), ["джемма"] = new("Gemma", " "), ["кандинский"] = new("Kandinsky", " "),
         ["сора"] = new("Sora", " "), ["чат GPT"] = new("ChatGPT", " "), ["кими"] = new("Kimi", " ", K),

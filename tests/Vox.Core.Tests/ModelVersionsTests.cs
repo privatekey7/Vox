@@ -60,4 +60,24 @@ public sealed class ModelVersionsTests
         Assert.Equal(" Пишу в Claude Opus 4.5 через Claude Code.",
             new PostProcessor(model).Process("Пишу в клод опус четыре и пять через клод код."));
     }
+
+    // Owner's live log (22.10): GigaAM's own spellings of languages, engines and Claude models.
+    [Theory]
+    [InlineData("Пишу на Сишар.", " Пишу на C#.")]
+    [InlineData("Сшарп лучше.", " C# лучше.")]
+    [InlineData("Sisharp лучше.", " C# лучше.")]
+    [InlineData("Пишу Nasisharp.", " Пишу на C#.")]
+    [InlineData("язык программирования Sharp.", " язык программирования C#.")]
+    [InlineData("Sharp выпустил телевизор.", " Sharp выпустил телевизор.")] // the brand stays without context
+    [InlineData("Ева Скрипт и Javascript.", " JavaScript и JavaScript.")]
+    [InlineData("Пишу на Гоу.", " Пишу на Go.")]
+    [InlineData("гоу гулять", " гоу гулять")] // slang stays
+    [InlineData("Andreal Enjane и анриал энджин.", " Unreal Engine и Unreal Engine.")]
+    [InlineData("Открой клодкот.", " Открой Claude Code.")]
+    [InlineData("Claude опуск пять и пять.", " Claude Opus 5.5.")]
+    [InlineData("Клодопус 5,5 лучше.", " Claude Opus 5.5 лучше.")]
+    [InlineData("Опуск 5 и пять.", " Opus 5.5.")]
+    [InlineData("Цена 5,5 рубля.", " Цена 5,5 рубля.")] // an ordinary number stays
+    public void Live_log_spellings_are_fixed(string raw, string expected) =>
+        Assert.Equal(expected, new PostProcessor(ModelCatalog.GigaAm).Process(raw));
 }
