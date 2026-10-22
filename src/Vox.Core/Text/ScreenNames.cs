@@ -25,10 +25,10 @@ public static partial class ScreenWords
 
     [GeneratedRegex(@"[A-Za-z][A-Za-z0-9]*")] private static partial Regex Token();
 
-    // Word, CamelCase, an acronym, before or after a word ("LMArena", "macOS"), at most two digits and a letter at the end.
-    [GeneratedRegex(@"^(?:[A-Z]{2,6}|[A-Z]?[a-z]+)(?:[A-Z][a-z]+){0,3}(?:[A-Z]{2,4})?(?:[0-9]{1,2}[a-z]?)?$")] private static partial Regex NameShape();
+    // Word, CamelCase, an acronym, before or after a word ("LMArena", "macOS", "DeepL"), at most two digits and a letter at the end.
+    [GeneratedRegex(@"^(?:[A-Z]{2,6}|[A-Z]?[a-z]+)(?:[A-Z][a-z]+){0,3}(?:[A-Z]{1,4})?(?:[0-9]{1,2}[a-z]?)?$")] private static partial Regex NameShape();
 
-    /// <param name="isKnown">An English word or a term: not a new name.</param>
+    /// <param name="isKnown">An ordinary English word: not a name (a term on screen still is one).</param>
     public static List<string> Extract(string text, Func<string, bool> isKnown)
     {
         var names = new List<string>();
@@ -76,8 +76,15 @@ public static partial class ScreenWords
             }
         }
 
-        return names;
+        return Distinct(names);
     }
+
+    /// <summary>Names worth remembering: a term is in the dictionary already.</summary>
+    public static IEnumerable<string> Unknown(IEnumerable<string> names) => names.Where(n => !FuzzyTerms.IsKnownName(n));
+
+    /// <summary>One spelling per name, a capitalised one first ("Cruzade" over "cruzade" of a domain).</summary>
+    public static List<string> Distinct(IEnumerable<string> names) =>
+        [.. names.GroupBy(n => n, StringComparer.OrdinalIgnoreCase).Select(g => g.FirstOrDefault(n => n.Any(char.IsUpper)) ?? g.First())];
 
     private static bool IsName(string word) =>
         word.Length <= MaxRun && word.Count(char.IsAsciiLetter) >= 3 && NameShape().IsMatch(word)
@@ -137,7 +144,10 @@ public sealed class ScreenMemory
             var changed = false;
             foreach (var name in names.Where(IsRememberable).Distinct(StringComparer.OrdinalIgnoreCase))
             {
-                _names[name] = _names.TryGetValue(name, out var e) ? e with { Name = name, Count = e.Count + 1, Last = now } : new Entry(name, 1, now);
+                // A capitalised spelling stays: "cruzade" of a domain does not replace "Cruzade".
+                _names[name] = _names.TryGetValue(name, out var e)
+                    ? e with { Name = name.Any(char.IsUpper) || !e.Name.Any(char.IsUpper) ? name : e.Name, Count = e.Count + 1, Last = now }
+                    : new Entry(name, 1, now);
                 changed = true;
             }
 

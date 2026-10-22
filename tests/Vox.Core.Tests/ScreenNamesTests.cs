@@ -8,7 +8,7 @@ namespace Vox.Core.Tests;
 /// <summary>Layer 2 of anglicisms (22.10): names from window titles and the field at the cursor.</summary>
 public class ScreenNamesTests
 {
-    private static List<string> Extract(string text) => ScreenWords.Extract(text, FuzzyTerms.IsKnownName);
+    private static List<string> Extract(string text) => ScreenWords.Extract(text, FuzzyTerms.IsEnglishName);
 
     private static ScreenName[] OnScreen(params string[] titles) =>
         [.. titles.SelectMany(Extract).Distinct().Select(n => new ScreenName(n, OnScreen: true))];
@@ -18,11 +18,11 @@ public class ScreenNamesTests
 
     [Theory]
     [InlineData("Superwhisper Settings - Google Chrome", "Superwhisper,Superwhisper Settings")]
-    [InlineData("Tldraw | Excalidraw", "Tldraw")] // Excalidraw is a term already
-    [InlineData("HAPP VPN — Telegram", "HAPP,HAPP VPN")]
+    [InlineData("Tldraw | Excalidraw", "Tldraw,Excalidraw")] // a term on screen too (short words, below)
+    [InlineData("HAPP VPN — Telegram", "HAPP,VPN,HAPP VPN")] // "telegram" is an English word
     [InlineData("Ideogram Wispr", "Wispr,Ideogram Wispr")]
     [InlineData("Lumalabs Dream Machine", "Lumalabs,Lumalabs Dream")]
-    [InlineData("Qwen3 и GPT4o в macOS", "Qwen3,GPT4o")]
+    [InlineData("Qwen3 и GPT4o в macOS", "Qwen3,GPT4o,macOS")]
     [InlineData("Visual Studio Code", "")]
     [InlineData("Telegram", "")]
     [InlineData("Мои документы - Проводник", "")]
@@ -46,7 +46,7 @@ public class ScreenNamesTests
     public void Secrets_never_reach_the_memory(string text)
     {
         var memory = new ScreenMemory();
-        memory.See(Extract(text), DateTime.UtcNow);
+        memory.See(ScreenWords.Unknown(Extract(text)), DateTime.UtcNow); // as Vox does
         Assert.Equal([], memory.Entries.Select(e => e.Name));
     }
 
@@ -97,6 +97,31 @@ public class ScreenNamesTests
         Assert.Equal(expected, Fix(raw, screen, log));
         Assert.Equal("окно", Assert.Single(log).Screen);
         Assert.Equal(raw, Fix(raw, null)); // nothing on screen: nothing changes
+    }
+
+    // Owner's live test of 7748ba7 (22.10).
+    [Theory]
+    [InlineData("Зайди на Deepl.", "Зайди на DeepL.")] // a term in other case gets its spelling
+    [InlineData("Coin marketcap", "CoinMarketCap")]
+    [InlineData("Зайди на Дипл.", "Зайди на DeepL.")] // a short word: a term on screen counts
+    [InlineData("Открой Крузаде.", "Открой Cruzade.")] // a name seen only in a domain is written as a name
+    [InlineData("Открой Крузейт.", "Открой Cruzade.")]
+    [InlineData("Сайт Крузаде.com", "Сайт cruzade.com")]
+    [InlineData("Creat Token.", "Create Token.")] // next to an English word: letters lost on the same sound
+    [InlineData("Lazy Trasur", "Lazy Treasure")]
+    [InlineData("Crade Talking.", "Crade Talking.")]
+    [InlineData("Сеть Салана.", "Сеть Solana.")]
+    public void Live_test_of_screen_words(string raw, string expected) =>
+        Assert.Equal(expected, Fix(raw, OnScreen("DeepL Translate - Google Chrome", "cruzade.com - Mozilla Firefox")));
+
+    [Fact]
+    public void A_capitalised_spelling_wins()
+    {
+        Assert.Equal(["Cruzade"], ScreenWords.Distinct(["cruzade", "Cruzade", "CRUZADE"]).Take(1));
+        var memory = new ScreenMemory();
+        memory.See(["Cruzade"], DateTime.UtcNow);
+        memory.See(["cruzade"], DateTime.UtcNow);
+        Assert.Equal("Cruzade", Assert.Single(memory.Entries).Name);
     }
 
     [Fact]

@@ -202,7 +202,8 @@ internal sealed class DictationService : IDisposable
             return;
         }
 
-        _jobs.Add(new Job(buffer, releasedAt, elapsed));
+        // Window titles are read while the model recognises: ready by the time the text is.
+        _jobs.Add(new Job(buffer, releasedAt, elapsed, _settings.ScreenHints ? Task.Run(ScreenNames) : null));
     }
 
     public void Dispose()
@@ -303,7 +304,7 @@ internal sealed class DictationService : IDisposable
         }
 
         var fuzzy = new List<FuzzyTerms.Match>();
-        var text = pp?.Process(raw, _corrections, fuzzy, _settings.ScreenHints ? ScreenNames() : null) ?? raw;
+        var text = pp?.Process(raw, _corrections, fuzzy, job.Screen?.Result) ?? raw;
         foreach (var f in fuzzy)
         {
             var score = f.Score.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
@@ -364,7 +365,6 @@ internal sealed class DictationService : IDisposable
         }
     }
 
-    /// <summary>Recognise, logging *why* when no text comes out.</summary>
     // Names in window titles and the watched field of the foreground window, plus remembered ones. Titles and
     // field text are never logged or saved; only names from titles are remembered.
     private List<ScreenName> ScreenNames()
@@ -373,16 +373,16 @@ internal sealed class DictationService : IDisposable
         {
             var sw = Stopwatch.StartNew();
             var titles = ScreenTitles.Read(TitlesTimeout);
-            var fromTitles = titles.SelectMany(t => ScreenWords.Extract(t, FuzzyTerms.IsKnownName)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            var fromTitles = ScreenWords.Distinct(titles.SelectMany(t => ScreenWords.Extract(t, FuzzyTerms.IsEnglishName)));
             var fromField = _watcher.LastField is var (window, field) && window == Native.GetForegroundWindow()
-                ? ScreenWords.Extract(field, FuzzyTerms.IsKnownName)
+                ? ScreenWords.Extract(field, FuzzyTerms.IsEnglishName)
                 : [];
             List<ScreenName> names =
             [
-                .. fromTitles.Concat(fromField).Distinct(StringComparer.OrdinalIgnoreCase).Select(n => new ScreenName(n, OnScreen: true)),
+                .. ScreenWords.Distinct(fromTitles.Concat(fromField)).Select(n => new ScreenName(n, OnScreen: true)),
                 .. _screenMemory.Entries.Select(e => new ScreenName(e.Name, OnScreen: false)),
             ];
-            if (_screenMemory.See(fromTitles, DateTime.UtcNow))
+            if (_screenMemory.See(ScreenWords.Unknown(fromTitles), DateTime.UtcNow))
             {
                 _ = Task.Run(SaveScreenMemory);
             }
@@ -409,6 +409,7 @@ internal sealed class DictationService : IDisposable
         }
     }
 
+    /// <summary>Recognise, logging *why* when no text comes out.</summary>
     private string Recognize(float[] samples, int rate)
     {
         if (samples.Length == 0)
@@ -449,5 +450,6 @@ internal sealed class DictationService : IDisposable
         return text;
     }
 
-    private sealed record Job(RecordingBuffer Buffer, long ReleasedAt, TimeSpan Elapsed);
+    /// <param name="Screen">Names on screen at key-up (<see cref="ScreenNames"/>), null when screen hints are off.</param>
+    private sealed record Job(RecordingBuffer Buffer, long ReleasedAt, TimeSpan Elapsed, Task<List<ScreenName>>? Screen);
 }

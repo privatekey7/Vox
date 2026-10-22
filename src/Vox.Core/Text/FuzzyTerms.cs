@@ -31,7 +31,9 @@ public sealed partial class FuzzyTerms
     /// <param name="Ending">Case ending of a Cyrillic form ("фронтенде": "е"), null for the base form.</param>
     /// <param name="Rank">Frequency, lower is more frequent: <see cref="TermRank"/>, an English level, or above.</param>
     /// <param name="Screen">A screen name: "окно" or "память" (see <see cref="Match.Screen"/>).</param>
-    private sealed record Candidate(string Key, string Source, string Target, int Rank, bool English = false, string? Ending = null, string? Screen = null)
+    /// <param name="ShortOnly">A term on screen: searched by the short-word rule only (terms are searched anyway).</param>
+    private sealed record Candidate(
+        string Key, string Source, string Target, int Rank, bool English = false, string? Ending = null, string? Screen = null, bool ShortOnly = false)
     {
         public ulong Letters { get; } = Mask(Source); // for English words: a quick check before the edit distance
 
@@ -56,6 +58,7 @@ public sealed partial class FuzzyTerms
     // term at its score minus TermBonus, and replaces only from EnglishThreshold and a common level
     // ("Pigon" stays rather than becoming "pigeon" or a rare word).
     private const double TermBonus = 0.04;
+    private const double LooseLetters = 0.75; // letters of an English word next to one, on an exact sound skeleton
 
     private const double EnglishThreshold = 0.9;
     private const int RareLevel = 50;
@@ -86,6 +89,7 @@ public sealed partial class FuzzyTerms
     private readonly Dictionary<(char, int), List<Candidate>> _latinEnglish = [];
     private readonly Dictionary<(char, int), List<Candidate>> _cyrillic = [];
     private readonly HashSet<string> _termWords = new(StringComparer.OrdinalIgnoreCase); // terms and their words
+    private readonly HashSet<string> _targets = new(StringComparer.OrdinalIgnoreCase);
     private readonly System.Collections.Concurrent.ConcurrentDictionary<(string, bool), Candidate[]> _screenCache = new();
 
     [GeneratedRegex(@"\p{L}+(?:-\p{L}+)*")] private static partial Regex Word();
@@ -111,6 +115,7 @@ public sealed partial class FuzzyTerms
         foreach (var (source, target) in list.Concat(list.Select(p => p.Target).Distinct().Select(t => (t, t))))
         {
             terms.Add(target.ToLowerInvariant());
+            _targets.Add(target);
             _termWords.Add(target);
             _termWords.UnionWith(target.Split(' '));
             // Spelled letters ("бэ гэ пэ") and abbreviations ("BGP" → "бгп") are too short to compare by sound.
@@ -192,6 +197,9 @@ public sealed partial class FuzzyTerms
     /// <summary>An English word or a term (any case): not a new name for <see cref="ScreenWords.Extract"/>.</summary>
     public static bool IsKnownName(string word) => Default.Value.IsKnown(word);
 
+    /// <summary>Ordinary English words only ("Visual Studio"): a term on screen is still a name (<see cref="ScreenWords.Extract"/>).</summary>
+    public static bool IsEnglishName(string words) => words.Split(' ').All(Default.Value.IsEnglish);
+
     public bool IsKnown(string word) => _termWords.Contains(word) || word.Split(' ').All(IsEnglish);
 
     /// <summary>Is this an ordinary English word ("water"; "well-known": every part)?</summary>
@@ -209,16 +217,18 @@ public sealed partial class FuzzyTerms
         var words = Word().Matches(text);
         var result = new StringBuilder(text.Length);
         var copied = 0;
-        Dictionary<string, Found?> single = []; // one Latin word is searched up to twice: alone and against a pair
+        Dictionary<(string, bool), Found?> single = []; // one Latin word is searched up to twice: alone and against a pair
 
-        Found? FindWord(string word, bool name) =>
-            name ? Find(word, name, english: true, names)
-            : single.TryGetValue(word, out var known) ? known
-            : single[word] = Find(word, name, english: true, names);
+        Found? FindWord(string word, bool name, bool loose = false) =>
+            name ? Find(word, name, english: true, names, loose)
+            : single.TryGetValue((word, loose), out var known) ? known
+            : single[(word, loose)] = Find(word, name, english: true, names, loose);
 
         void Put(int start, int end, string spoken, Found found)
         {
-            var replacement = Cased(found.Replacement, spoken, found.English, StartsSentence(text, start));
+            var replacement = found.Screen is not null && found.Name is { } seen && end + 1 < text.Length && text[end] == '.' && char.IsAsciiLetterLower(text[end + 1])
+                ? seen // "cruzade.com"
+                : Cased(found.Replacement, spoken, found.English, StartsSentence(text, start) || InTitle(text, start, end));
             log?.Add(new Match(spoken, replacement, Math.Round(found.Score, 2), found.English, found.Screen));
             result.Append(text, copied, start - copied).Append(replacement);
             copied = end;
@@ -227,6 +237,14 @@ public sealed partial class FuzzyTerms
                 copied++; // "Charb++" → "C++", as Terms does
             }
         }
+
+        // "Lazy Trasur", "Creat Token": a Latin word next to an English word, one space apart.
+        bool EnglishNeighbour(int k) =>
+            !IsCyrillic(words[k].Value)
+            && ((k > 0 && Spaced(words[k - 1], words[k]) && !IsCyrillic(words[k - 1].Value) && IsEnglish(words[k - 1].Value))
+                || (k + 1 < words.Count && Spaced(words[k], words[k + 1]) && !IsCyrillic(words[k + 1].Value) && IsEnglish(words[k + 1].Value)));
+        bool Spaced(System.Text.RegularExpressions.Match a, System.Text.RegularExpressions.Match b) =>
+            b.Index == a.Index + a.Length + 1 && text[a.Index + a.Length] == ' ';
 
         for (var i = 0; i < words.Count;)
         {
@@ -237,8 +255,8 @@ public sealed partial class FuzzyTerms
             {
                 var spoken = string.Concat(Enumerable.Range(i, span).Select(k => words[k].Value));
                 if ((IsCyrillic(spoken) ? span == 1 : _latinOn) && Eligible(text, words, i, span, out var name)
-                    && (span == 1 ? FindWord(spoken, name) : Find(spoken, name, english: false, names)) is { } match
-                    && (span == 1 || !Enumerable.Range(i, span).Any(k => CloserEnglish(words[k].Value, match.Score, FindWord))))
+                    && (span == 1 ? FindWord(spoken, name, EnglishNeighbour(i)) : Find(spoken, name, english: false, names)) is { } match
+                    && (span == 1 || !Enumerable.Range(i, span).Any(k => CloserEnglish(words[k].Value, match.Score, (w, n) => FindWord(w, n)))))
                 {
                     found = match;
                     n = span;
@@ -288,7 +306,8 @@ public sealed partial class FuzzyTerms
     private bool CloserEnglish(string word, double score, Func<string, bool, Found?> find) =>
         !IsEnglish(word) && find(word, false) is { English: true } english && english.Score > score;
 
-    private readonly record struct Found(string Replacement, double Score, bool English, string? Screen = null);
+    /// <param name="Name">The screen name as seen ("cruzade" for "Cruzade"), kept before ".com".</param>
+    private readonly record struct Found(string Replacement, double Score, bool English, string? Screen = null, string? Name = null);
 
     private bool Eligible(string text, MatchCollection words, int i, int n, out bool name)
     {
@@ -339,7 +358,8 @@ public sealed partial class FuzzyTerms
 
     /// <param name="english">Also English words as candidates: one Latin word, not two the model split.</param>
     /// <param name="names">Screen names by skeleton (<see cref="ScreenIndex"/>).</param>
-    private Found? Find(string spoken, bool name, bool english, Dictionary<(char, int), List<Candidate>>? names = null)
+    /// <param name="loose">Next to an English word: see <see cref="LooseLetters"/>.</param>
+    private Found? Find(string spoken, bool name, bool english, Dictionary<(char, int), List<Candidate>>? names = null, bool loose = false)
     {
         var cyrillic = IsCyrillic(spoken);
         var key = cyrillic ? Normal(spoken) : Skeleton(spoken);
@@ -368,7 +388,9 @@ public sealed partial class FuzzyTerms
 
         if (english && !cyrillic && letters.Length > 0)
         {
-            var spread = (int)((1 - LatinThreshold) / LatinThreshold * letters.Length); // the most length a score at the threshold allows
+            var least = loose ? LooseLetters : LatinThreshold;
+            var bonus = loose ? 0 : TermBonus; // next to an English word, an English word is as likely as a term
+            var spread = (int)((1 - least) / least * letters.Length); // the most length a score at the floor allows
             var mask = Mask(letters);
             for (var length = letters.Length - spread; length <= letters.Length + spread; length++)
             {
@@ -379,9 +401,14 @@ public sealed partial class FuzzyTerms
                         // A garbled English word is also close in letters: "promis" ~ "promise", not "sherpa" ~ "sharp".
                         // Letters only one of the two has need an edit each.
                         var edits = Math.Max(BitOperations.PopCount(mask & ~c.Letters), BitOperations.PopCount(c.Letters & ~mask));
-                        if (edits <= (1 - LatinThreshold) * Math.Max(length, letters.Length) && Similarity(letters, c.Source, LatinThreshold) >= LatinThreshold)
+                        // Next to an English word, a word that only lost letters on the very same sound skeleton:
+                        // "Lazy Trasur" ~ "treasure", "Creat Token" ~ "create" (not "Vender" ~ "vendor", "Pigon" ~ "pigeon").
+                        if (edits <= (1 - (loose ? LooseLetters : LatinThreshold)) * Math.Max(length, letters.Length)
+                            && Similarity(letters, c.Source, LooseLetters) is var byLetters and >= LooseLetters
+                            && Similarity(key, c.Key, floor) is var sound
+                            && (byLetters >= LatinThreshold || (loose && sound >= 1 && IsSubsequence(letters, c.Source))))
                         {
-                            Hit(c, Similarity(key, c.Key, floor) - TermBonus);
+                            Hit(c, sound - bonus);
                         }
                     }
                 }
@@ -403,7 +430,7 @@ public sealed partial class FuzzyTerms
                     // The first sound is heard best: "Vender" is not "Finder"; h/ch ("Hrome", "Chrome") alike.
                     if ((letters || c.Key[0] == key[0] || (c.Key[0] is 'к' or 'х' && key[0] is 'к' or 'х'))
                         && Similarity(key, c.Key, floor) is var score
-                        && (c.Screen is null || ScreenAllowed(c, score, cyrillic)))
+                        && (c.Screen is null || (!c.ShortOnly && ScreenAllowed(c, score, cyrillic))))
                     {
                         Hit(c, score);
                     }
@@ -438,9 +465,11 @@ public sealed partial class FuzzyTerms
         var window = hits.Where(h => h.Score >= top - Margin).ToList();
         // Several about as close: the most frequent of the closest wins if every other one is rarer.
         var tied = window.Where(h => h.Score >= top - Tie).ToList();
-        var rank = tied.Min(h => h.C.Rank);
-        var winners = tied.Where(h => h.C.Rank == rank).ToList();
-        if (winners.Count != 1 || window.Any(h => h != winners[0] && h.C.Rank <= rank))
+        // Next to an English word an English word ranks by its own level: "Creat Token" is "create", not "Krita".
+        int Rank(Candidate c) => loose && c.English ? c.Rank - EnglishRank : c.Rank;
+        var rank = tied.Min(h => Rank(h.C));
+        var winners = tied.Where(h => Rank(h.C) == rank).ToList();
+        if (winners.Count != 1 || window.Any(h => h != winners[0] && Rank(h.C) <= rank))
         {
             return null; // two candidates about as close
         }
@@ -448,7 +477,7 @@ public sealed partial class FuzzyTerms
         var (best, bestScore) = winners[0];
         if (best.English)
         {
-            bestScore += TermBonus;
+            bestScore += loose ? 0 : TermBonus;
             if (bestScore < EnglishThreshold || best.Rank - EnglishRank >= RareLevel)
             {
                 return null; // an English word only when close and common
@@ -466,12 +495,22 @@ public sealed partial class FuzzyTerms
             ? Declension.Inflect(best.Target, best.Source, ending) ?? best.Target
             : best.Target;
         var target = cyrillic ? Normal(best.Target) : "";
-        if (LettersOf(replacement) == LettersOf(spoken) || (target.Length > 0 && key.StartsWith(target, StringComparison.Ordinal)))
+        if (LettersOf(replacement) == LettersOf(spoken))
         {
-            return null; // already the term ("Notepad" of "Notepad++") or its other form ("нейросети")
+            // The term in other case or spacing ("Deepl", "Coin marketcap") gets its spelling; "Notepad" of
+            // "Notepad++" stays.
+            return !cyrillic && !best.English && replacement.Any(char.IsUpper) && replacement != spoken
+                && string.Equals(replacement.Replace(" ", "", StringComparison.Ordinal), spoken.Replace(" ", "", StringComparison.Ordinal), StringComparison.OrdinalIgnoreCase)
+                ? new Found(replacement, bestScore, false, best.Screen, best.Source)
+                : null;
         }
 
-        return new Found(replacement, bestScore, best.English, best.Screen);
+        if (target.Length > 0 && key.StartsWith(target, StringComparison.Ordinal))
+        {
+            return null; // another form of the term ("нейросети")
+        }
+
+        return new Found(replacement, bestScore, best.English, best.Screen, best.Source);
     }
 
     // A short name ("HAPP") only on an exact skeleton while it is on screen.
@@ -517,17 +556,23 @@ public sealed partial class FuzzyTerms
 
     private Candidate[] ScreenCandidates(string name, bool onScreen)
     {
-        if (IsKnown(name))
+        // A term is searched anyway; on screen it also serves the short-word rule ("Дипл" with DeepL open).
+        // Only a whole term: "Sber" of "Sber Kandinsky" is written "Сбер".
+        var shortOnly = IsKnown(name);
+        if (shortOnly && (!onScreen || !_targets.Contains(name) || name.Contains(' ', StringComparison.Ordinal) || name.Split(' ').All(IsEnglish)))
         {
-            return []; // a term or an English word is searched anyway
+            return [];
         }
+
+        // A name seen only in lower case (a domain: "cruzade.com") is written as a name.
+        var target = name.Any(char.IsUpper) ? name : char.ToUpperInvariant(name[0]) + name[1..];
 
         // English reading too: "Remotion" is said "ремоушн", not "ремотион".
         var english = name.ToLowerInvariant()
             .Replace("tion", "шн", StringComparison.Ordinal).Replace("sion", "жн", StringComparison.Ordinal)
             .Replace("ture", "чер", StringComparison.Ordinal);
         return new[] { Skeleton(name), Skeleton(english) }.Distinct().Where(k => k.Length >= 2)
-            .Select(k => new Candidate(k, name, name, onScreen ? WindowRank : MemoryRank, Screen: onScreen ? Window : Memory))
+            .Select(k => new Candidate(k, name, target, onScreen ? WindowRank : MemoryRank, Screen: onScreen ? Window : Memory, ShortOnly: shortOnly))
             .ToArray();
     }
 
@@ -549,16 +594,33 @@ public sealed partial class FuzzyTerms
             return null;
         }
 
-        // Only an acronym ("хап" → "HAPP"): short words and their case forms come too close to short names
-        // ("трее" ~ "Trae", "ядру" ~ "EDR", "diff" ~ "Dify").
+        // An acronym ("хап" → "HAPP") or a term ("Дипл" → "DeepL") on screen: other short names come too close to
+        // Russian words and brands written in Cyrillic ("трее" ~ "Trae", "Сбер" ~ "Sber"). A Cyrillic word no longer
+        // than the name, a Latin one of the acronym's length (short Latin words are code and English: "diff" ~ "Dify").
         var vowels = VowelSkeleton(spoken);
         var cyrillic = IsCyrillic(spoken);
-        var targets = bucket.Where(c => c.Screen == Window && c.Key == key && c.Vowels == vowels && c.Source.All(char.IsAsciiLetterUpper)
-                && (cyrillic ? letters <= c.Source.Length : letters == c.Source.Length))
+        var targets = bucket.Where(c => c.Screen == Window && c.Key == key && c.Vowels == vowels
+                && (cyrillic
+                    ? letters <= LettersOf(c.Source).Length && (c.ShortOnly || c.Source.All(char.IsAsciiLetterUpper))
+                    : letters == c.Source.Length && c.Source.All(char.IsAsciiLetterUpper)))
             .Select(c => c.Target).Distinct(StringComparer.Ordinal).ToList();
         return targets.Count == 1 && LettersOf(targets[0]) != LettersOf(spoken)
-            ? new Found(targets[0], 1, false, Window)
+            ? new Found(targets[0], 1, false, Window, bucket.First(c => c.Target == targets[0]).Source)
             : null;
+    }
+
+    private static bool IsSubsequence(string part, string whole)
+    {
+        var at = 0;
+        foreach (var c in whole)
+        {
+            if (at < part.Length && part[at] == c)
+            {
+                at++;
+            }
+        }
+
+        return at == part.Length;
     }
 
     private static string LettersOf(string s) => string.Concat(s.Where(char.IsLetter)).ToLowerInvariant();
@@ -586,6 +648,42 @@ public sealed partial class FuzzyTerms
             && (sentenceStart || IsCyrillic(spoken))
             ? char.ToUpperInvariant(replacement[0]) + replacement[1..]
             : replacement;
+
+    // "Lazy Trasur": an English word between capitalised Latin words keeps its capital ("Lazy Treasure").
+    private static bool InTitle(string text, int start, int end)
+    {
+        static bool Capital(ReadOnlySpan<char> word) => word.Length > 0 && char.IsAsciiLetterUpper(word[0]);
+        var before = text.AsSpan(0, start);
+        var after = text.AsSpan(end);
+        if (before.EndsWith(" ") && !before.EndsWith("  "))
+        {
+            var prev = before[..^1];
+            var from = prev.Length;
+            while (from > 0 && char.IsAsciiLetter(prev[from - 1]))
+            {
+                from--;
+            }
+
+            if (Capital(prev[from..]))
+            {
+                return true;
+            }
+        }
+
+        if (after.StartsWith(" "))
+        {
+            var next = after[1..];
+            var to = 0;
+            while (to < next.Length && char.IsAsciiLetter(next[to]))
+            {
+                to++;
+            }
+
+            return Capital(next[..to]);
+        }
+
+        return false;
+    }
 
     private static bool StartsSentence(string text, int index)
     {
