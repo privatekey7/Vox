@@ -48,6 +48,7 @@ internal sealed class DictationService : IDisposable
 
     private readonly FieldWatcher _watcher = new();
     private readonly CorrectionCandidates _candidates;
+    private readonly CancellationTokenSource _stopping = new(); // Vox is closing
     private readonly CursorContext _context = new();
 
     public DictationService(AudioCapture audio, Paster paster, Sounds sounds, VoxDatabase db, Settings settings, string modelsRoot)
@@ -171,8 +172,10 @@ internal sealed class DictationService : IDisposable
     public void Dispose()
     {
         _watcher.Dispose();
+        _stopping.Cancel(); // queued dictations are dropped, nothing is pasted
         _jobs.CompleteAdding();
         _processor.Join(TimeSpan.FromSeconds(3));
+        _stopping.Dispose();
         lock (_engineLock)
         {
             _recognizer?.Dispose();
@@ -182,19 +185,30 @@ internal sealed class DictationService : IDisposable
 
     private void ProcessLoop()
     {
-        foreach (var job in _jobs.GetConsumingEnumerable())
+        try
         {
-            try
+            foreach (var job in _jobs.GetConsumingEnumerable(_stopping.Token))
             {
-                Process(job);
+                ProcessSafely(job);
             }
-            catch (Exception e)
-            {
-                // One bad dictation must not stop all later ones.
-                Log.Error("Processing dictation failed", e);
-                _sounds.Error();
-                Report(DictationState.NotHeard);
-            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    private void ProcessSafely(Job job)
+    {
+        try
+        {
+            Process(job);
+        }
+        catch (Exception e)
+        {
+            // One bad dictation must not stop all later ones.
+            Log.Error("Processing dictation failed", e);
+            _sounds.Error();
+            Report(DictationState.NotHeard);
         }
     }
 
@@ -269,9 +283,14 @@ internal sealed class DictationService : IDisposable
             Log.Error("[DB] Failed to save", e);
         }
 
-        while (_current is not null)
+        while (_current is not null && !_stopping.IsCancellationRequested)
         {
             Thread.Sleep(20); // the next dictation's key is held: Ctrl+V now would become Alt+Ctrl+V etc.
+        }
+
+        if (_stopping.IsCancellationRequested)
+        {
+            return; // closing: the UI thread waits in Dispose, a paste (ui.Invoke) would hang until the timeout
         }
 
         // Continue the sentence at the cursor instead of always starting a new one.
