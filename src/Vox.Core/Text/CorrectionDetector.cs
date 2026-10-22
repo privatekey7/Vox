@@ -7,7 +7,8 @@ namespace Vox.Core.Text;
 /// </summary>
 /// <remarks>
 /// Deliberately strict — learning a wrong pair is worse than missing one: several changed words,
-/// deletions, insertions, case-only changes and meaning changes ("кот" → "пёс") are all ignored.
+/// deletions, insertions, case-only changes, meaning changes ("кот" → "пёс") and grammar fixes of
+/// the user's own wording ("тёмные" → "тёмной", "блоге" → "логе") are all ignored.
 /// </remarks>
 public static class CorrectionDetector
 {
@@ -73,7 +74,8 @@ public static class CorrectionDetector
         var correct = now[ns].Text.Trim(WordPunct.ToCharArray());
         if (wrong.Length == 0 || correct.Length == 0
             || string.Equals(wrong, correct, StringComparison.OrdinalIgnoreCase)
-            || !LookAlike(wrong, correct))
+            || !LookAlike(wrong, correct)
+            || IsGrammarEdit(wrong, correct))
         {
             return null;
         }
@@ -89,6 +91,35 @@ public static class CorrectionDetector
         var longest = Math.Max(x.Length, y.Length);
         return longest > 0 && 1.0 - (double)Levenshtein(x, y) / longest >= MinSimilarity;
     }
+
+    /// <summary>
+    /// Same-script edits that only touch the word's ending or add/remove a letter or two at its
+    /// edge: inflection or a typo fix, not a misheard word (those are learned across scripts or
+    /// change the stem).
+    /// </summary>
+    private static bool IsGrammarEdit(string a, string b)
+    {
+        a = a.ToLowerInvariant();
+        b = b.ToLowerInvariant();
+        if (IsCyrillic(a) != IsCyrillic(b))
+        {
+            return false; // "гитхаб" → "GitHub"
+        }
+
+        var shorter = Math.Min(a.Length, b.Length);
+        var prefix = 0;
+        while (prefix < shorter && a[prefix] == b[prefix])
+        {
+            prefix++;
+        }
+
+        var (lo, hi) = a.Length <= b.Length ? (a, b) : (b, a);
+        var edgeOnly = hi.Length - lo.Length <= 2 && (hi.StartsWith(lo, StringComparison.Ordinal) || hi.EndsWith(lo, StringComparison.Ordinal));
+        var endingOnly = prefix >= 3 && prefix >= shorter - 3; // the stem is the same, at most 3 letters differ at the end
+        return edgeOnly || endingOnly;
+    }
+
+    private static bool IsCyrillic(string word) => word.Any(c => c is >= 'а' and <= 'я' or 'ё');
 
     private static string Latin(string word) =>
         string.Concat(word.ToLowerInvariant().Select(c => Translit.TryGetValue(c, out var t) ? t : c.ToString()));

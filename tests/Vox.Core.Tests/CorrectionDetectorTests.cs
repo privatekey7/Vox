@@ -70,4 +70,20 @@ public class CorrectionDetectorTests
     [InlineData("сервер", "клиент", false)]
     public void Similarity_bridges_cyrillic_and_latin(string a, string b, bool similar) =>
         Assert.Equal(similar, CorrectionDetector.LookAlike(a, b));
+
+    // Regression: the owner's own grammar fixes were learned as dictionary entries
+    // ("тёмные → тёмной", "блоге → логе") and then rewrote every later dictation.
+    [Theory]
+    [InlineData("тёмные", "тёмной")]
+    [InlineData("тёмный", "тёмная")]
+    [InlineData("сделал", "сделала")]
+    [InlineData("блоге", "логе")]
+    public void Ending_or_edge_letter_fixes_are_not_learned(string wrong, string correct) =>
+        Assert.Null(CorrectionDetector.Detect($"Это {wrong} тут.", $"Это {correct} тут.", $"Это {wrong} тут."));
+
+    [Theory]
+    [InlineData("гитхаб", "GitHub")]
+    [InlineData("керил", "Кирилл")]
+    public void Misheard_words_are_still_learned(string wrong, string correct) =>
+        Assert.Equal((wrong, correct), CorrectionDetector.Detect($"Это {wrong} тут.", $"Это {correct} тут.", $"Это {wrong} тут."));
 }
