@@ -184,12 +184,37 @@ public static partial class Fillers
     [GeneratedRegex(@"\s{2,}")] private static partial Regex ManySpaces();
     [GeneratedRegex("[а-яёa-z0-9]", RegexOptions.IgnoreCase)] private static partial Regex AnyWordChar();
 
+    // Words a letter "А" legitimately follows: "пункт А", "витамин А", "класс А" (stems, any case form).
+    private static readonly string[] LetterNouns =
+    [
+        "букв", "пункт", "вариант", "план", "класс", "групп", "корпус", "литер", "витамин", "категори", "тип",
+        "блок", "формат", "точк", "сторон", "отдел", "строк", "столб", "колонк", "раздел", "приложени",
+    ];
+
+    [GeneratedRegex(@"(?<prev>\S+)\s+А(?![\p{L}\p{Nd}-])(?=\s+\p{Ll}|\s*[,;.!?…]|\s*$)")] private static partial Regex CapitalA();
+
+    /// <summary>
+    /// "пользователь А говорит" → "пользователь говорит": GigaAM writes a hesitation "а-а" as a capital
+    /// "А" mid-sentence. Kept at a sentence start, after a number and after "пункт", "вариант", "витамин"…
+    /// </summary>
+    private static string RemoveHesitationA(string text) => !text.Contains(" А", StringComparison.Ordinal) ? text
+        : CapitalA().Replace(text, m =>
+        {
+            var prev = m.Groups["prev"].Value;
+            var word = prev.TrimEnd(',', ';', ':', '»', '"', ')').ToLowerInvariant();
+            var keep = prev.Length == 0 || ".!?…".Contains(prev[^1], StringComparison.Ordinal) || char.IsDigit(prev[^1])
+                || LetterNouns.Any(n => word.StartsWith(n, StringComparison.Ordinal));
+            return keep ? m.Value : prev;
+        });
+
     public static string Remove(string text)
     {
         if (string.IsNullOrWhiteSpace(text))
         {
             return text;
         }
+
+        text = RemoveHesitationA(text);
 
         // A capitalised filler leaves a marker, so the next word can take over its capital.
         var result = Pattern.Replace(text, m => char.IsUpper(m.Value[0]) ? Marker : "");
