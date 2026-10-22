@@ -222,6 +222,15 @@ public sealed partial class FuzzyTerms
             }
         }
 
+        // The Cyrillic terms of the "spelling" group stand in the way as well ("assustent" is "ассистент", not useState).
+        foreach (var target in cyrillicPairs.Select(p => p.Target).Where(IsCyrillic).Distinct())
+        {
+            if (Skeleton(target) is { Length: >= 4 } key)
+            {
+                Add(_blockers, new Candidate(key, target, target, TermRank));
+            }
+        }
+
         foreach (var (source, target) in cyrillicPairs.Where(p => IsCyrillic(p.Source) && !p.Source.Contains(' ', StringComparison.Ordinal)))
         {
             Add(_cyrillic, new Candidate(Normal(source), source, target, TermRank));
@@ -632,8 +641,8 @@ public sealed partial class FuzzyTerms
         return new Found(replacement, bestScore, best.English, best.Screen, best.Source);
     }
 
-    // Cyrillic terms are words too: a Latin word as near to the sound of one of them ("дебаггер") as to the winner
-    // (another name) is not replaced without a clear lead.
+    // Cyrillic terms ("exact" and "spelling" groups) are words too: a Latin word as near to the sound of one of them
+    // ("дебаггер") as to the winner (another name) is not replaced without a clear lead.
     private bool Blocked(string key, string target, double score)
     {
         var floor = score - Margin;

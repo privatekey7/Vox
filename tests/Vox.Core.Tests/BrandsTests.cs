@@ -111,6 +111,25 @@ public class BrandsTests
         Assert.Equal("Kuberon", new FuzzyTerms(pairs, [], latin: true, English, null, sources).Replace("Cabaron"));
     }
 
+    // The Cyrillic terms of the "spelling" group stand in the way too: "Assustent" sounds like "ассистент" as much as like useState.
+    [Fact]
+    public void A_Latin_word_as_close_to_a_spelling_term_as_to_a_name_stays()
+    {
+        (string, string)[] pairs = [("юзстейт", "useState")];
+        (string, string)[] spelling = [("ассистент", "ассистент")];
+        Assert.Equal("useState", new FuzzyTerms(pairs, [], latin: true, English).Replace("Assustent"));
+        Assert.Equal("Assustent", new FuzzyTerms(pairs, spelling, latin: true, English).Replace("Assustent"));
+        Assert.Equal("Открой Assustent", Fix("Открой Assustent"));
+    }
+
+    // Names from terms.json are found by their Cyrillic distortions like the brands of brands.txt (rule 2): one index for both.
+    [Theory]
+    [InlineData("Открой анзибл", "Открой Ansible")]
+    [InlineData("Открой графана", "Открой Grafana")]
+    [InlineData("Открой супабейс", "Открой Supabase")]
+    [InlineData("Запусти Кубернетис", "Запусти Kubernetes")]
+    public void A_Cyrillic_name_from_terms_json_becomes_the_term(string text, string expected) => Assert.Equal(expected, Fix(text));
+
     // A winner as close in letters as "DeepL" ~ "Deeple" is not blocked by "деплой".
     [Fact]
     public void A_close_spelling_of_a_term_is_not_blocked_by_a_Cyrillic_term() => Assert.Equal("Переведи в DeepL.", Fix("Переведи в Deepll."));
