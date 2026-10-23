@@ -96,6 +96,42 @@ public sealed class DataTransferTests : IDisposable
         Assert.Equal("Vox", work.Db.Corrections()["вокс"]);
     }
 
+    // Vox 1.x (Python) stored times with microseconds; the file carries milliseconds.
+    [Fact]
+    public void A_dictation_from_vox_1_is_not_duplicated_on_the_way_back()
+    {
+        using var home = NewPc("home");
+        using (var sql = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={Path.Combine(_dir, "home", "vox_data.db")}"))
+        {
+            sql.Open();
+            using var cmd = sql.CreateCommand();
+            cmd.CommandText = "INSERT INTO transcriptions (raw_text, processed_text, created_at) VALUES ('привет', 'Привет.', 1729500000.123456)";
+            cmd.ExecuteNonQuery();
+        }
+
+        DataTransfer.Export(File("t.zip"), home.Db, home.Settings, home.Names, history: true, recordings: null);
+        var again = DataTransfer.Import(File("t.zip"), home.Db, home.Settings, home.Names, home.Recordings);
+
+        Assert.Equal(0, again.History);
+        Assert.Single(home.Db.History());
+    }
+
+    // A target fixed today (self-learning, Ctrl+S, by hand) is newer than last month's pair from the other PC.
+    [Fact]
+    public void A_pair_changed_here_after_the_export_beats_the_older_one_from_the_file()
+    {
+        using var home = NewPc("home");
+        home.Db.ImportDictionaryEntry(new StoredEntry("гитхаб", "Github", "", "auto", 200));
+        DataTransfer.Export(File("t.zip"), home.Db, home.Settings, home.Names, history: false, recordings: null);
+
+        using var work = NewPc("work");
+        work.Db.ImportDictionaryEntry(new StoredEntry("гитхаб", "Гитхаб", "", "auto", 100));
+        work.Db.AddDictionaryEntry("гитхаб", "GitHub", "", "auto"); // fixed now
+        DataTransfer.Import(File("t.zip"), work.Db, work.Settings, work.Names, work.Recordings);
+
+        Assert.Equal("GitHub", work.Db.Corrections()["гитхаб"]);
+    }
+
     [Fact]
     public void History_is_left_out_when_not_asked()
     {

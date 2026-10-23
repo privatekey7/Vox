@@ -130,7 +130,7 @@ public sealed class VoxDatabase : IDisposable
     {
         Execute("""
             INSERT INTO dictionary (wrong, correct, lang, source, created_at) VALUES ($w, $c, $l, $s, $t)
-            ON CONFLICT(wrong, lang) DO UPDATE SET correct = excluded.correct, source = excluded.source
+            ON CONFLICT(wrong, lang) DO UPDATE SET correct = excluded.correct, source = excluded.source, created_at = excluded.created_at
             """, ("$w", wrong), ("$c", correct), ("$l", lang), ("$s", source),
             ("$t", DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0));
     }
@@ -201,12 +201,15 @@ public sealed class VoxDatabase : IDisposable
         "INSERT OR IGNORE INTO target_history (wrong, lang, targets, flips) VALUES ($w, $l, $t, $f)",
         ("$w", t.Wrong), ("$l", t.Lang), ("$t", t.Targets), ("$f", t.Flips));
 
-    /// <summary>Adds an imported dictation unless the same one (time and text) is here already.</summary>
+    /// <summary>
+    /// Adds an imported dictation unless the same one (time and text) is here already. The time is compared to
+    /// 2 ms: Vox 1.x stored microseconds, the transfer file carries milliseconds.
+    /// </summary>
     /// <returns>Whether it was added.</returns>
     public bool ImportTranscription(Transcription t) => Execute("""
         INSERT INTO transcriptions (raw_text, processed_text, model, lang, duration_ms, app_context, created_at)
         SELECT $raw, $processed, $model, $lang, $duration, '', $created
-        WHERE NOT EXISTS (SELECT 1 FROM transcriptions WHERE created_at = $created AND raw_text = $raw)
+        WHERE NOT EXISTS (SELECT 1 FROM transcriptions WHERE ABS(created_at - $created) < 0.002 AND raw_text = $raw)
         """, ("$raw", t.RawText), ("$processed", t.ProcessedText), ("$model", t.Model), ("$lang", t.Lang),
         ("$duration", t.DurationMs), ("$created", t.CreatedAt.ToUnixTimeMilliseconds() / 1000.0)) > 0;
 
