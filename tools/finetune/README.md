@@ -24,6 +24,19 @@
 → русская речь (`replay.py`) → разметка исходной v3 (`label.py`) → обучение (`train.py`, обёртка над
 официальным `train_utils/train.py`). Всё лежит на Google Диске, каждый шаг продолжает с места после обрыва.
 
+Источники: голоса для синтеза — SOVA RuDevices validation (тысячи людей; в Russian LibriSpeech всего несколько
+чтецов), русская речь против забывания — поровну Russian LibriSpeech train и SOVA train, проверка русского —
+Russian LibriSpeech test (`make_testset.py`). Все CC-BY-4.0.
+
+## Оценка пилота (локально)
+
+1. Скачать лучший `.ckpt` из Google Диска в `.holdout\ckpt\`, экспортировать в `<root>\sherpa-onnx-nemo-transducer-punct-giga-am-v3-russian-2025-12-16`.
+2. `Vox.Replay --audio` по трём папкам (контрольный набор №1, anglicisms-30, `rutest`) для базы и новой модели.
+3. `python tools/finetune/score_pilot.py --holdout BASE NEW --a30 BASE NEW --rutest BASE NEW`.
+
+База 23.10 (экспорт исходной v3): контрольный №1 Raw 18/66, Final 29/66; anglicisms-30 Raw 14/64, Final 61/64
+(словарь подгоняли под этот набор, смотреть Raw); русский WER 6,38% на 300 клипах.
+
 Подводные камни (проверено на CPU 23.10):
 - новый `torchaudio.load` требует torchcodec и библиотеки FFmpeg: `synth.py` и `colab/train.py` читают WAV через soundfile;
 - `--raw_text` для `v3_e2e_rnnt` нельзя: стирает регистр и латиницу;

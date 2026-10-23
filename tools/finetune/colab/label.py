@@ -52,6 +52,8 @@ for r in rows("synth.tsv"):
 train, val = [], []
 for path, duration, label in out:
     (val if zlib.crc32(path.encode()) % 1000 < a.val * 1000 else train).append(f"{os.path.join(a.work, path)}\t{duration}\t{label}")
+if not val:  # train.py не запускается с пустой проверочной частью
+    val.append(train.pop())
 for name, items in (("train.tsv", train), ("val.tsv", val)):
     with open(os.path.join(a.work, name), "w", encoding="utf-8") as f:
         f.write("path\tduration\ttranscription\n" + "\n".join(items) + "\n")

@@ -20,6 +20,10 @@ def _load(path, *args, **kwargs):
 
 torchaudio.load = _load
 
+import sys  # noqa: E402
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from audio import to16k  # noqa: E402
 from huggingface_hub import hf_hub_download  # noqa: E402
 from ruaccent import RUAccent
 from f5_tts.infer.utils_infer import infer_process, load_model, load_vocoder, preprocess_ref_audio_text
@@ -57,15 +61,13 @@ with open(tsv_path, "a", encoding="utf-8") as tsv:
         if path in done:
             continue
         rnd = random.Random(i)
-        ref_path, ref_text, _ = refs[rnd.randrange(len(refs))]
+        ref_path, ref_text = refs[rnd.randrange(len(refs))][:2]
         if ref_path not in prepared:
             prepared[ref_path] = preprocess_ref_audio_text(os.path.join(a.work, ref_path), accent.process_all(ref_text))
         ref_audio, ref_txt = prepared[ref_path]
         wav, sr, _ = infer_process(ref_audio, ref_txt, accent.process_all(ph["spoken"]), model, vocoder,
                                    nfe_step=a.nfe, speed=rnd.uniform(0.9, 1.1), show_info=lambda *_: None)
-        wav = np.asarray(wav, dtype=np.float32)
-        if sr != 16000:
-            wav = np.interp(np.arange(0, len(wav), sr / 16000), np.arange(len(wav)), wav).astype(np.float32)
+        wav = to16k(wav, sr)
         if rnd.random() < 0.5:
             snr = rnd.uniform(25, 40)
             noise = np.random.default_rng(i).standard_normal(len(wav)).astype(np.float32)

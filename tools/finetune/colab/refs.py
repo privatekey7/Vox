@@ -1,13 +1,15 @@
-"""Образцы голосов для синтеза: по одному клипу 4–11 с от разных дикторов Russian LibriSpeech (CC-BY-4.0).
+"""Образцы голосов для синтеза: клипы 4–11 с из SOVA RuDevices (CC-BY-4.0, часть validation).
 python refs.py <папка вывода> [--speakers 150]
-Пишет <папка>/refs/*.wav (16 кГц) и <папка>/refs.tsv (path, text, speaker). Дикторы берутся из пути
-audio/<диктор>/<книга>/…; список дикторов нужен replay.py, чтобы не брать их же голоса для русских данных.
+SOVA — записи тысяч людей на разные устройства, поэтому разные клипы почти всегда разные голоса
+(в Russian LibriSpeech всего несколько чтецов). Пишет <папка>/refs/*.wav (16 кГц) и <папка>/refs.tsv (path, text).
 """
-import argparse, io, os
+import argparse, io, os, sys
 
-import numpy as np
 import soundfile as sf
 from datasets import Audio, load_dataset
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from audio import to16k  # noqa: E402
 
 p = argparse.ArgumentParser()
 p.add_argument("out")
@@ -20,26 +22,19 @@ if os.path.exists(tsv) and sum(1 for _ in open(tsv, encoding="utf-8")) > a.speak
     print("refs.tsv уже готов")
     raise SystemExit
 
-ds = load_dataset("istupakov/russian_librispeech", split="train", streaming=True).cast_column("audio", Audio(decode=False))
-seen, rows = set(), []
-for item in ds:
-    speaker = item["audio_filepath"].split("/")[1]
-    if speaker in seen or not 4 <= item["duration"] <= 11:
+ds = load_dataset("bond005/sova_rudevices", split="validation", streaming=True).cast_column("audio", Audio(decode=False))
+rows = []
+for item in ds.shuffle(seed=3, buffer_size=1000):
+    text = item["transcription"].strip()
+    pcm = to16k(*sf.read(io.BytesIO(item["audio"]["bytes"]), dtype="float32"))
+    if not text or not 4 <= len(pcm) / 16000 <= 11:
         continue
-    pcm, rate = sf.read(io.BytesIO(item["audio"]["bytes"]), dtype="float32")
-    if pcm.ndim > 1:
-        pcm = pcm.mean(axis=1)
-    if rate != 16000:
-        pcm = np.interp(np.arange(0, len(pcm), rate / 16000), np.arange(len(pcm)), pcm).astype(np.float32)
-    path = os.path.join("refs", f"{speaker}.wav")
-    sf.write(os.path.join(a.out, path), pcm, 16000)
-    rows.append((path, item["text_no_preprocessing"].strip(), speaker))
-    seen.add(speaker)
+    path = f"refs/{len(rows):03d}.wav"
+    sf.write(os.path.join(a.out, path), pcm, 16000, subtype="PCM_16")
+    rows.append((path, text))
     if len(rows) >= a.speakers:
         break
 
 with open(tsv, "w", encoding="utf-8") as f:
-    f.write("path\ttext\tspeaker\n")
-    for r in rows:
-        f.write("\t".join(r) + "\n")
+    f.write("path\ttext\n" + "".join(f"{path}\t{text}\n" for path, text in rows))
 print(f"голосов: {len(rows)}")

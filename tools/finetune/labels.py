@@ -31,6 +31,11 @@ def merge(hyp, text, terms, max_mismatch=0.2):
             out.extend(hyp_words[i1:i2])
             continue
         if any(term_word[j1:j2]):
+            # v3 на месте термина ничего не услышала или услышала намного короче: синтез проглотил термин,
+            # такая метка научит модель писать термин поверх тишины
+            heard = sum(len(norm(w)) for w in hyp_words[i1:i2])
+            if heard < 0.5 * sum(len(norm(w)) for w, t in zip(target[j1:j2], term_word[j1:j2]) if t):
+                return None
             # участок с термином: целевое написание, хвостовая пунктуация v3 сохраняется
             words = list(target[j1:j2])
             tail = re.search(r"[.,!?;:…]+$", hyp_words[i2 - 1]) if i2 > i1 else None
@@ -53,6 +58,8 @@ if __name__ == "__main__":
         ("Разверни на кубер нетис сервис", "Разверни на Kubernetes сервис.", ["Kubernetes"]),
         ("Совсем другой текст про погоду.", "Залей этот проект на GitHub.", ["GitHub"]),
         ("Поставь Python 3.12 и пип.", "Поставь Python 3.12 и pip.", ["Python", "pip"]),
+        ("Разверни на сервис.", "Разверни на Kubernetes сервис.", ["Kubernetes"]),  # термин проглочен: None
+        ("Разверни на ку сервис.", "Разверни на Kubernetes сервис.", ["Kubernetes"]),  # слишком коротко: None
     ]
     for hyp, text, terms in cases:
         print(f"{hyp!r} -> {merge(hyp, text, terms)!r}")
