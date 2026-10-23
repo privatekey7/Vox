@@ -112,6 +112,7 @@ public partial class SettingsWindow : Window
         LearnToggle.IsChecked = _app.Settings.LearnCorrections;
         ScreenToggle.IsChecked = _app.Settings.ScreenHints;
         ScreenTextToggle.IsChecked = _app.Settings.ScreenText;
+        ScreenTextToggle.IsEnabled = _app.Settings.ScreenHints; // the window is read as part of screen hints
     }
 
     private void OnHotkeyChanged(object sender, SelectionChangedEventArgs e)
@@ -210,6 +211,7 @@ public partial class SettingsWindow : Window
         else if (sender == ScreenToggle)
         {
             _app.Settings.ScreenHints = ScreenToggle.IsChecked == true;
+            ScreenTextToggle.IsEnabled = _app.Settings.ScreenHints;
         }
         else if (sender == ScreenTextToggle)
         {
