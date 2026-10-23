@@ -7,6 +7,12 @@ public sealed record Transcription(
 
 public sealed record DictionaryEntry(long Id, string Wrong, string Correct, string Lang, string Source);
 
+/// <summary>A dictionary entry as moved to another PC (<see cref="DataTransfer"/>); the time is Unix seconds.</summary>
+public sealed record StoredEntry(string Wrong, string Correct, string Lang, string Source, double CreatedAt);
+
+/// <summary>An entry's target history as moved to another PC; targets are newline-separated.</summary>
+public sealed record StoredTargets(string Wrong, string Lang, string Targets, int Flips);
+
 /// <summary>
 /// History, user dictionary and settings in vox_data.db. The schema is the one Vox 1.x created,
 /// so an existing database opens as-is (see docs/csharp-migration.md §5). (Test builds of 2.0 also
@@ -171,9 +177,59 @@ public sealed class VoxDatabase : IDisposable
         ON CONFLICT(wrong, lang) DO UPDATE SET targets = excluded.targets, flips = excluded.flips
         """, ("$w", wrong), ("$l", lang), ("$t", string.Join('\n', targets)), ("$f", flips));
 
+    // ---- Transfer to another PC (DataTransfer) ----------------------------------------------
+
+    /// <summary>Every dictionary entry with its time, for export.</summary>
+    public IReadOnlyList<StoredEntry> DictionaryForExport() => Query(
+        "SELECT wrong, correct, lang, source, created_at FROM dictionary ORDER BY wrong",
+        r => new StoredEntry(r.GetString(0), r.GetString(1), r.GetString(2), r.GetString(3), r.GetDouble(4)));
+
+    /// <summary>Adds an imported entry; an entry of the same word is replaced only by a newer one.</summary>
+    /// <returns>Whether the dictionary changed.</returns>
+    public bool ImportDictionaryEntry(StoredEntry e) => Execute("""
+        INSERT INTO dictionary (wrong, correct, lang, source, created_at) VALUES ($w, $c, $l, $s, $t)
+        ON CONFLICT(wrong, lang) DO UPDATE SET correct = excluded.correct, source = excluded.source, created_at = excluded.created_at
+        WHERE excluded.created_at > dictionary.created_at AND excluded.correct <> dictionary.correct
+        """, ("$w", e.Wrong), ("$c", e.Correct), ("$l", e.Lang), ("$s", e.Source), ("$t", e.CreatedAt)) > 0;
+
+    public IReadOnlyList<StoredTargets> TargetHistoryForExport() => Query(
+        "SELECT wrong, lang, targets, flips FROM target_history",
+        r => new StoredTargets(r.GetString(0), r.GetString(1), r.GetString(2), r.GetInt32(3)));
+
+    /// <summary>Adds the history of an entry this PC has none for.</summary>
+    public void ImportTargetHistory(StoredTargets t) => Execute(
+        "INSERT OR IGNORE INTO target_history (wrong, lang, targets, flips) VALUES ($w, $l, $t, $f)",
+        ("$w", t.Wrong), ("$l", t.Lang), ("$t", t.Targets), ("$f", t.Flips));
+
+    /// <summary>Adds an imported dictation unless the same one (time and text) is here already.</summary>
+    /// <returns>Whether it was added.</returns>
+    public bool ImportTranscription(Transcription t) => Execute("""
+        INSERT INTO transcriptions (raw_text, processed_text, model, lang, duration_ms, app_context, created_at)
+        SELECT $raw, $processed, $model, $lang, $duration, '', $created
+        WHERE NOT EXISTS (SELECT 1 FROM transcriptions WHERE created_at = $created AND raw_text = $raw)
+        """, ("$raw", t.RawText), ("$processed", t.ProcessedText), ("$model", t.Model), ("$lang", t.Lang),
+        ("$duration", t.DurationMs), ("$created", t.CreatedAt.ToUnixTimeMilliseconds() / 1000.0)) > 0;
+
     public void Dispose() => _connection.Dispose();
 
-    private void Execute(string sql, params (string Name, object Value)[] parameters)
+    private List<T> Query<T>(string sql, Func<SqliteDataReader, T> row)
+    {
+        lock (_lock)
+        {
+            using var cmd = _connection.CreateCommand();
+            cmd.CommandText = sql;
+            using var r = cmd.ExecuteReader();
+            var list = new List<T>();
+            while (r.Read())
+            {
+                list.Add(row(r));
+            }
+
+            return list;
+        }
+    }
+
+    private int Execute(string sql, params (string Name, object Value)[] parameters)
     {
         lock (_lock)
         {
@@ -184,7 +240,7 @@ public sealed class VoxDatabase : IDisposable
                 cmd.Parameters.AddWithValue(name, value);
             }
 
-            cmd.ExecuteNonQuery();
+            return cmd.ExecuteNonQuery();
         }
     }
 

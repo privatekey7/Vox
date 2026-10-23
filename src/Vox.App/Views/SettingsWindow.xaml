@@ -102,19 +102,6 @@
               </StackPanel>
               <CheckBox x:Name="ClipboardToggle" Grid.Column="1" Style="{StaticResource Vox.Toggle}" Click="OnToggle"/>
             </Grid>
-            <Border Height="1" Background="{DynamicResource Vox.CardStroke}"/>
-            <Grid Margin="16,14">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-              </Grid.ColumnDefinitions>
-              <StackPanel VerticalAlignment="Center">
-                <TextBlock Text="Сохранять записи диктовок" Style="{StaticResource Vox.Body}"/>
-                <TextBlock Text="Для проверки распознавания. Записи хранятся только на этом компьютере." Style="{StaticResource Vox.Caption}"/>
-                <Button Content="Открыть папку с записями" Style="{StaticResource Vox.LinkButton}" HorizontalAlignment="Left" Margin="0,4,0,0" Click="OnOpenRecordings"/>
-              </StackPanel>
-              <CheckBox x:Name="RecordingsToggle" Grid.Column="1" Style="{StaticResource Vox.Toggle}" Click="OnToggle"/>
-            </Grid>
           </StackPanel>
         </Border>
       </StackPanel>
@@ -248,6 +235,48 @@
               <Button Content="Папка с моделями" Style="{StaticResource Vox.SecondaryButton}" Margin="10,0,0,0" Click="OnOpenModels"/>
             </StackPanel>
           </StackPanel>
+        </Border>
+        <Border Style="{StaticResource Vox.Card}" Padding="20" Margin="0,12,0,0">
+          <StackPanel>
+            <TextBlock Text="Перенос на другой компьютер" Style="{StaticResource Vox.Question}" Margin="0,0,0,8"/>
+            <TextBlock Style="{StaticResource Vox.Caption}" TextWrapping="Wrap"
+                       Text="Словарь, выученные исправления, названия с экрана и настройки в одном файле. На другом компьютере загрузите его: данные объединятся с тамошними, ничего не пропадёт."/>
+            <Grid Margin="0,12,0,0">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <TextBlock Text="Вместе с историей диктовок" Style="{StaticResource Vox.Body}" VerticalAlignment="Center"/>
+              <CheckBox x:Name="TransferHistoryToggle" Grid.Column="1" Style="{StaticResource Vox.Toggle}" IsChecked="True"/>
+            </Grid>
+            <Grid x:Name="TransferRecordingsRow" Margin="0,8,0,0" Visibility="Collapsed">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <TextBlock x:Name="TransferRecordingsText" Text="Вместе с записями звука" Style="{StaticResource Vox.Body}" VerticalAlignment="Center"/>
+              <CheckBox x:Name="TransferRecordingsToggle" Grid.Column="1" Style="{StaticResource Vox.Toggle}"/>
+            </Grid>
+            <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+              <Button Content="Сохранить в файл…" Style="{StaticResource Vox.SecondaryButton}" Click="OnExportData"/>
+              <Button Content="Загрузить из файла…" Style="{StaticResource Vox.SecondaryButton}" Margin="10,0,0,0" Click="OnImportData"/>
+            </StackPanel>
+          </StackPanel>
+        </Border>
+        <Button x:Name="DeveloperButton" Content="Для разработчика" Style="{StaticResource Vox.LinkButton}" HorizontalAlignment="Left" Margin="4,16,0,0" Click="OnShowDeveloper"/>
+        <Border x:Name="DeveloperCard" Style="{StaticResource Vox.Card}" Margin="0,8,0,0" Visibility="Collapsed">
+          <Grid Margin="16,14">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel VerticalAlignment="Center">
+              <TextBlock Text="Сохранять записи диктовок" Style="{StaticResource Vox.Body}"/>
+              <TextBlock Text="Для проверки распознавания. Записи хранятся только на этом компьютере." Style="{StaticResource Vox.Caption}"/>
+              <Button Content="Открыть папку с записями" Style="{StaticResource Vox.LinkButton}" HorizontalAlignment="Left" Margin="0,4,0,0" Click="OnOpenRecordings"/>
+            </StackPanel>
+            <CheckBox x:Name="RecordingsToggle" Grid.Column="1" Style="{StaticResource Vox.Toggle}" Click="OnToggle"/>
+          </Grid>
         </Border>
         <TextBlock x:Name="VersionText" Style="{StaticResource Vox.Caption}" Margin="4,16,0,0"/>
       </StackPanel>

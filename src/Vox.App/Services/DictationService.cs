@@ -176,6 +176,39 @@ internal sealed class DictationService : IDisposable
 
     public void ReloadCorrections() => _corrections = _db.Corrections();
 
+    /// <summary>Settings: are there saved recordings to offer for the transfer file?</summary>
+    public bool HasRecordings => DataTransfer.HasRecordings(_recordings.Directory);
+
+    /// <summary>Settings: everything learned into one file for another PC (<see cref="DataTransfer"/>).</summary>
+    public TransferCounts ExportData(string path, bool history, bool recordings)
+    {
+        _settings.Save();
+        var counts = DataTransfer.Export(path, _db, _settings, _screenMemory, history, recordings ? _recordings.Directory : null);
+        Log.Info($"[TRANSFER] Exported: {counts}");
+        return counts;
+    }
+
+    /// <summary>
+    /// Settings: merges a transfer file; the current data is saved to <paramref name="backup"/> first, so the
+    /// import can be undone by importing that file into a fresh profile.
+    /// </summary>
+    public TransferCounts ImportData(string path, string backup)
+    {
+        DataTransfer.Export(backup, _db, _settings, _screenMemory, history: true, recordings: null);
+        var counts = DataTransfer.Import(path, _db, _settings, _screenMemory, _recordings.Directory);
+        _settings.Save();
+        foreach (var t in _db.History(OwnWords.HistoryLimit))
+        {
+            _ownWords.Add(t.RawText);
+        }
+
+        _screenMemory.Forget(_ownWords.Contains);
+        SaveScreenMemory();
+        ReloadCorrections();
+        Log.Info($"[TRANSFER] Imported: {counts}");
+        return counts;
+    }
+
     /// <summary>Settings: what Vox remembered from the screen, the latest first.</summary>
     public IReadOnlyList<ScreenMemory.Entry> ScreenMemoryEntries => [.. _screenMemory.Entries.OrderByDescending(e => e.Last)];
 

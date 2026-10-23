@@ -233,6 +233,32 @@ public sealed class ScreenMemory
     /// </summary>
     public static bool IsRememberable(string name) => !name.Any(c => char.IsDigit(c) || c == ' ');
 
+    /// <summary>
+    /// Takes names remembered on another PC: the larger count and the later time stay (so importing the same file
+    /// twice changes nothing); returns how many are new.
+    /// </summary>
+    public int Merge(IEnumerable<Entry> entries)
+    {
+        lock (_lock)
+        {
+            var added = 0;
+            foreach (var e in entries.Where(e => !string.IsNullOrWhiteSpace(e.Name) && IsRememberable(e.Name)))
+            {
+                if (_names.TryGetValue(e.Name, out var mine))
+                {
+                    _names[e.Name] = mine with { Count = Math.Max(mine.Count, e.Count), Last = mine.Last > e.Last ? mine.Last : e.Last };
+                }
+                else
+                {
+                    _names[e.Name] = e;
+                    added++;
+                }
+            }
+
+            return added;
+        }
+    }
+
     /// <summary>Drops the remembered names <paramref name="drop"/> picks; returns how many.</summary>
     public int Forget(Func<string, bool> drop)
     {

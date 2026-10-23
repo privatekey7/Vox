@@ -109,6 +109,12 @@ public partial class SettingsWindow : Window
         AutostartToggle.IsChecked = Autostart.IsEnabled;
         ClipboardToggle.IsChecked = _app.Settings.RestoreClipboard;
         RecordingsToggle.IsChecked = _app.Settings.SaveRecordings;
+        if (_app.Settings.SaveRecordings)
+        {
+            ShowDeveloper(true); // the one who turned it on sees it
+        }
+
+        TransferRecordingsRow.Visibility = _app.Dictation.HasRecordings ? Visibility.Visible : Visibility.Collapsed;
         LearnToggle.IsChecked = _app.Settings.LearnCorrections;
         ScreenToggle.IsChecked = _app.Settings.ScreenHints;
         ScreenTextToggle.IsChecked = _app.Settings.ScreenText;
@@ -451,6 +457,70 @@ public partial class SettingsWindow : Window
     }
 
     // ---- Help ----------------------------------------------------------------------------
+
+    private void OnShowDeveloper(object sender, RoutedEventArgs e) => ShowDeveloper(DeveloperCard.Visibility != Visibility.Visible);
+
+    private void ShowDeveloper(bool show)
+    {
+        DeveloperCard.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        DeveloperButton.Content = show ? "Скрыть настройки для разработчика" : "Для разработчика";
+    }
+
+    private void OnExportData(object sender, RoutedEventArgs e)
+    {
+        var dialog = new Microsoft.Win32.SaveFileDialog
+        {
+            FileName = $"vox-перенос-{DateTime.Now:yyyy-MM-dd}.zip",
+            Filter = "Файл переноса Vox (*.zip)|*.zip",
+        };
+        if (dialog.ShowDialog(this) != true)
+        {
+            return;
+        }
+
+        try
+        {
+            var c = _app.Dictation.ExportData(dialog.FileName, TransferHistoryToggle.IsChecked == true,
+                TransferRecordingsRow.Visibility == Visibility.Visible && TransferRecordingsToggle.IsChecked == true);
+            MessageBox.Show(this, $"Сохранено: пар словаря {c.Dictionary}, названий {c.Names}, диктовок {c.History}, записей {c.Recordings}.", "Vox");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Log.Error("[TRANSFER] Export failed", ex);
+            MessageBox.Show(this, "Не удалось сохранить файл. Выберите другую папку.", "Vox", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    private void OnImportData(object sender, RoutedEventArgs e)
+    {
+        var dialog = new Microsoft.Win32.OpenFileDialog { Filter = "Файл переноса Vox (*.zip)|*.zip" };
+        if (dialog.ShowDialog(this) != true)
+        {
+            return;
+        }
+
+        try
+        {
+            var backup = Path.Combine(App.Paths.Root, $"vox-до-импорта-{DateTime.Now:yyyy-MM-dd-HHmmss}.zip");
+            var c = _app.Dictation.ImportData(dialog.FileName, backup);
+            LoadDictionary();
+            MessageBox.Show(this,
+                $"Добавлено: пар словаря {c.Dictionary}, названий {c.Names}, диктовок {c.History}, записей {c.Recordings}.\n" +
+                "Настройки взяты из файла, часть из них применится после перезапуска Vox.\n" +
+                $"Прежние данные сохранены в {Path.GetFileName(backup)} в папке Vox.", "Vox");
+        }
+        catch (InvalidDataException ex)
+        {
+            Log.Info($"[TRANSFER] Import refused: {ex.Message}");
+            MessageBox.Show(this, "Это не файл переноса Vox, он повреждён или сделан более новой версией Vox.", "Vox",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Log.Error("[TRANSFER] Import failed", ex);
+            MessageBox.Show(this, "Не удалось прочитать файл.", "Vox", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
 
     private void OnOpenLogs(object sender, RoutedEventArgs e) => OpenFolder(App.Paths.Logs);
 

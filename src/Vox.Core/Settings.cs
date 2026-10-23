@@ -37,10 +37,39 @@ public sealed class Settings
     private readonly string _path;
     private readonly JsonObject _json;
 
+    // Tied to this computer: another PC has other microphones.
+    private static readonly string[] LocalKeys = ["microphone"];
+
     private Settings(string path, JsonObject json)
     {
         _path = path;
         _json = json;
+    }
+
+    /// <summary>The settings to move to another PC (<see cref="Storage.DataTransfer"/>), without device ones.</summary>
+    public string ForTransfer()
+    {
+        var copy = (JsonObject)_json.DeepClone();
+        foreach (var key in LocalKeys)
+        {
+            copy.Remove(key);
+        }
+
+        return copy.ToJsonString();
+    }
+
+    /// <summary>Takes the settings moved from another PC; this computer's device settings stay.</summary>
+    public void Merge(string json)
+    {
+        if (JsonNode.Parse(json) is not JsonObject other)
+        {
+            throw new InvalidDataException("settings are not a JSON object");
+        }
+
+        foreach (var (key, value) in other.Where(p => !LocalKeys.Contains(p.Key)).ToList())
+        {
+            _json[key] = value?.DeepClone();
+        }
     }
 
     /// <summary>Hotkey name in Vox 1.x notation ("right ctrl", "caps lock", "f9", …).</summary>
