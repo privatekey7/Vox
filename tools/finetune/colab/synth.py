@@ -54,6 +54,15 @@ accent = RUAccent()
 accent.load(omograph_model_size="turbo3.1", use_dictionary=True, tiny_mode=False)
 prepared = {}  # образец голоса → (аудио, текст) после preprocess_ref_audio_text
 
+
+def stress(text):
+    # RUAccent иногда падает на отдельном слове (onnx-модель ждёт token_type_ids); без ударений F5 тоже читает
+    try:
+        return accent.process_all(text)
+    except Exception as e:  # noqa: BLE001
+        print(f"без ударений ({type(e).__name__}): {text[:60]}", flush=True)
+        return text
+
 start, made = time.perf_counter(), 0
 with open(tsv_path, "a", encoding="utf-8") as tsv:
     for i, ph in enumerate(phrases):
@@ -63,9 +72,9 @@ with open(tsv_path, "a", encoding="utf-8") as tsv:
         rnd = random.Random(i)
         ref_path, ref_text = refs[rnd.randrange(len(refs))][:2]
         if ref_path not in prepared:
-            prepared[ref_path] = preprocess_ref_audio_text(os.path.join(a.work, ref_path), accent.process_all(ref_text))
+            prepared[ref_path] = preprocess_ref_audio_text(os.path.join(a.work, ref_path), stress(ref_text))
         ref_audio, ref_txt = prepared[ref_path]
-        wav, sr, _ = infer_process(ref_audio, ref_txt, accent.process_all(ph["spoken"]), model, vocoder,
+        wav, sr, _ = infer_process(ref_audio, ref_txt, stress(ph["spoken"]), model, vocoder,
                                    nfe_step=a.nfe, speed=rnd.uniform(0.9, 1.1), show_info=lambda *_: None)
         wav = to16k(wav, sr)
         if rnd.random() < 0.5:
