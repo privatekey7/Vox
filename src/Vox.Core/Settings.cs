@@ -89,6 +89,16 @@ public sealed class Settings
         set => _json["screen_hints"] = value;
     }
 
+    /// <summary>
+    /// Also take names from the text of the active window (owner, 23.10). Off by default: reading what is on
+    /// screen may look alarming to a user who did not turn it on.
+    /// </summary>
+    public bool ScreenText
+    {
+        get => GetBool("screen_text", false);
+        set => _json["screen_text"] = value;
+    }
+
     /// <summary>Save each dictation's audio and text for checking recognition (<see cref="Audio.RecordingStore"/>).</summary>
     public bool SaveRecordings
     {

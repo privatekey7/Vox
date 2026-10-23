@@ -31,6 +31,7 @@ internal sealed class DictationService : IDisposable
     private const float MinPeak = 100f / 32768f; // quieter than this is silence
     private static readonly TimeSpan Tail = TimeSpan.FromMilliseconds(150);
     private static readonly TimeSpan TitlesTimeout = TimeSpan.FromMilliseconds(50);
+    private static readonly TimeSpan WindowTextTimeout = TimeSpan.FromMilliseconds(300); // runs while the model recognises
 
     private readonly AudioCapture _audio;
     private readonly Paster _paster;
@@ -174,6 +175,18 @@ internal sealed class DictationService : IDisposable
     });
 
     public void ReloadCorrections() => _corrections = _db.Corrections();
+
+    /// <summary>Settings: what Vox remembered from the screen, the latest first.</summary>
+    public IReadOnlyList<ScreenMemory.Entry> ScreenMemoryEntries => [.. _screenMemory.Entries.OrderByDescending(e => e.Last)];
+
+    /// <summary>Settings: forget one remembered name.</summary>
+    public void ForgetScreenName(string name)
+    {
+        if (_screenMemory.Forget(n => string.Equals(n, name, StringComparison.OrdinalIgnoreCase)) > 0)
+        {
+            _ = Task.Run(SaveScreenMemory);
+        }
+    }
 
     /// <summary>Settings: forget every remembered screen name (and its file).</summary>
     public void ClearScreenMemory()
@@ -396,6 +409,11 @@ internal sealed class DictationService : IDisposable
             // A chat's title may be Vox's own dictation too ("Jamper X Change - ChatGPT").
             var fromTitles = ScreenWords.Distinct(titles.SelectMany(t => ScreenWords.Extract(t, FuzzyTerms.IsEnglishName)))
                 .Where(n => !_ownWords.Contains(n)).ToList();
+            var fromWindow = _settings.ScreenText && WindowText.Read(WindowTextTimeout) is { } text
+                ? ScreenWords.FromWindowText(text, FuzzyTerms.IsEnglishName).Where(n => !_ownWords.Contains(n)).ToList()
+                : [];
+            var windowNames = fromWindow.Count;
+            fromTitles = ScreenWords.Distinct([.. fromTitles, .. fromWindow]);
             List<ScreenName> names =
             [
                 .. fromTitles.Select(n => new ScreenName(n, OnScreen: true)),
@@ -406,7 +424,8 @@ internal sealed class DictationService : IDisposable
                 _ = Task.Run(SaveScreenMemory);
             }
 
-            Log.Info($"[SCREEN] {titles.Count} windows, {names.Count(n => n.OnScreen)} names on screen, {_screenMemory.Count} remembered, {sw.ElapsedMilliseconds} ms");
+            var window = _settings.ScreenText ? $", {windowNames} in the active window" : "";
+            Log.Info($"[SCREEN] {titles.Count} windows, {names.Count(n => n.OnScreen)} names on screen{window}, {_screenMemory.Count} remembered, {sw.ElapsedMilliseconds} ms");
             return names;
         }
         catch (Exception e)

@@ -29,6 +29,24 @@ public class ScreenNamesTests
     public void Names_are_taken_from_titles(string title, string expected) =>
         Assert.Equal(expected, string.Join(",", Extract(title)));
 
+    [Fact]
+    public void Window_text_gives_names_and_drops_secrets()
+    {
+        var text = "Обсудили Zorblax и Excalidraw. Ключ sk-" + "proj-4fJ9kQ2xLmN8pR7tVwY3zA1bC5dE6gH0 не публикуйте.";
+
+        Assert.Equal("Zorblax,Excalidraw", string.Join(",", ScreenWords.FromWindowText(text, FuzzyTerms.IsEnglishName)));
+    }
+
+    [Fact]
+    public void A_long_window_text_keeps_the_most_frequent_then_the_latest_names()
+    {
+        var text = "Zorblax и Quintora. Zorblax снова. Velmora в конце.";
+
+        var names = ScreenWords.FromWindowText(text, FuzzyTerms.IsEnglishName, limit: 2);
+
+        Assert.Equal(["Zorblax", "Velmora"], names);
+    }
+
     // Owner's request (22.10): no secret, nor any part of one, may reach the memory on disk.
     // The fake secrets are split in two ("gh" + "p_…"): the same constant for the test, but secret scanners
     // (GitHub push protection) do not take the source for a leaked key.

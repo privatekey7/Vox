@@ -79,6 +79,36 @@ public static partial class ScreenWords
         return Distinct(names);
     }
 
+    public const int MaxWindowNames = 50;
+
+    /// <summary>
+    /// Names in the text of the window the user dictates into (a page, a chat): at most <paramref name="limit"/>,
+    /// the ones met most often first, then the latest (in a chat, the messages nearest the input field).
+    /// </summary>
+    /// <remarks>A long article holds hundreds of capitalised words; each extra name is one more chance for
+    /// <see cref="FuzzyTerms"/> to replace a word it should not.</remarks>
+    public static List<string> FromWindowText(string text, Func<string, bool> isKnown, int limit = MaxWindowNames)
+    {
+        var names = Extract(text, isKnown);
+        return names.Count <= limit
+            ? names
+            : [.. names
+                .Select(n => (Name: n, Count: Occurrences(text, n), Last: text.LastIndexOf(n, StringComparison.OrdinalIgnoreCase)))
+                .OrderByDescending(n => n.Count).ThenByDescending(n => n.Last)
+                .Take(limit).Select(n => n.Name)];
+    }
+
+    private static int Occurrences(string text, string name)
+    {
+        var count = 0;
+        for (var i = text.IndexOf(name, StringComparison.OrdinalIgnoreCase); i >= 0; i = text.IndexOf(name, i + name.Length, StringComparison.OrdinalIgnoreCase))
+        {
+            count++;
+        }
+
+        return count;
+    }
+
     /// <summary>Names worth remembering: a term is in the dictionary already.</summary>
     public static IEnumerable<string> Unknown(IEnumerable<string> names) => names.Where(n => !FuzzyTerms.IsKnownName(n));
 

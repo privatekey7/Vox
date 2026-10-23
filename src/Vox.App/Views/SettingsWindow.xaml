@@ -179,9 +179,26 @@
             <StackPanel VerticalAlignment="Center">
               <TextBlock Text="Подсказки с экрана: Vox учитывает названия из открытых окон" Style="{StaticResource Vox.Body}"/>
               <TextBlock Text="Названия из заголовков окон помогают писать их правильно. Хранятся только отдельные слова, на этом компьютере." Style="{StaticResource Vox.Caption}"/>
-              <Button Content="Очистить память названий" Style="{StaticResource Vox.LinkButton}" HorizontalAlignment="Left" Margin="0,4,0,0" Click="OnClearScreenMemory"/>
+              <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                <Button x:Name="ScreenMemoryButton" Content="Что Vox запомнил с экрана" Style="{StaticResource Vox.LinkButton}" Click="OnShowScreenMemory"/>
+                <Button Content="Очистить память названий" Style="{StaticResource Vox.LinkButton}" Margin="16,0,0,0" Click="OnClearScreenMemory"/>
+              </StackPanel>
+              <StackPanel x:Name="ScreenMemoryList" Visibility="Collapsed" Margin="0,8,0,0"/>
             </StackPanel>
             <CheckBox x:Name="ScreenToggle" Grid.Column="1" Style="{StaticResource Vox.Toggle}" Click="OnToggle"/>
+          </Grid>
+        </Border>
+        <Border Style="{StaticResource Vox.Card}" Margin="0,8,0,0">
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel VerticalAlignment="Center">
+              <TextBlock Text="Читать текст активного окна" Style="{StaticResource Vox.Body}"/>
+              <TextBlock Text="Названия из окна, где вы диктуете: страницы, переписки, документа. Поле ввода и поля паролей не читаются, сам текст не сохраняется, только отдельные названия." Style="{StaticResource Vox.Caption}"/>
+            </StackPanel>
+            <CheckBox x:Name="ScreenTextToggle" Grid.Column="1" Style="{StaticResource Vox.Toggle}" Click="OnToggle"/>
           </Grid>
         </Border>
       </StackPanel>

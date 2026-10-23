@@ -111,6 +111,7 @@ public partial class SettingsWindow : Window
         RecordingsToggle.IsChecked = _app.Settings.SaveRecordings;
         LearnToggle.IsChecked = _app.Settings.LearnCorrections;
         ScreenToggle.IsChecked = _app.Settings.ScreenHints;
+        ScreenTextToggle.IsChecked = _app.Settings.ScreenText;
     }
 
     private void OnHotkeyChanged(object sender, SelectionChangedEventArgs e)
@@ -209,6 +210,10 @@ public partial class SettingsWindow : Window
         else if (sender == ScreenToggle)
         {
             _app.Settings.ScreenHints = ScreenToggle.IsChecked == true;
+        }
+        else if (sender == ScreenTextToggle)
+        {
+            _app.Settings.ScreenText = ScreenTextToggle.IsChecked == true;
         }
         else if (sender == RecordingsToggle)
         {
@@ -334,6 +339,53 @@ public partial class SettingsWindow : Window
                 MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
         {
             _app.Dictation.ClearScreenMemory();
+            LoadScreenMemory();
+        }
+    }
+
+    private void OnShowScreenMemory(object sender, RoutedEventArgs e)
+    {
+        var show = ScreenMemoryList.Visibility != Visibility.Visible;
+        ScreenMemoryList.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        ScreenMemoryButton.Content = show ? "Скрыть список" : "Что Vox запомнил с экрана";
+        LoadScreenMemory();
+    }
+
+    // The names Vox remembered from the screen, the latest first; any of them can be forgotten.
+    private void LoadScreenMemory()
+    {
+        ScreenMemoryList.Children.Clear();
+        if (ScreenMemoryList.Visibility != Visibility.Visible)
+        {
+            return;
+        }
+
+        var entries = _app.Dictation.ScreenMemoryEntries;
+        if (entries.Count == 0)
+        {
+            ScreenMemoryList.Children.Add(new TextBlock { Text = "Пока ничего не запомнено.", Style = (Style)FindResource("Vox.Caption") });
+            return;
+        }
+
+        foreach (var entry in entries)
+        {
+            var row = new Grid { Margin = new Thickness(0, 2, 0, 2) };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            row.Children.Add(new TextBlock
+            {
+                Text = $"{entry.Name}   ·   {entry.Count} раз, последний {entry.Last.ToLocalTime():dd.MM.yyyy}",
+                Style = (Style)FindResource("Vox.Caption"),
+            });
+            var forget = new Button { Content = "Забыть", Style = (Style)FindResource("Vox.LinkButton") };
+            forget.Click += (_, _) =>
+            {
+                _app.Dictation.ForgetScreenName(entry.Name);
+                LoadScreenMemory();
+            };
+            Grid.SetColumn(forget, 1);
+            row.Children.Add(forget);
+            ScreenMemoryList.Children.Add(row);
         }
     }
 
