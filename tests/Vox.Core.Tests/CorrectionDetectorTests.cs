@@ -80,6 +80,22 @@ public class CorrectionDetectorTests
     public void Cross_script_fix_with_a_different_spelling_is_learned_by_sound() =>
         Assert.Equal(("Апгрейд", "Upgrade"), CorrectionDetector.Detect("Это был Апгрейд.", "Это был Upgrade.", "Это был Апгрейд."));
 
+    // Ctrl+S (owner, 23.10): the user confirms the fix, so words that do not look alike are learned too.
+    [Fact]
+    public void Confirmed_fix_is_learned_even_when_the_words_are_not_alike()
+    {
+        Assert.Null(CorrectionDetector.Detect("Тут треде.", "Тут tray.", "Тут треде."));
+        Assert.Equal(("треде", "tray"), CorrectionDetector.Detect("Тут треде.", "Тут tray.", "Тут треде.", confirmed: true));
+    }
+
+    [Fact]
+    public void Confirmation_keeps_the_other_guards()
+    {
+        Assert.Null(CorrectionDetector.Detect("Это тёмные тут.", "Это тёмной тут.", "Это тёмные тут.", confirmed: true));
+        Assert.Null(CorrectionDetector.Detect("Настрой кубернетис и докер.", "Настрой Kubernetes и Docker.", "Настрой кубернетис и докер.", confirmed: true));
+        Assert.Null(CorrectionDetector.Detect("Привет. Тут треде.", "Пока. Тут треде.", "Тут треде.", confirmed: true));
+    }
+
     // Regression: the owner's own grammar fixes were learned as dictionary entries
     // ("тёмные → тёмной", "блоге → логе") and then rewrote every later dictation.
     [Theory]

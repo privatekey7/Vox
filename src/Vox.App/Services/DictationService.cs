@@ -108,6 +108,9 @@ internal sealed class DictationService : IDisposable
 
     public bool CanUndoLearned => _learning.CanUndo;
 
+    /// <summary>Ctrl+S: remember the fix the user just made in the dictation (see <see cref="FieldWatcher.ConfirmFix"/>).</summary>
+    public void ConfirmFix() => _watcher.ConfirmFix();
+
     /// <summary>Tray: forget the last learned pair; (wrong, correct) or null.</summary>
     public (string Wrong, string Correct)? UndoLastLearned()
     {

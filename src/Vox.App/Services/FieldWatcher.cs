@@ -23,11 +23,13 @@ internal sealed class FieldWatcher : IDisposable
     private const uint WindowTextTimeoutMs = 150;
     private static readonly TimeSpan StableFor = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan GiveUpAfter = TimeSpan.FromMinutes(10);
+    private static readonly TimeSpan ConfirmWithin = TimeSpan.FromMinutes(2); // Ctrl+S after a rejected fix
 
     private readonly BlockingCollection<Action> _work = new(boundedCapacity: 16);
     private readonly Thread _thread;
     private readonly Timer _poll;
     private Pending? _pending;
+    private (Pending Field, DateTime At)? _rejected; // the last edit that was not learned
 
     public FieldWatcher()
     {
@@ -70,6 +72,7 @@ internal sealed class FieldWatcher : IDisposable
     {
         Thread.Sleep(150); // let the target app apply the paste (more retries below)
         _pending = null;
+        _rejected = null;
         var element = AutomationElement.FocusedElement; // null: no UIA element, WM_GETTEXT may still work
         var app = element is not null ? AppName(element) : Native.ForegroundApp().Name;
         var uiaText = element is not null ? ReadText(element) : null;
@@ -132,6 +135,17 @@ internal sealed class FieldWatcher : IDisposable
     /// <summary>Call when the next dictation starts: the user is done editing the previous one.</summary>
     public void BeforeNextDictation() => Enqueue(() => Check(requireStable: false));
 
+    /// <summary>
+    /// Call on Ctrl+S: the user confirms the fix they just made in the dictation (owner, 23.10). It is
+    /// learned even when the words do not look alike; the other guards stay. A fix rejected within
+    /// <see cref="ConfirmWithin"/> counts too, but only in the same window.
+    /// </summary>
+    public void ConfirmFix()
+    {
+        var window = Native.GetForegroundWindow();
+        Enqueue(() => Confirm(window));
+    }
+
     public void Dispose()
     {
         _poll.Dispose();
@@ -178,18 +192,50 @@ internal sealed class FieldWatcher : IDisposable
         }
 
         _pending = null;
-        if (CorrectionDetector.Detect(p.Before, now, p.Inserted, IsTarget) is var (wrong, correct))
+        if (!Compare(p, now, confirmed: false))
         {
-            Log.Info($"[LEARN] Correction: \"{wrong}\" → \"{correct}\"");
+            _rejected = (p, DateTime.UtcNow); // Ctrl+S may still confirm it
+        }
+    }
+
+    // Ctrl+S: compare at once (no waiting for StableFor) and let words that do not look alike through.
+    private void Confirm(nint window)
+    {
+        var p = _pending ?? (_rejected is var (r, at) && DateTime.UtcNow - at < ConfirmWithin ? r : null);
+        if (p is null || p.Window != window)
+        {
+            return; // Ctrl+S elsewhere, or no dictation edited lately: just a save
+        }
+
+        var now = p.Read();
+        if (now == p.Before)
+        {
+            return; // nothing edited yet
+        }
+
+        _pending = null;
+        _rejected = null;
+        if (now is not null)
+        {
+            Compare(p, now, confirmed: true);
+        }
+    }
+
+    private bool Compare(Pending p, string now, bool confirmed)
+    {
+        var by = confirmed ? "Ctrl+S: " : "";
+        if (CorrectionDetector.Detect(p.Before, now, p.Inserted, IsTarget, confirmed) is var (wrong, correct))
+        {
+            Log.Info($"[LEARN] {by}Correction: \"{wrong}\" → \"{correct}\"");
             Learned?.Invoke(wrong, correct, KeyboardHook.UserTypedIn(p.Window, p.PastedTick));
+            return true;
         }
-        else
-        {
-            var diff = CorrectionDetector.Describe(p.Before, now, p.Inserted, IsTarget);
-            Log.Info(diff.StartsWith("no change", StringComparison.Ordinal)
-                ? "[LEARN] The field changed outside the dictation: nothing learned"
-                : $"[LEARN] The field was edited, nothing learned: {diff}");
-        }
+
+        var diff = CorrectionDetector.Describe(p.Before, now, p.Inserted, IsTarget, confirmed);
+        Log.Info(diff.StartsWith("no change", StringComparison.Ordinal)
+            ? $"[LEARN] {by}The field changed outside the dictation: nothing learned"
+            : $"[LEARN] {by}The field was edited, nothing learned: {diff}");
+        return false;
     }
 
     private static string AppName(AutomationElement element)

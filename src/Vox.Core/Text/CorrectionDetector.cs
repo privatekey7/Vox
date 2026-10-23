@@ -33,11 +33,14 @@ public static class CorrectionDetector
     /// <param name="inserted">The pasted dictation (without the leading separator).</param>
     /// <param name="isTarget">Is this word a dictionary target Vox wrote itself ("Fluxar" from "флюксар → Fluxar")?
     /// A fix of such a word is a typo in the target, so the grammar-edit guard does not apply.</param>
-    public static (string Wrong, string Correct)? Detect(string before, string after, string inserted, Func<string, bool>? isTarget = null) =>
-        Analyze(before, after, inserted, isTarget).Pair;
+    /// <param name="confirmed">The user pressed Ctrl+S right after the fix: the words need not look alike
+    /// ("кошка" → "cat"); every other guard stays.</param>
+    public static (string Wrong, string Correct)? Detect(
+        string before, string after, string inserted, Func<string, bool>? isTarget = null, bool confirmed = false) =>
+        Analyze(before, after, inserted, isTarget, confirmed).Pair;
 
     private static ((string Wrong, string Correct)? Pair, string Reason) Analyze(
-        string before, string after, string inserted, Func<string, bool>? isTarget)
+        string before, string after, string inserted, Func<string, bool>? isTarget, bool confirmed)
     {
         if (Changes(before, after, inserted) is not var (old, now, changes, first, last))
         {
@@ -83,7 +86,7 @@ public static class CorrectionDetector
             return (null, "only punctuation or case changed");
         }
 
-        if (Similarity(wrong, correct) is var similarity && similarity < MinSimilarity)
+        if (!confirmed && Similarity(wrong, correct) is var similarity && similarity < MinSimilarity)
         {
             return (null, string.Create(System.Globalization.CultureInfo.InvariantCulture, $"the words are not alike ({similarity:0.00})"));
         }
@@ -102,9 +105,10 @@ public static class CorrectionDetector
     /// Short log line for an edit that was not learned: why, and which word changes touch the dictation
     /// ("several places changed; 2 changes: \"PPFI.\" → \"Pipify.\", \"\" → \"тест\"").
     /// </summary>
-    public static string Describe(string before, string after, string inserted, Func<string, bool>? isTarget = null)
+    public static string Describe(
+        string before, string after, string inserted, Func<string, bool>? isTarget = null, bool confirmed = false)
     {
-        var reason = Analyze(before, after, inserted, isTarget).Reason;
+        var reason = Analyze(before, after, inserted, isTarget, confirmed).Reason;
         if (Changes(before, after, inserted) is not var (old, now, changes, _, _) || changes.Count == 0)
         {
             return reason;

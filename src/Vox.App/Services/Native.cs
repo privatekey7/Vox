@@ -21,7 +21,12 @@ internal static partial class Native
     public const int WS_EX_NOACTIVATE = 0x08000000;
 
     public const ushort VK_SPACE = 0x20;
+    public const ushort VK_SHIFT = 0x10;
     public const ushort VK_CONTROL = 0x11;
+    public const ushort VK_MENU = 0x12;
+    public const ushort VK_LWIN = 0x5B;
+    public const ushort VK_RWIN = 0x5C;
+    public const ushort VK_S = 0x53;
     public const ushort VK_V = 0x56;
     public const ushort VK_LMENU = 0xA4;
     public const ushort VK_RMENU = 0xA5;
@@ -87,6 +92,12 @@ internal static partial class Native
 
     [LibraryImport("user32.dll")]
     public static partial nint CallNextHookEx(nint hhk, int nCode, nint wParam, nint lParam);
+
+    [LibraryImport("user32.dll")]
+    public static partial short GetAsyncKeyState(int vKey);
+
+    /// <summary>Is the key physically down now (works inside the low-level hook)?</summary>
+    public static bool IsDown(int vk) => GetAsyncKeyState(vk) < 0;
 
     [LibraryImport("kernel32.dll", StringMarshalling = StringMarshalling.Utf16)]
     public static partial nint GetModuleHandleW(string? lpModuleName);

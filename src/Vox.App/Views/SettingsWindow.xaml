@@ -165,7 +165,7 @@
             </Grid.ColumnDefinitions>
             <StackPanel VerticalAlignment="Center">
               <TextBlock Text="Учиться на моих исправлениях" Style="{StaticResource Vox.Body}"/>
-              <TextBlock Text="Исправьте слово после диктовки, и Vox сразу запомнит замену. Запомнил не то: меню Vox в трее → «Отменить последнее запоминание»" Style="{StaticResource Vox.Caption}"/>
+              <TextBlock Text="Исправьте слово после диктовки, и Vox сразу запомнит замену. Не запомнил: нажмите Ctrl+S сразу после правки. Запомнил не то: меню Vox в трее → «Отменить последнее запоминание»" Style="{StaticResource Vox.Caption}"/>
             </StackPanel>
             <CheckBox x:Name="LearnToggle" Grid.Column="1" Style="{StaticResource Vox.Toggle}" Click="OnToggle"/>
           </Grid>

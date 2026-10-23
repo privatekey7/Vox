@@ -165,4 +165,11 @@ public static class Hotkeys
     /// part of the user's shortcuts; the rest (Caps Lock toggling, F5 reloading a page) are not.
     /// </summary>
     public static bool Swallow(int virtualKey) => virtualKey is < 0xA0 or > 0xA5;
+
+    /// <summary>
+    /// Ctrl+S, the user's "remember this fix" (owner, 23.10). Only Ctrl: Ctrl+Shift+S, Ctrl+Alt+S
+    /// (AltGr is Ctrl+Alt) and Win combinations are other shortcuts.
+    /// </summary>
+    public static bool IsSave(int virtualKey, bool ctrl, bool shift, bool alt, bool win) =>
+        virtualKey == 0x53 && ctrl && !shift && !alt && !win;
 }

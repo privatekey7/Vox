@@ -53,6 +53,9 @@ internal sealed class KeyboardHook : IDisposable
     /// <summary>The hotkey went up. The flag is true when another key was pressed meanwhile (Ctrl+C…).</summary>
     public event Action<bool>? Released;
 
+    /// <summary>The user pressed Ctrl+S ("remember this fix"). The key still reaches the app: an editor saves as usual.</summary>
+    public event Action? SavePressed;
+
     public void SetHotkey(int virtualKey) => _hotkeyVk = virtualKey;
 
     public void Dispose()
@@ -125,7 +128,14 @@ internal sealed class KeyboardHook : IDisposable
             {
                 var down = wParam is Native.WM_KEYDOWN or Native.WM_SYSKEYDOWN;
                 var up = wParam is Native.WM_KEYUP or Native.WM_SYSKEYUP;
-                if (down && info.vkCode != _hotkeyVk && !IsModifier(info.vkCode))
+                var save = down && info.vkCode == Native.VK_S && Hotkeys.IsSave((int)info.vkCode, Native.IsDown(Native.VK_CONTROL),
+                    Native.IsDown(Native.VK_SHIFT), Native.IsDown(Native.VK_MENU), Native.IsDown(Native.VK_LWIN) || Native.IsDown(Native.VK_RWIN));
+                if (save)
+                {
+                    // Not typing: autocorrect followed by Ctrl+S must not look like the user's own fix.
+                    Raise(() => SavePressed?.Invoke());
+                }
+                else if (down && info.vkCode != _hotkeyVk && !IsModifier(info.vkCode))
                 {
                     var now = Environment.TickCount64;
                     Volatile.Write(ref _lastUserKeyTick, now);
