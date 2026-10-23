@@ -68,8 +68,17 @@ public class CorrectionDetectorTests
     [InlineData("джаваскрипт", "JavaScript", true)]
     [InlineData("кот", "пёс", false)]
     [InlineData("сервер", "клиент", false)]
+    [InlineData("апгрейд", "Upgrade", true)] // letters 0.43 ("apgreid"), the same sound skeleton
+    [InlineData("вистер", "Whisper", true)]
+    [InlineData("кошка", "cat", false)] // a translation, not a spelling: the skeleton is too far
+    [InlineData("собака", "dog", false)]
     public void Similarity_bridges_cyrillic_and_latin(string a, string b, bool similar) =>
         Assert.Equal(similar, CorrectionDetector.LookAlike(a, b));
+
+    // Regression (owner, 23.10): "Апгрейд." → "Upgrade." was not learned, "the words are not alike (0.43)".
+    [Fact]
+    public void Cross_script_fix_with_a_different_spelling_is_learned_by_sound() =>
+        Assert.Equal(("Апгрейд", "Upgrade"), CorrectionDetector.Detect("Это был Апгрейд.", "Это был Upgrade.", "Это был Апгрейд."));
 
     // Regression: the owner's own grammar fixes were learned as dictionary entries
     // ("тёмные → тёмной", "блоге → логе") and then rewrote every later dictation.

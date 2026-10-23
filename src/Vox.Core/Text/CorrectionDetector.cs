@@ -14,6 +14,8 @@ public static class CorrectionDetector
 {
     private const string WordPunct = ".,!?;:—–-\"'«»()[]{}…";
     private const double MinSimilarity = 0.5;
+    private const double MinSoundSimilarity = 0.75; // the sound skeleton is coarser than letters: "кошка" ~ "cat" is 0.5 on it
+    private const int MinSoundSkeleton = 3;
     private const int MaxSplitWords = 3;
 
     private static readonly Dictionary<char, string> Translit = new()
@@ -178,7 +180,28 @@ public static class CorrectionDetector
         var x = Latin(a).Replace(" ", "", StringComparison.Ordinal); // "zena koder" vs "zencoder"
         var y = Latin(b).Replace(" ", "", StringComparison.Ordinal);
         var longest = Math.Max(x.Length, y.Length);
-        return longest == 0 ? 0 : 1.0 - (double)Levenshtein(x, y) / longest;
+        var letters = longest == 0 ? 0 : 1.0 - (double)Levenshtein(x, y) / longest;
+        return Math.Max(letters, SoundSimilarity(a, b));
+    }
+
+    // Across scripts letters miss what sound keeps: "апгрейд" is "apgreid", 0.43 from "upgrade" by letters,
+    // and both have the skeleton "апграт". Counted as a pass only from MinSoundSimilarity.
+    private static double SoundSimilarity(string a, string b)
+    {
+        if (IsCyrillic(a.ToLowerInvariant()) == IsCyrillic(b.ToLowerInvariant()))
+        {
+            return 0;
+        }
+
+        var x = FuzzyTerms.Skeleton(a.Replace(" ", "", StringComparison.Ordinal));
+        var y = FuzzyTerms.Skeleton(b.Replace(" ", "", StringComparison.Ordinal));
+        if (Math.Min(x.Length, y.Length) < MinSoundSkeleton)
+        {
+            return 0;
+        }
+
+        var sound = FuzzyTerms.Similarity(x, y);
+        return sound >= MinSoundSimilarity ? sound : 0;
     }
 
     /// <summary>
