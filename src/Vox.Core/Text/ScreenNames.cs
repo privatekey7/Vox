@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 
 namespace Vox.Core.Text;
@@ -159,18 +160,38 @@ public sealed partial class OwnWords
 /// Names Vox has seen in window titles, in screen_names.json next to the history: name, how often, when last.
 /// At most <see cref="Limit"/>; the ones not seen for longest go first.
 /// </summary>
-/// <remarks>Only names from <see cref="ScreenWords.Extract"/>, without digits, never written by the model (<see cref="OwnWords"/>).</remarks>
+/// <remarks>
+/// Only names from <see cref="ScreenWords.Extract"/>, without digits, never written by the model (<see cref="OwnWords"/>).
+/// A name does not stay for good (security audit L6, 25.10): a tab title can put any name here, and
+/// <see cref="FuzzyTerms"/> then writes it into dictations. One seen on a single day and never used goes after
+/// <see cref="BriefLife"/>, others after <see cref="Life"/> unseen; one that made a replacement from memory lives
+/// <see cref="UsedLife"/> from that replacement.
+/// </remarks>
 public sealed class ScreenMemory
 {
     public const int Limit = 5000;
+    public static readonly TimeSpan BriefLife = TimeSpan.FromDays(7);
+    public static readonly TimeSpan Life = TimeSpan.FromDays(30);
+    public static readonly TimeSpan UsedLife = TimeSpan.FromDays(180);
+    private static readonly TimeSpan OtherDay = TimeSpan.FromDays(1); // seen again this much later: not a one-off
 
     private readonly string? _path;
     private readonly int _limit;
     private readonly Lock _lock = new();
     private readonly Lock _saveLock = new();
-    private readonly Dictionary<string, Entry> _names = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, Slot> _names = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>What Settings shows and a transfer file carries.</summary>
     public sealed record Entry(string Name, int Count, DateTime Last);
+
+    // First: when first seen, null for a name kept before 25.10 or imported (its history is unknown, so it is not
+    // a one-off). Used: the last replacement it made from memory.
+    private sealed record Slot(Entry Entry, DateTime? First, DateTime? Used)
+    {
+        public bool Expired(DateTime now) =>
+            now - Entry.Last > (First is { } first && Entry.Last - first < OtherDay && Used is null ? BriefLife : Life)
+            && (Used is not { } used || now - used > UsedLife);
+    }
 
     public ScreenMemory(string? path = null, int limit = Limit)
     {
@@ -195,29 +216,29 @@ public sealed class ScreenMemory
         {
             lock (_lock)
             {
-                return [.. _names.Values];
+                return [.. _names.Values.Select(s => s.Entry)];
             }
         }
     }
 
-    /// <summary>Counts each name once per call; returns whether anything changed.</summary>
+    /// <summary>Counts each name once per call and forgets expired ones; returns whether anything changed.</summary>
     public bool See(IEnumerable<string> names, DateTime now)
     {
         lock (_lock)
         {
-            var changed = false;
+            var changed = ExpireLocked(now) > 0;
             foreach (var name in names.Where(IsRememberable).Distinct(StringComparer.OrdinalIgnoreCase))
             {
                 // A capitalised spelling stays: "cruzade" of a domain does not replace "Cruzade".
-                _names[name] = _names.TryGetValue(name, out var e)
-                    ? e with { Name = name.Any(char.IsUpper) || !e.Name.Any(char.IsUpper) ? name : e.Name, Count = e.Count + 1, Last = now }
-                    : new Entry(name, 1, now);
+                _names[name] = _names.TryGetValue(name, out var s)
+                    ? s with { Entry = s.Entry with { Name = name.Any(char.IsUpper) || !s.Entry.Name.Any(char.IsUpper) ? name : s.Entry.Name, Count = s.Entry.Count + 1, Last = now } }
+                    : new Slot(new Entry(name, 1, now), now, null);
                 changed = true;
             }
 
             if (_names.Count > _limit)
             {
-                foreach (var old in _names.Values.OrderBy(e => e.Last).ThenBy(e => e.Count).Take(_names.Count - _limit).ToList())
+                foreach (var old in _names.Values.Select(s => s.Entry).OrderBy(e => e.Last).ThenBy(e => e.Count).Take(_names.Count - _limit).ToList())
                 {
                     _names.Remove(old.Name);
                 }
@@ -225,6 +246,45 @@ public sealed class ScreenMemory
 
             return changed;
         }
+    }
+
+    /// <summary>
+    /// Remembered names that made a replacement from memory (<see cref="FuzzyTerms.Match.Screen"/> "память"): they
+    /// live <see cref="UsedLife"/> from now. Names not in memory (a pair, a term) are skipped; returns whether
+    /// anything changed.
+    /// </summary>
+    public bool Use(IEnumerable<string> names, DateTime now)
+    {
+        lock (_lock)
+        {
+            var changed = false;
+            foreach (var name in names)
+            {
+                if (_names.TryGetValue(name, out var s))
+                {
+                    _names[s.Entry.Name] = s with { Used = now };
+                    changed = true;
+                }
+            }
+
+            return changed;
+        }
+    }
+
+    /// <summary>Forgets the names whose time ran out (see the remarks of <see cref="ScreenMemory"/>); returns how many.</summary>
+    public int Expire(DateTime now)
+    {
+        lock (_lock)
+        {
+            return ExpireLocked(now);
+        }
+    }
+
+    private int ExpireLocked(DateTime now)
+    {
+        var gone = _names.Values.Where(s => s.Expired(now)).Select(s => s.Entry.Name).ToList();
+        gone.ForEach(n => _names.Remove(n));
+        return gone.Count;
     }
 
     /// <summary>
@@ -246,11 +306,11 @@ public sealed class ScreenMemory
             {
                 if (_names.TryGetValue(e.Name, out var mine))
                 {
-                    _names[e.Name] = mine with { Count = Math.Max(mine.Count, e.Count), Last = mine.Last > e.Last ? mine.Last : e.Last };
+                    _names[e.Name] = mine with { Entry = mine.Entry with { Count = Math.Max(mine.Entry.Count, e.Count), Last = mine.Entry.Last > e.Last ? mine.Entry.Last : e.Last } };
                 }
                 else
                 {
-                    _names[e.Name] = e;
+                    _names[e.Name] = new Slot(e, null, null); // the other PC's history is unknown: not a one-off
                     added++;
                 }
             }
@@ -286,7 +346,8 @@ public sealed class ScreenMemory
         }
     }
 
-    public static ScreenMemory Load(string path, int limit = Limit)
+    /// <summary>Reads screen_names.json and forgets the names whose time ran out by <paramref name="now"/> (UTC now by default).</summary>
+    public static ScreenMemory Load(string path, int limit = Limit, DateTime? now = null)
     {
         var memory = new ScreenMemory(path, limit);
         try
@@ -295,7 +356,7 @@ public sealed class ScreenMemory
             {
                 foreach (var s in stored.Where(s => !string.IsNullOrWhiteSpace(s.N) && IsRememberable(s.N)))
                 {
-                    memory._names[s.N] = new Entry(s.N, s.C, s.T);
+                    memory._names[s.N] = new Slot(new Entry(s.N, s.C, s.T), s.F, s.U);
                 }
             }
         }
@@ -304,6 +365,7 @@ public sealed class ScreenMemory
             // corrupt or locked: start empty, the next save replaces it
         }
 
+        memory.Expire(now ?? DateTime.UtcNow); // before the first dictation and the Settings list
         return memory;
     }
 
@@ -318,7 +380,7 @@ public sealed class ScreenMemory
         string json;
         lock (_lock)
         {
-            json = JsonSerializer.Serialize(_names.Values.Select(e => new Stored(e.Name, e.Count, e.Last)));
+            json = JsonSerializer.Serialize(_names.Values.Select(s => new Stored(s.Entry.Name, s.Entry.Count, s.Entry.Last, s.First, s.Used)));
         }
 
         lock (_saveLock)
@@ -330,5 +392,9 @@ public sealed class ScreenMemory
         }
     }
 
-    private sealed record Stored(string N, int C, DateTime T);
+    // F (first seen) and U (used) came on 25.10: a file saved before has neither, its names count as not one-offs.
+    private sealed record Stored(
+        string N, int C, DateTime T,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] DateTime? F = null,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] DateTime? U = null);
 }

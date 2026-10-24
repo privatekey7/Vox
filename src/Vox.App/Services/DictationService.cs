@@ -373,6 +373,11 @@ internal sealed class DictationService : IDisposable
 
         var fuzzy = new List<FuzzyTerms.Match>();
         var text = pp?.Process(raw, _corrections, fuzzy, job.Screen?.Result) ?? raw;
+        if (_screenMemory.Use(fuzzy.Where(f => f.Screen == FuzzyTerms.Memory).Select(f => f.Replacement), DateTime.UtcNow))
+        {
+            _ = Task.Run(SaveScreenMemory); // a name that helped lives longer (ScreenMemory.UsedLife)
+        }
+
         foreach (var f in fuzzy)
         {
             var score = f.Score.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
@@ -449,12 +454,14 @@ internal sealed class DictationService : IDisposable
                 ? ScreenWords.FromWindowText(text, FuzzyTerms.IsEnglishName).Where(n => !_ownWords.Contains(n)).ToList()
                 : [];
             var windowNames = fromWindow.Count;
-            fromTitles = ScreenWords.Distinct([.. fromTitles, .. fromWindow]);
             List<ScreenName> names =
             [
-                .. fromTitles.Select(n => new ScreenName(n, OnScreen: true)),
+                .. ScreenWords.Distinct([.. fromTitles, .. fromWindow]).Select(n => new ScreenName(n, OnScreen: true)),
                 .. _screenMemory.Entries.Select(e => new ScreenName(e.Name, OnScreen: false)),
             ];
+
+            // Only titles are remembered: the text of a page or a chat is anyone's (security audit L6), a name from
+            // it serves while it is on screen.
             if (_screenMemory.See(ScreenWords.Unknown(fromTitles), DateTime.UtcNow))
             {
                 _ = Task.Run(SaveScreenMemory);

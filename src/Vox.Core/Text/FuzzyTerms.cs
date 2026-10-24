@@ -87,7 +87,7 @@ public sealed partial class FuzzyTerms
     private const double CyrillicScreenThreshold = 0.9;
     private const double MemoryThreshold = 0.9;
     private const string Window = "окно";
-    private const string Memory = "память";
+    public const string Memory = "память"; // ScreenMemory.Use: a remembered name that made a replacement
 
     private static readonly Lazy<FuzzyTerms> Default = new(() =>
     {
