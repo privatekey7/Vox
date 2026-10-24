@@ -12,4 +12,11 @@
     <Product>Vox</Product>
     <Copyright>MIT</Copyright>
   </PropertyGroup>
+  <!-- Reproducible restore: every project keeps a packages.lock.json (commit it after adding or
+       bumping a package with a plain `dotnet restore`). CI restores in locked mode, so a lock file
+       out of step with Directory.Packages.props fails the build instead of resolving new versions. -->
+  <PropertyGroup>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <RestoreLockedMode Condition="'$(CI)' == 'true'">true</RestoreLockedMode>
+  </PropertyGroup>
 </Project>

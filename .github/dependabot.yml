@@ -1,0 +1,47 @@
+# Dependabot version updates: NuGet packages (Directory.Packages.props + packages.lock.json) and the
+# GitHub Actions used in .github/workflows. GitHub reads this file from the default branch only.
+version: 2
+
+updates:
+  - package-ecosystem: nuget
+    directory: "/"
+    target-branch: csharp
+    schedule:
+      interval: weekly
+      day: monday
+      timezone: Europe/Moscow
+    # A release younger than a week is not proposed: a hijacked package version is usually caught
+    # and pulled within days.
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: build
+      include: scope
+    open-pull-requests-limit: 5
+    groups:
+      # Packages that only move together.
+      tests:
+        patterns: ["xunit*", "Microsoft.NET.Test.Sdk"]
+      naudio:
+        patterns: ["NAudio.*"]
+      sqlite:
+        patterns: ["Microsoft.Data.Sqlite*", "SQLitePCLRaw.*"]
+    # Not grouped on purpose, each comes as its own PR: org.k2fsa.sherpa.onnx changes recognition
+    # (run the model tests, Category=Models, before merging), SharpZipLib unpacks the downloaded
+    # models, H.NotifyIcon.Wpf is the tray.
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    target-branch: csharp
+    schedule:
+      interval: weekly
+      day: monday
+      timezone: Europe/Moscow
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: ci
+      include: scope
+    groups:
+      actions:
+        patterns: ["*"]
