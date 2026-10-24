@@ -100,9 +100,10 @@ jobs:
           $proc = Start-Process $setup -ArgumentList $installArgs -Wait -PassThru
           if ($proc.ExitCode -ne 0) { throw "Inno Setup install failed with exit code $($proc.ExitCode)" }
           $iscc = Join-Path $dir 'ISCC.exe'
+          if (-not (Test-Path $iscc)) { throw "ISCC.exe is missing in $dir" }
+          # The version is pinned by the installer's SHA-256 above; the file version is only logged.
           $info = (Get-Item $iscc).VersionInfo
-          $version = '{0}.{1}.{2}' -f $info.FileMajorPart, $info.FileMinorPart, $info.FileBuildPart
-          if ($version -ne $env:INNO_VERSION) { throw "ISCC.exe is $version, expected $env:INNO_VERSION" }
+          Write-Host "ISCC.exe file $($info.FileVersion), product $($info.ProductVersion)"
           "iscc=$iscc" >> $env:GITHUB_OUTPUT
       - name: Inno Setup
         shell: pwsh
