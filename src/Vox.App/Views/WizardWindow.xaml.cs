@@ -106,6 +106,14 @@ public partial class WizardWindow : Window
         {
             ShowStep(1);
         }
+        catch (ModelIntegrityException ex)
+        {
+            Log.Error("[DL] Model check failed", ex);
+            App.RemoveModel(model); // the next try downloads it again
+            MessageBox.Show(this, "Не получилось установить модель.\n\n" + ex.Message,
+                "Vox", MessageBoxButton.OK, MessageBoxImage.Warning);
+            ShowStep(1);
+        }
         catch (Exception ex)
         {
             Log.Error("[DL] Failed", ex);

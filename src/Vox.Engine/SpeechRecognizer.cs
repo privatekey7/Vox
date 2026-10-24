@@ -53,15 +53,11 @@ public sealed class SpeechRecognizer : ISpeechRecognizer
         config.ModelConfig.Provider = "cpu";
         config.DecodingMethod = "greedy_search";
 
-        foreach (var file in new[] { Path.Combine(dir, model.Encoder), Path.Combine(dir, model.Tokens) })
+        // Only files that match their pins are loaded, and they stay locked until sherpa-onnx has read them (D034).
+        using (ModelFiles.OpenVerified(model, modelsRoot, rejectLinks: ModelFiles.IsSharedFolder(modelsRoot)))
         {
-            if (!Path.Exists(file))
-            {
-                throw new FileNotFoundException("Model file is missing", file);
-            }
+            _recognizer = new OfflineRecognizer(config);
         }
-
-        _recognizer = new OfflineRecognizer(config);
     }
 
     public SpeechModel Model { get; }

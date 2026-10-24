@@ -168,7 +168,14 @@ public partial class SettingsWindow : Window
         catch (Exception ex)
         {
             Log.Error("[SETTINGS] Model switch failed", ex);
-            LanguageHint.Text = "Не получилось скачать. Проверьте интернет и попробуйте ещё раз.";
+            if (ex is ModelIntegrityException)
+            {
+                App.RemoveModel(model); // the next try downloads it again
+            }
+
+            LanguageHint.Text = ex is ModelIntegrityException
+                ? ex.Message
+                : "Не получилось скачать. Проверьте интернет и попробуйте ещё раз.";
             _loading = true;
             var current = _app.Dictation.Model ?? ModelCatalog.Default;
             LanguageBox.SelectedItem = LanguageBox.Items.Cast<ComboBoxItem>().First(i => Equals(i.Tag, current));

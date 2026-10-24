@@ -161,20 +161,25 @@ public partial class App : Application
         catch (Exception ex)
         {
             Log.Error($"[INIT] Model {model.Id} failed to load — removing it", ex);
-            try
-            {
-                new ModelDownloader(Http, Paths.Models).Uninstall(model);
-            }
-            catch (IOException e)
-            {
-                Log.Error("[INIT] Could not remove the model", e);
-            }
-            catch (UnauthorizedAccessException e)
-            {
-                Log.Error("[INIT] Could not remove the model", e);
-            }
-
+            RemoveModel(model);
             return false;
+        }
+    }
+
+    /// <summary>Delete a model that failed to load or failed its check (D034), so the next install downloads it again.</summary>
+    internal static void RemoveModel(SpeechModel model)
+    {
+        try
+        {
+            new ModelDownloader(Http, Paths.Models).Uninstall(model);
+        }
+        catch (IOException e)
+        {
+            Log.Error("[MODEL] Could not remove the model", e);
+        }
+        catch (UnauthorizedAccessException e)
+        {
+            Log.Error("[MODEL] Could not remove the model", e); // another user's files: InstallAsync explains it
         }
     }
 
