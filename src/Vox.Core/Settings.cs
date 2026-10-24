@@ -58,18 +58,56 @@ public sealed class Settings
         return copy.ToJsonString();
     }
 
-    /// <summary>Takes the settings moved from another PC; this computer's device settings stay.</summary>
+    /// <summary>
+    /// Takes the settings moved from another PC: only the known keys with values of the right kind (security audit
+    /// L1); this computer's device settings stay, and nothing that reads the screen or keeps audio is switched on.
+    /// </summary>
     public void Merge(string json)
+    {
+        foreach (var (key, value) in Transferable(json).Where(p => !IsKeptOff(p.Key, p.Value)))
+        {
+            _json[key] = value.DeepClone();
+        }
+    }
+
+    /// <summary>The <see cref="PrivacyKeys"/> that <paramref name="json"/> has on and <see cref="Merge"/> leaves off here.</summary>
+    public IReadOnlyList<string> PrivacyKeptOff(string json) =>
+        [.. Transferable(json).Where(p => IsKeptOff(p.Key, p.Value)).Select(p => p.Key)];
+
+    private bool IsKeptOff(string key, JsonValue value) => PrivacyKeys.Contains(key) && value.GetValue<bool>() && !GetBool(key, false);
+
+    /// <summary>What an import never switches on: the user turns these on here, knowing what they do.</summary>
+    public static IReadOnlyList<string> PrivacyKeys { get; } = ["screen_text", "save_recordings"];
+
+    private static readonly string[] BoolKeys = ["sounds", "learn_corrections", "screen_hints", "restore_clipboard", .. PrivacyKeys];
+    private static readonly string[] StringKeys = ["active_model", "language"];
+
+    // The keys of a transfer file Vox takes, each with a value of its kind; the rest is dropped.
+    private static List<(string Key, JsonValue Value)> Transferable(string json)
     {
         if (JsonNode.Parse(json) is not JsonObject other)
         {
             throw new InvalidDataException("settings are not a JSON object");
         }
 
-        foreach (var (key, value) in other.Where(p => !LocalKeys.Contains(p.Key)).ToList())
+        var taken = new List<(string, JsonValue)>();
+        foreach (var (key, node) in other)
         {
-            _json[key] = value?.DeepClone();
+            if (node is not JsonValue value)
+            {
+                continue;
+            }
+
+            var ok = BoolKeys.Contains(key) ? value.GetValueKind() is JsonValueKind.True or JsonValueKind.False
+                : StringKeys.Contains(key) ? value.TryGetValue<string>(out var s) && s.Length <= 100 && Text.SafeText.HasNoHiddenChars(s)
+                : key == "hotkey" && value.TryGetValue<string>(out var h) && Hotkeys.IsKnown(h);
+            if (ok)
+            {
+                taken.Add((key, value));
+            }
         }
+
+        return taken;
     }
 
     /// <summary>Hotkey name in Vox 1.x notation ("right ctrl", "caps lock", "f9", …).</summary>

@@ -215,14 +215,7 @@ public sealed class ScreenMemory
                 changed = true;
             }
 
-            if (_names.Count > _limit)
-            {
-                foreach (var old in _names.Values.OrderBy(e => e.Last).ThenBy(e => e.Count).Take(_names.Count - _limit).ToList())
-                {
-                    _names.Remove(old.Name);
-                }
-            }
-
+            DropOverLimit();
             return changed;
         }
     }
@@ -237,12 +230,18 @@ public sealed class ScreenMemory
     /// Takes names remembered on another PC: the larger count and the later time stay (so importing the same file
     /// twice changes nothing); returns how many are new.
     /// </summary>
-    public int Merge(IEnumerable<Entry> entries)
+    /// <remarks>
+    /// The file may come from someone else (security audit L2): only names <see cref="ScreenWords"/> could have
+    /// remembered (Latin letters, at most <see cref="ScreenWords.MaxRun"/>), no time later than
+    /// <paramref name="now"/>, and the oldest go over <see cref="Limit"/> as in <see cref="See"/>.
+    /// </remarks>
+    public int Merge(IEnumerable<Entry> entries, DateTime? now = null)
     {
+        var latest = now ?? DateTime.UtcNow;
         lock (_lock)
         {
             var added = 0;
-            foreach (var e in entries.Where(e => !string.IsNullOrWhiteSpace(e.Name) && IsRememberable(e.Name)))
+            foreach (var e in entries.Where(IsMergeable).Select(e => e with { Count = Math.Clamp(e.Count, 1, MaxCount), Last = e.Last > latest ? latest : e.Last }))
             {
                 if (_names.TryGetValue(e.Name, out var mine))
                 {
@@ -255,7 +254,25 @@ public sealed class ScreenMemory
                 }
             }
 
+            DropOverLimit();
             return added;
+        }
+    }
+
+    private const int MaxCount = 1_000_000;
+
+    private static bool IsMergeable(Entry? e) =>
+        e?.Name is { Length: > 0 and <= ScreenWords.MaxRun } name && name.All(char.IsAsciiLetter);
+
+    // The ones not seen for longest go first; the caller holds _lock.
+    private void DropOverLimit()
+    {
+        if (_names.Count > _limit)
+        {
+            foreach (var old in _names.Values.OrderBy(e => e.Last).ThenBy(e => e.Count).Take(_names.Count - _limit).ToList())
+            {
+                _names.Remove(old.Name);
+            }
         }
     }
 

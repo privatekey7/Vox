@@ -143,6 +143,49 @@ public class UserCorrectionsTests
     [InlineData("ничего не меняется", "ничего не меняется")]
     public void Apply_replaces_whole_words_and_keeps_punctuation_and_capital(string text, string expected) =>
         Assert.Equal(expected, UserCorrections.Apply(text, Corrections));
+
+    // Security audit M5: a pair already in the database (from someone else's file) must not paste a command.
+    [Theory]
+    [InlineData("кошелек", "0xabc\r\ncalc")]
+    [InlineData("биржа", "bin\u202Eance")]
+    [InlineData("гитхаб", "Git\u200BHub")]
+    [InlineData("сайт", "evil\u2028site")]
+    [InlineData("мой кошелек", "0xabc\ncalc")]
+    public void A_target_with_a_line_break_or_an_invisible_character_is_not_pasted(string wrong, string correct) =>
+        Assert.Equal($"вот {wrong} тут", UserCorrections.Apply($"вот {wrong} тут", new Dictionary<string, string> { [wrong] = correct }));
+}
+
+public class SafeTextTests
+{
+    [Theory]
+    [InlineData("Kubernetes")]
+    [InlineData("Кирилл Петров")]
+    [InlineData("C++ / .NET, «Vox»!")]
+    [InlineData("ударе\u0301ние")] // a combining accent is a letter's mark, not hidden
+    public void Ordinary_targets_pass(string text) => Assert.True(SafeText.IsPairPart(text));
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("a\nb")]
+    [InlineData("a\tb")]
+    [InlineData("a\u0000b")]
+    [InlineData("a\u202Eb")]  // right-to-left override
+    [InlineData("a\u2066b")]  // left-to-right isolate
+    [InlineData("a\u200Db")]  // zero-width joiner
+    [InlineData("a\uFEFFb")]  // byte order mark
+    [InlineData("a\u2029b")]  // paragraph separator
+    public void A_target_with_hidden_characters_is_refused(string? text) => Assert.False(SafeText.IsPairPart(text));
+
+    [Fact]
+    public void A_target_longer_than_a_phrase_or_with_a_lone_surrogate_is_refused()
+    {
+        Assert.False(SafeText.IsPairPart("a" + '\uD800' + "b"));
+        Assert.True(SafeText.IsPairPart("ok \U0001F600"));
+        Assert.True(SafeText.IsPairPart(new string('a', SafeText.MaxPairLength)));
+        Assert.False(SafeText.IsPairPart(new string('a', SafeText.MaxPairLength + 1)));
+    }
 }
 
 /// <summary>Owner: GigaAM's long dash reads as machine text; people type a hyphen.</summary>

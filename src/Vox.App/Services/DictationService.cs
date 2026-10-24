@@ -188,14 +188,23 @@ internal sealed class DictationService : IDisposable
         return counts;
     }
 
+    /// <summary>Settings: what a checked transfer file would change in the dictionary, for the user to confirm.</summary>
+    public TransferPreview PreviewImport(TransferFile file)
+    {
+        var preview = DataTransfer.Preview(file, _db, _settings);
+        Log.Info($"[TRANSFER] Preview: {preview.Pairs.Count} pairs to add or change, {preview.Rejected} refused, " +
+                 $"kept off: {string.Join(", ", preview.PrivacyKeptOff)}");
+        return preview;
+    }
+
     /// <summary>
-    /// Settings: merges a transfer file; the current data is saved to <paramref name="backup"/> first, so the
-    /// import can be undone by importing that file into a fresh profile.
+    /// Settings: merges a transfer file the user confirmed (<see cref="DataTransfer.Open"/>); the current data is
+    /// saved to <paramref name="backup"/> first, so the import can be undone by importing that file into a fresh profile.
     /// </summary>
-    public TransferCounts ImportData(string path, string backup)
+    public TransferCounts ImportData(TransferFile file, string backup)
     {
         DataTransfer.Export(backup, _db, _settings, _screenMemory, history: true, recordings: null);
-        var counts = DataTransfer.Import(path, _db, _settings, _screenMemory, _recordings.Directory);
+        var counts = DataTransfer.Import(file, _db, _settings, _screenMemory, _recordings);
         _settings.Save();
         foreach (var t in _db.History(OwnWords.HistoryLimit))
         {

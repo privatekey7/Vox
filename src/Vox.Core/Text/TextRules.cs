@@ -587,7 +587,9 @@ public static class UserCorrections
         }
 
         // Phrases learned from a term the model split ("zena koder" → "Zencoder"): whole-phrase match.
-        foreach (var (source, correct) in corrections.Where(c => c.Key.Contains(' ', StringComparison.Ordinal)))
+        // A target with a line break or an invisible character is never pasted, even one already in the database
+        // (security audit M5: a pair from someone else's transfer file); the word loop below checks it too.
+        foreach (var (source, correct) in corrections.Where(c => c.Key.Contains(' ', StringComparison.Ordinal) && SafeText.HasNoHiddenChars(c.Value)))
         {
             var pattern = @"(?<![\p{L}\p{Nd}])" + string.Join(@"\s+", source.Split(' ', StringSplitOptions.RemoveEmptyEntries).Select(Regex.Escape))
                 + @"(?![\p{L}\p{Nd}])";
@@ -623,9 +625,10 @@ public static class UserCorrections
             var word = words[i];
             var stripped = word.Trim(WordPunct.ToCharArray());
             var key = stripped.ToLowerInvariant();
-            if (!corrections.TryGetValue(key, out var replacement)
-                && !(declined.TryGetValue(key, out var d) && Declension.Inflect(d.Correct, d.Source, d.Ending) is { } inflected
-                     && (replacement = inflected) is not null))
+            if ((!corrections.TryGetValue(key, out var replacement)
+                 && !(declined.TryGetValue(key, out var d) && Declension.Inflect(d.Correct, d.Source, d.Ending) is { } inflected
+                      && (replacement = inflected) is not null))
+                || !SafeText.HasNoHiddenChars(replacement))
             {
                 continue;
             }
