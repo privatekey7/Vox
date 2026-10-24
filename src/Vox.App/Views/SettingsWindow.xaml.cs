@@ -377,7 +377,7 @@ public partial class SettingsWindow : Window
 
         foreach (var entry in entries)
         {
-            var row = new Grid { Margin = new Thickness(0, 2, 0, 2) };
+            var row = new Grid { Margin = new Thickness(0, 2, 14, 2) }; // clear of the scroll bar
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             row.Children.Add(new TextBlock
