@@ -5,7 +5,7 @@ namespace Vox.Core.Text;
 
 /// <summary>
 /// Is a word Russian at all, in any form: the Hunspell dictionary ru_RU by Alexander I. Lebedev (BSD,
-/// Data/ru_RU.LICENSE.md), 146 000 stems with suffix rules, read on first use (~0.5 s, ~15 MB). Unlike the
+/// Data/ru_RU.LICENSE.md), 146 000 stems with suffix rules, read on first use (~0.1 s, ~20 MB). Unlike the
 /// 48 000 frequent forms of <see cref="SelfLearning.IsCommonWord"/>, it knows rare words too ("курсор", "аргон"):
 /// what is not here is a name or a word heard in Russian ("крузаде", "вистер").
 /// </summary>
@@ -13,7 +13,7 @@ public static class RussianWords
 {
     private static readonly Lazy<Lexicon> Default = new(Load);
 
-    /// <summary>A Russian word form (ё as е, any case); a hyphenated word part by part ("кто" and "то").</summary>
+    /// <summary>A Russian word form (ё as е, any case); a hyphenated word is not one, the caller checks its parts.</summary>
     public static bool Contains(string word) => Default.Value.Contains(word);
 
     private sealed record Rule(char Flag, string Strip, Regex? Condition);

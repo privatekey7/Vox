@@ -260,7 +260,9 @@ public class ScreenNamesTests
     [Theory]
     [InlineData("Крузаде.", "Cruzade.")]
     [InlineData("Крузейт.", "Cruzade.")]
+    [InlineData("Крузаит.", "Cruzade.")]
     [InlineData("Байскан.", "BaseScan.")]
+    [InlineData("Бэйсскан.", "BaseScan.")]
     [InlineData("Бейскан.", "BaseScan.")]
     [InlineData("Открой курсор и синтез.", "Открой курсор и синтез.")] // Russian words stay
     [InlineData("Позвони Леонову.", "Позвони Леонову.")] // a surname too
@@ -317,7 +319,7 @@ public class ScreenNamesTests
         var fuzzy = new FuzzyTerms([("фронтенд", "фронтенд")], [("фронтенд", "фронтенд")], latin: true, FuzzyTerms.LoadEnglish());
         var changed = CyrillicCorpus().Where(w => fuzzy.Replace(w, null, memory) != fuzzy.Replace(w)).ToList();
         Assert.Equal([], changed.Where(w => w.Split('-').Any(RussianWords.Contains)));
-        Assert.True(changed.Count < 50, $"{changed.Count}: {string.Join(", ", changed)}");
+        Assert.True(changed.Count <= 40, $"{changed.Count}: {string.Join(", ", changed)}"); // 37 on 24.10
     }
 
     [Theory]
