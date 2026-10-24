@@ -55,5 +55,5 @@ public sealed class ClipboardSnapshot
 
     /// <summary>What to put back: the saved formats, plus Vox's own markers if a marker could not be saved.</summary>
     public IEnumerable<ClipboardItem> ItemsToRestore() =>
-        _lostMarker ? _items.Concat(ClipboardFormats.PrivateMarkers) : _items;
+        _lostMarker ? _items.Concat(ClipboardFormats.AllMarkers) : _items;
 }

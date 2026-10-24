@@ -34,23 +34,38 @@ public static class ClipboardFormats
         17, // CF_DIBV5
     ];
 
-    // They describe the OLE object of the app that copied, which is gone once Vox replaces the
-    // clipboard; put back without OleSetClipboard they can mislead OLE readers.
-    private static readonly HashSet<string> OleBookkeeping = new(StringComparer.Ordinal) { "DataObject", "Ole Private Data" };
+    // Registered formats Vox does not save:
+    // - "DataObject", "Ole Private Data" describe the OLE object of the app that copied, which is gone
+    //   once Vox replaces the clipboard; put back without OleSetClipboard they can mislead OLE readers;
+    // - OLE embedding formats: the source app renders them on demand, which for a big Excel range or
+    //   document is slow and heavy, and the snapshot runs before every dictation.
+    private static readonly HashSet<string> SkippedRegistered = new(StringComparer.Ordinal)
+    {
+        "DataObject", "Ole Private Data",
+        "Embed Source", "Link Source", "Object Descriptor", "Link Source Descriptor", "Embedded Object",
+        "Native", "OwnerLink", "ObjectLink",
+    };
 
-    /// <summary>Markers Vox puts next to a copy that exists only to be pasted.</summary>
-    public static IReadOnlyList<ClipboardItem> PrivateMarkers { get; } =
+    /// <summary>
+    /// Markers Vox puts next to a copy that exists only to be pasted: out of history and the cloud.
+    /// Not ExcludeClipboardContentFromMonitorProcessing: RDP (rdpclip) and VM clipboard sync are
+    /// clipboard monitors too, and a dictation into a remote window would paste its stale clipboard.
+    /// </summary>
+    public static IReadOnlyList<ClipboardItem> PasteMarkers { get; } =
     [
-        new(0, ExcludeFromMonitors, BitConverter.GetBytes(0u)),
         new(0, CanIncludeInHistory, BitConverter.GetBytes(0u)),
         new(0, CanUploadToCloud, BitConverter.GetBytes(0u)),
     ];
+
+    /// <summary>All three markers: they stand in for a marker the user's own clipboard had but Vox could not save.</summary>
+    public static IReadOnlyList<ClipboardItem> AllMarkers { get; } =
+        [new(0, ExcludeFromMonitors, BitConverter.GetBytes(0u)), .. PasteMarkers];
 
     public static bool IsMarker(string? name) => name is ExcludeFromMonitors or CanIncludeInHistory or CanUploadToCloud;
 
     /// <summary>Can the format be saved as bytes and put back later?</summary>
     public static bool CanCopy(uint format, string? name) =>
-        format >= FirstRegistered ? name is null || !OleBookkeeping.Contains(name) : MemoryFormats.Contains(format);
+        format >= FirstRegistered ? name is null || !SkippedRegistered.Contains(name) : MemoryFormats.Contains(format);
 
     /// <summary>
     /// Does this marker ask to keep the item out of history or the cloud? Any data in the "exclude"

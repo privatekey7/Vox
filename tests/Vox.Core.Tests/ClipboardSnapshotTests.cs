@@ -7,14 +7,13 @@ public sealed class ClipboardSnapshotTests
     private static readonly byte[] Zero = BitConverter.GetBytes(0u);
     private static readonly byte[] One = BitConverter.GetBytes(1u);
 
+    // Not ExcludeClipboardContentFromMonitorProcessing: RDP and VM clipboard sync would skip the dictation.
     [Fact]
-    public void Private_markers_are_the_three_documented_formats_with_dword_zero()
+    public void Paste_markers_keep_the_copy_out_of_history_and_the_cloud_only()
     {
-        var markers = ClipboardFormats.PrivateMarkers;
+        var markers = ClipboardFormats.PasteMarkers;
 
-        Assert.Equal(
-            ["ExcludeClipboardContentFromMonitorProcessing", "CanIncludeInClipboardHistory", "CanUploadToCloudClipboard"],
-            markers.Select(m => m.Name));
+        Assert.Equal(["CanIncludeInClipboardHistory", "CanUploadToCloudClipboard"], markers.Select(m => m.Name));
         Assert.All(markers, m => Assert.Equal(Zero, m.Data));
     }
 
@@ -34,6 +33,15 @@ public sealed class ClipboardSnapshotTests
     [InlineData(0xC101u, "Preferred DropEffect", true)]
     [InlineData(0xC102u, "Ole Private Data", false)]
     [InlineData(0xC103u, "DataObject", false)]
+    [InlineData(0xC105u, "Embed Source", false)] // OLE embedding: slow for the source app to render
+    [InlineData(0xC106u, "Link Source", false)]
+    [InlineData(0xC107u, "Object Descriptor", false)]
+    [InlineData(0xC108u, "Link Source Descriptor", false)]
+    [InlineData(0xC109u, "Embedded Object", false)]
+    [InlineData(0xC10Au, "Native", false)]
+    [InlineData(0xC10Bu, "OwnerLink", false)]
+    [InlineData(0xC10Cu, "ObjectLink", false)]
+    [InlineData(0xC10Du, "Rich Text Format", true)]
     [InlineData(0xC104u, null, true)]  // registered, name unknown
     public void Only_plain_memory_formats_are_copied(uint format, string? name, bool expected) =>
         Assert.Equal(expected, ClipboardFormats.CanCopy(format, name));
@@ -106,7 +114,9 @@ public sealed class ClipboardSnapshotTests
         Assert.True(snapshot.IsPrivate);
         Assert.Equal(1, snapshot.Skipped);
         Assert.Equal(13u, restored[0].Format);
-        Assert.Equal(ClipboardFormats.PrivateMarkers, restored.Skip(1));
+        Assert.Equal(
+            ["ExcludeClipboardContentFromMonitorProcessing", "CanIncludeInClipboardHistory", "CanUploadToCloudClipboard"],
+            restored.Skip(1).Select(i => i.Name));
     }
 
     [Fact]

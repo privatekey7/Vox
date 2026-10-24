@@ -36,7 +36,7 @@ internal static partial class SystemClipboard
         var items = new List<ClipboardItem> { new(CF_UNICODETEXT, null, data) };
         if (keepPrivate)
         {
-            items.AddRange(ClipboardFormats.PrivateMarkers);
+            items.AddRange(ClipboardFormats.PasteMarkers);
         }
 
         return Write(items);
@@ -80,7 +80,7 @@ internal static partial class SystemClipboard
     {
         var handle = GetClipboardData(format);
         var size = handle == 0 ? 0 : (long)GlobalSize(handle);
-        if (size == 0 || !snapshot.HasRoomFor(name, size))
+        if (size == 0 || !snapshot.HasRoomFor(name, size)) // size 0: no data or not a memory block
         {
             return null;
         }
