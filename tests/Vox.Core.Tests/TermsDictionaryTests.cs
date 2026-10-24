@@ -58,6 +58,9 @@ public sealed partial class TermsDictionaryTests
     [InlineData("Нашёл клад в саду.", "Нашёл клад в саду.")] // "клад" alone is a treasure
         [InlineData("Спроси джеммини, джмини и гимине.", "Спроси Gemini, Gemini и Gemini.")]
     [InlineData("Это алалам.", "Это LLM.")]
+        // owner's dictionary (24.10): pairs without a conflict
+    [InlineData("Открой ацпауэр, вистер и скрилекс.", "Открой AdsPower, Whisper и Skrillex.")]
+    [InlineData("Видео в климп чамп, ролик в шорса, ключ в енв.", "Видео в Clipchamp, ролик в Shorts, ключ в env.")]
     public void Each_group_maps_its_terms(string spoken, string expected) =>
         Assert.Equal(expected, Terms.Replace(spoken));
 

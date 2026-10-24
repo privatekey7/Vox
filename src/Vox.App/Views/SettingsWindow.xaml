@@ -163,6 +163,10 @@
               <ColumnDefinition Width="*"/>
               <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
             <StackPanel VerticalAlignment="Center">
               <TextBlock Text="Подсказки с экрана: Vox учитывает названия из открытых окон" Style="{StaticResource Vox.Body}"/>
               <TextBlock Text="Названия из заголовков окон помогают писать их правильно. Хранятся только отдельные слова, на этом компьютере." Style="{StaticResource Vox.Caption}"/>
@@ -170,13 +174,14 @@
                 <Button x:Name="ScreenMemoryButton" Content="Что Vox запомнил с экрана" Style="{StaticResource Vox.LinkButton}" Click="OnShowScreenMemory"/>
                 <Button Content="Очистить память названий" Style="{StaticResource Vox.LinkButton}" Margin="16,0,0,0" Click="OnClearScreenMemory"/>
               </StackPanel>
-              <!-- Its own scroll: the cards above the dictionary do not scroll with the page. -->
-              <ScrollViewer Visibility="{Binding Visibility, ElementName=ScreenMemoryList}"
-                            MaxHeight="220" Margin="0,8,0,0" VerticalScrollBarVisibility="Auto">
-                <StackPanel x:Name="ScreenMemoryList" Visibility="Collapsed"/>
-              </ScrollViewer>
             </StackPanel>
             <CheckBox x:Name="ScreenToggle" Grid.Column="1" Style="{StaticResource Vox.Toggle}" Click="OnToggle"/>
+            <!-- Under the toggle, the card's full width; its own scroll: the cards above the dictionary
+                 do not scroll with the page. -->
+            <ScrollViewer Grid.Row="1" Grid.ColumnSpan="2" Visibility="{Binding Visibility, ElementName=ScreenMemoryList}"
+                          MaxHeight="220" Margin="0,8,0,0" VerticalScrollBarVisibility="Auto">
+              <StackPanel x:Name="ScreenMemoryList" Visibility="Collapsed"/>
+            </ScrollViewer>
           </Grid>
         </Border>
         <Border Style="{StaticResource Vox.Card}" Margin="0,8,0,0">
@@ -244,7 +249,7 @@
           <StackPanel>
             <TextBlock Text="Перенос на другой компьютер" Style="{StaticResource Vox.Question}" Margin="0,0,0,8"/>
             <TextBlock Style="{StaticResource Vox.Caption}" TextWrapping="Wrap"
-                       Text="Словарь, выученные исправления, названия с экрана и настройки в одном файле. На другом компьютере загрузите его: данные объединятся с тамошними, ничего не пропадёт."/>
+                       Text="Словарь, выученные исправления, названия с экрана и настройки в одном файле. На другом компьютере загрузите его: данные добавятся к тем, что уже есть, ничего не пропадёт."/>
             <Grid Margin="0,12,0,0">
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
