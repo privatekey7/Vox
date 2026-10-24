@@ -489,6 +489,8 @@ public sealed partial class FuzzyTerms
         double ByVowels(Candidate c) =>
             c.Screen is not null ? (screenVowels is null ? 1 : Similarity(screenVowels, c.Vowels))
             : vowels is null || c.English ? 1 : Similarity(vowels, c.Vowels);
+        bool? notRussian = null; // looked up once, only when a remembered name comes close
+        Func<bool> foreign = () => notRussian ??= NotRussian(spoken, letters);
         // The best score per target; candidates under the floor can neither win nor stand in the way.
         List<(Candidate C, double Score)> hits = [];
         Scan(cyrillic ? _cyrillic : _latin, key, cyrillic);
@@ -542,7 +544,7 @@ public sealed partial class FuzzyTerms
                     // The first sound is heard best: "Vender" is not "Finder"; h/ch ("Hrome", "Chrome") alike.
                     if ((letters || c.Key[0] == key[0] || (c.Key[0] is 'к' or 'х' && key[0] is 'к' or 'х'))
                         && Similarity(key, c.Key, floor) is var score
-                        && (c.Screen is null || (!c.ShortOnly && ScreenAllowed(c, score, cyrillic))))
+                        && (c.Screen is null || (!c.ShortOnly && ScreenAllowed(c, score, cyrillic, foreign))))
                     {
                         Hit(c, score);
                     }
@@ -762,6 +764,9 @@ public sealed partial class FuzzyTerms
 
     [GeneratedRegex(@"[A-Z]?[a-z]+")] private static partial Regex CamelParts();
 
+    // A final e after a vowel and a consonant, at the end of a part: "Base" of "BaseScan", "Code".
+    [GeneratedRegex(@"(?<=[aeiouy][b-df-hj-np-tv-z])e(?=[A-Z]|\s|$)")] private static partial Regex SilentE();
+
     // An English word of any rarity as close in letters ("bitcoin" ~ "bitkoin") and in sound as a name's lead requires.
     private bool EnglishNeighbour(string latin, string key, double floor)
     {
@@ -819,13 +824,21 @@ public sealed partial class FuzzyTerms
             .Replace("ture", "чер", StringComparison.Ordinal);
 
     // A short name ("HAPP") only on an exact skeleton while it is on screen.
-    // A Cyrillic word only against one-word names in a window now: thousands of remembered names come too close
-    // to ordinary words by sound ("курсор" ~ "Coursera", "конвейер" ~ "Canva Pro").
+    // A Cyrillic word only against one-word names: in a window now, or a remembered one when the word is not
+    // Russian at all (owner, 24.10: "крузаде" ~ "cruzade"); remembered names come too close to ordinary words by
+    // sound ("курсор" ~ "Coursera", "синтез" ~ "Synthesia"), and a surname is Russian too ("Леонов" ~ "Lenovo").
     // A remembered name from MemoryThreshold: a name seen a week ago is a weaker hint than one on screen.
-    private static bool ScreenAllowed(Candidate c, double score, bool cyrillic) =>
+    private static bool ScreenAllowed(Candidate c, double score, bool cyrillic, Func<bool> foreign) =>
         (LettersOf(c.Source).Length >= MinLetters || (c.Screen == Window && score >= 1))
         && (c.Screen == Window || score >= MemoryThreshold)
-        && (!cyrillic || (c.Screen == Window && !c.Source.Contains(' ', StringComparison.Ordinal) && score >= CyrillicScreenThreshold));
+        && (!cyrillic || (!c.Source.Contains(' ', StringComparison.Ordinal) && score >= CyrillicScreenThreshold
+            && (c.Screen == Window || foreign())));
+
+    // Not a Russian word in any form, nor shaped like a surname or a town ("Леонов", "Петров": the dictionary has
+    // no surnames).
+    private static bool NotRussian(string spoken, string letters) =>
+        !RussianNameShape(letters) && !letters.EndsWith("ов", StringComparison.Ordinal) && !letters.EndsWith("ев", StringComparison.Ordinal)
+        && !spoken.Split(' ', '-').Any(RussianWords.Contains);
 
     /// <summary>Screen names indexed by skeleton, as <see cref="_latin"/>; a name's own spelling is not searched.</summary>
     private Dictionary<(char, int), List<Candidate>> ScreenIndex(IReadOnlyCollection<ScreenName> screen)
@@ -872,9 +885,11 @@ public sealed partial class FuzzyTerms
         // A name seen only in lower case (a domain: "cruzade.com") is written as a name.
         var target = name.Any(char.IsUpper) ? name : char.ToUpperInvariant(name[0]) + name[1..];
 
-        // English reading too: "Remotion" is said "ремоушн", not "ремотион".
+        // English reading too: "Remotion" is said "ремоушн", not "ремотион"; "BaseScan" is "бейскан", the e of
+        // a part is not said.
         var english = EnglishReading(name);
-        return new[] { Skeleton(name), Skeleton(english) }.Distinct().Where(k => k.Length >= 2)
+        var silent = EnglishReading(SilentE().Replace(name, ""));
+        return new[] { Skeleton(name), Skeleton(english), Skeleton(silent) }.Distinct().Where(k => k.Length >= 2)
             .Select(k => new Candidate(k, name, target, onScreen ? WindowRank : MemoryRank, Screen: onScreen ? Window : Memory, ShortOnly: shortOnly))
             .ToArray();
     }

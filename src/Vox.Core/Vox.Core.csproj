@@ -15,5 +15,7 @@
     <EmbeddedResource Include="Text\Data\brands.txt" LogicalName="Vox.Core.brands.txt" />
     <EmbeddedResource Include="Text\Data\common-words.txt.gz" LogicalName="Vox.Core.common-words.txt.gz" />
     <EmbeddedResource Include="Text\Data\english.txt.gz" LogicalName="Vox.Core.english.txt.gz" />
+    <EmbeddedResource Include="Text\Data\ru_RU.dic.gz" LogicalName="Vox.Core.ru_RU.dic.gz" />
+    <EmbeddedResource Include="Text\Data\ru_RU.aff.gz" LogicalName="Vox.Core.ru_RU.aff.gz" />
   </ItemGroup>
 </Project>

@@ -253,7 +253,22 @@ public class ScreenNamesTests
         var log = new List<FuzzyTerms.Match>();
         Assert.Equal("Открой Sunwhisper и хап", Fix("Открой Sunwisper и хап", memory, log));
         Assert.Equal("память", Assert.Single(log).Screen);
-        Assert.Equal("Открой санвиспер", Fix("Открой санвиспер", memory)); // Cyrillic: only a window now
+        Assert.Equal("Открой Sunwhisper", Fix("Открой санвиспер", memory)); // not a Russian word
+    }
+
+    // Owner, 24.10: names Vox remembered and the model wrote in Cyrillic, words Russian does not have.
+    [Theory]
+    [InlineData("Крузаде.", "Cruzade.")]
+    [InlineData("Крузейт.", "Cruzade.")]
+    [InlineData("Байскан.", "BaseScan.")]
+    [InlineData("Бейскан.", "BaseScan.")]
+    [InlineData("Открой курсор и синтез.", "Открой курсор и синтез.")] // Russian words stay
+    [InlineData("Позвони Леонову.", "Позвони Леонову.")] // a surname too
+    [InlineData("Леонов.", "Леонов.")]
+    public void A_remembered_name_takes_a_word_russian_does_not_have(string raw, string expected)
+    {
+        ScreenName[] memory = [new("cruzade", false), new("BaseScan", false), new("Coursera", false), new("Synthesia", false), new("Lenovo", false)];
+        Assert.Equal(expected, Fix(raw, memory));
     }
 
     [Theory]
@@ -292,16 +307,36 @@ public class ScreenNamesTests
         }
     }
 
-    // Stress: every Latin name of terms.json remembered, against a dictionary without them.
+    // Stress: every Latin name of terms.json remembered, against a dictionary without them. Only a word Russian
+    // does not have may take one ("кубернейтис"); a Russian word never ("курсор", "синтез", "подмена").
     [Fact]
-    public void Cyrillic_words_never_take_a_remembered_name()
+    public void Russian_words_never_take_a_remembered_name()
     {
         ScreenName[] memory = [.. Terms.LoadPairs().Select(p => p[1]).Where(t => t.All(char.IsAsciiLetter) && t.Length >= 3)
             .Distinct().Select(n => new ScreenName(n, false))];
         var fuzzy = new FuzzyTerms([("фронтенд", "фронтенд")], [("фронтенд", "фронтенд")], latin: true, FuzzyTerms.LoadEnglish());
         var changed = CyrillicCorpus().Where(w => fuzzy.Replace(w, null, memory) != fuzzy.Replace(w)).ToList();
-        Assert.Equal([], changed);
+        Assert.Equal([], changed.Where(w => w.Split('-').Any(RussianWords.Contains)));
+        Assert.True(changed.Count < 50, $"{changed.Count}: {string.Join(", ", changed)}");
     }
+
+    [Theory]
+    [InlineData("курсор")]
+    [InlineData("курсоре")]
+    [InlineData("синтеза")]
+    [InlineData("подменой")]
+    [InlineData("кривую")]
+    [InlineData("ёлками")]
+    [InlineData("Аргоном")]
+    public void Russian_word_forms_are_known(string word) => Assert.True(RussianWords.Contains(word));
+
+    [Theory]
+    [InlineData("крузаде")]
+    [InlineData("байскан")]
+    [InlineData("вистер")]
+    [InlineData("ацпауэр")]
+    [InlineData("кубернейтис")]
+    public void Words_heard_in_russian_are_not(string word) => Assert.False(RussianWords.Contains(word));
 
     [Fact]
     public void Frequent_english_words_stay_with_names_on_screen()
