@@ -76,7 +76,9 @@ public sealed class VoxDatabase : IDisposable
     {
         SQLitePCL.Batteries_V2.Init();
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
-        _connection = new SqliteConnection($"Data Source={path}");
+        // One connection for the app's lifetime; without a pool Dispose closes the file, so
+        // «Удалить мои данные» can delete it.
+        _connection = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = path, Pooling = false }.ToString());
         _connection.Open();
         Execute("PRAGMA journal_mode=WAL;");
         Execute(Schema);

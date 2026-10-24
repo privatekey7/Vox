@@ -272,6 +272,14 @@
             </StackPanel>
           </StackPanel>
         </Border>
+        <Border Style="{StaticResource Vox.Card}" Padding="20" Margin="0,12,0,0">
+          <StackPanel>
+            <TextBlock Text="Мои данные" Style="{StaticResource Vox.Question}" Margin="0,0,0,8"/>
+            <TextBlock Style="{StaticResource Vox.Caption}" TextWrapping="Wrap"
+                       Text="Удалить всё, что Vox хранит для вас на этом компьютере. Сделайте это до удаления Vox: программа удаления стирает данные только той учётной записи, под которой её запустили."/>
+            <Button Content="Удалить мои данные…" Style="{StaticResource Vox.SecondaryButton}" HorizontalAlignment="Left" Margin="0,16,0,0" Click="OnDeletePersonalData"/>
+          </StackPanel>
+        </Border>
         <Button x:Name="DeveloperButton" Content="Для разработчика" Style="{StaticResource Vox.LinkButton}" HorizontalAlignment="Left" Margin="4,16,0,0" Click="OnShowDeveloper"/>
         <Border x:Name="DeveloperCard" Style="{StaticResource Vox.Card}" Margin="0,8,0,0" Visibility="Collapsed">
           <Grid Margin="16,14">

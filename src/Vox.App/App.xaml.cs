@@ -45,9 +45,22 @@ public partial class App : Application
     /// <summary>Named event the installer sets to close Vox gracefully (keep in sync with vox.iss).</summary>
     private const string QuitEventName = @"Local\Vox.Quit";
 
+    /// <summary>
+    /// vox.iss runs <c>Vox.exe --enable-autostart</c> as the user who started setup (keep in sync): an
+    /// admin-mode installer may run as another account, whose Run key is not this user's (docs/adr/034).
+    /// </summary>
+    private const string EnableAutostartArg = "--enable-autostart";
+
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        if (e.Args.Contains(EnableAutostartArg))
+        {
+            // Before the single-instance mutex and the log: this run only writes the Run value and exits.
+            Shutdown(Autostart.TrySet(true) ? 0 : 1);
+            return;
+        }
+
         _singleInstance = new Mutex(true, @"Local\Vox.Dictation", out var first);
         if (!first)
         {
@@ -123,16 +136,59 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
-        _tray?.Dispose();
-        _hook?.Dispose();
-        _dictation?.Dispose();
-        _audio?.Dispose();
-        _sounds?.Dispose();
-        _db?.Dispose();
+        StopServices();
         Log.Info("[EXIT] Bye");
         _quitRequest?.Dispose();
         _singleInstance?.Dispose(); // last: the installer waits for this mutex to disappear
         base.OnExit(e);
+    }
+
+    /// <summary>Stops everything that holds or writes Vox's files (the model, the database). Safe to call twice.</summary>
+    private void StopServices()
+    {
+        _tray?.Dispose();
+        _tray = null;
+        _hook?.Dispose();
+        _hook = null;
+        _dictation?.Dispose();
+        _dictation = null;
+        _audio?.Dispose();
+        _audio = null;
+        _sounds?.Dispose();
+        _sounds = null;
+        _db?.Dispose();
+        _db = null;
+    }
+
+    /// <summary>
+    /// Settings → «Удалить мои данные»: this Windows user's history, dictionary, settings, logs, recordings,
+    /// crash dumps, own models and autostart, then Vox quits. The uninstaller cannot do it reliably (docs/adr/034).
+    /// </summary>
+    internal void DeletePersonalDataAndQuit()
+    {
+        Log.Info("[DATA] Deleting the user's data on request");
+        _settingsWindow?.Close();
+        StopServices();
+        Log.Stop(); // nothing may write into the folders being deleted
+        var autostartOff = Autostart.TrySet(false);
+        var left = PersonalData.Delete(Paths);
+        if (left.Count == 0 && autostartOff)
+        {
+            MessageBox.Show("Ваши данные Vox удалены. Vox закроется.", "Vox", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        else
+        {
+            var lines = left.Select(f => "• " + f).ToList();
+            if (!autostartOff)
+            {
+                lines.Add("• автозапуск Vox (выключите его в «Параметры» → «Приложения» → «Автозагрузка»)");
+            }
+
+            MessageBox.Show($"Удалено не всё. Осталось:\n\n{string.Join("\n", lines)}\n\nЗакройте программы, которые могут держать эти файлы, и удалите папки вручную.",
+                "Vox", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+
+        Shutdown();
     }
 
     /// <summary>The saved model if it is installed, otherwise any installed one (GigaAM first).</summary>
