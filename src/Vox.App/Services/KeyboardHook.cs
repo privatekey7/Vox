@@ -109,7 +109,8 @@ internal sealed class KeyboardHook : IDisposable
     /// </summary>
     public static long LastUserKeyTick => Volatile.Read(ref _lastUserKeyTick);
 
-    // Last editing key of the user per foreground window: self-learning only learns what the user typed there.
+    // Last user key per foreground window: self-learning only learns what the user typed there. Any key, as Ctrl+S
+    // confirms a fix made with the mouse; a fix learned by itself must be seen typed too (FieldWatcher.Edited).
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<nint, long> LastKeyByWindow = new();
 
     /// <summary>
@@ -118,7 +119,7 @@ internal sealed class KeyboardHook : IDisposable
     /// </summary>
     public event Action<nint>? Edited;
 
-    /// <summary>Did the user press an editing key (not Vox's own Ctrl+V) in this window after <paramref name="sinceTick"/>?</summary>
+    /// <summary>Did the user press a key (not Vox's own Ctrl+V) in this window after <paramref name="sinceTick"/>?</summary>
     public static bool UserTypedIn(nint window, long sinceTick) =>
         LastKeyByWindow.TryGetValue(window, out var tick) && tick > sinceTick;
 
@@ -145,11 +146,11 @@ internal sealed class KeyboardHook : IDisposable
                 {
                     var now = Environment.TickCount64;
                     Volatile.Write(ref _lastUserKeyTick, now);
+                    var window = Native.GetForegroundWindow();
+                    LastKeyByWindow[window] = now;
                     if (Hotkeys.IsEditing((int)info.vkCode, Native.IsDown(Native.VK_CONTROL), Native.IsDown(Native.VK_SHIFT),
                             Native.IsDown(Native.VK_MENU), Native.IsDown(Native.VK_LWIN) || Native.IsDown(Native.VK_RWIN)))
                     {
-                        var window = Native.GetForegroundWindow();
-                        LastKeyByWindow[window] = now;
                         Raise(() => Edited?.Invoke(window));
                     }
                 }

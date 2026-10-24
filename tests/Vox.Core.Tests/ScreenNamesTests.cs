@@ -151,6 +151,20 @@ public class ScreenNamesTests
         Assert.Empty(memory.Entries);
     }
 
+    // As DictationService does: a replacement from memory marks its name, whatever case the memory keeps.
+    [Fact]
+    public void A_replacement_from_memory_marks_its_name_used()
+    {
+        var memory = new ScreenMemory();
+        memory.See(["cruzade"], Day);
+        var log = new List<FuzzyTerms.Match>();
+        Assert.Equal("Cruzade.", Fix("Крузаде.", [.. memory.Entries.Select(e => new ScreenName(e.Name, false))], log));
+
+        Assert.True(memory.Use(log.Where(m => m.Screen == FuzzyTerms.Memory).Select(m => m.Replacement), Day.AddDays(1)));
+        memory.Expire(Day + ScreenMemory.Life + TimeSpan.FromDays(1));
+        Assert.Equal(["cruzade"], Names(memory));
+    }
+
     // The owner's screen_names.json from before 25.10 has no first-seen time: its names keep working, 30 days unseen.
     [Fact]
     public void Names_saved_before_the_lifetime_keep_working()
