@@ -113,7 +113,7 @@ public static class ContextJoiner
         return char.ToLowerInvariant(word[0]) + body[1..];
     }
 
-    private static bool KeepsCase(string word) =>
+    internal static bool KeepsCase(string word) =>
         word == "I" || word.StartsWith("I'", StringComparison.Ordinal)
         || word.Skip(1).Any(char.IsUpper) // API, GitHub
         || Terms.IsTermForm(word); // Docker, Python

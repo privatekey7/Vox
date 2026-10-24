@@ -14,18 +14,31 @@ public static class RussianWords
     private static readonly Lazy<Lexicon> Default = new(Load);
 
     /// <summary>A Russian word form (ё as е, any case); a hyphenated word is not one, the caller checks its parts.</summary>
-    public static bool Contains(string word) => Default.Value.Contains(word);
+    public static bool Contains(string word) => Default.Value.Stems(word).Any();
+
+    /// <summary>A form of a name only, never of an ordinary word: "Кирилла", "Москве" (the dictionary spells them
+    /// with a capital); "Вера" is also "вера", so it is not.</summary>
+    public static bool IsName(string word)
+    {
+        var lexicon = Default.Value;
+        var stems = lexicon.Stems(word).ToList();
+        return stems.Count > 0 && stems.All(lexicon.IsName);
+    }
 
     private sealed record Rule(char Flag, string Strip, Regex? Condition);
 
-    private sealed class Lexicon(Dictionary<string, string> stems, Dictionary<string, List<Rule>> rules, int longestEnding)
+    private sealed class Lexicon(
+        Dictionary<string, string> stems, HashSet<string> names, Dictionary<string, List<Rule>> rules, int longestEnding)
     {
-        public bool Contains(string word)
+        public bool IsName(string stem) => names.Contains(stem);
+
+        /// <summary>The stems the word is a form of.</summary>
+        public IEnumerable<string> Stems(string word)
         {
             var w = Normal(word);
             if (stems.ContainsKey(w))
             {
-                return true;
+                yield return w;
             }
 
             // A form is a stem with its ending swapped by a rule of one of the stem's flags.
@@ -43,12 +56,10 @@ public static class RussianWords
                     if (stems.TryGetValue(stem, out var flags) && flags.Contains(rule.Flag, StringComparison.Ordinal)
                         && (rule.Condition is null || rule.Condition.IsMatch(stem)))
                     {
-                        return true;
+                        yield return stem;
                     }
                 }
             }
-
-            return false;
         }
     }
 
@@ -90,16 +101,22 @@ public static class RussianWords
         }
 
         // ru_RU.dic: a count, then "stem/flags"; a stem twice (ё and е, a capital) keeps the flags of both.
+        // A stem spelled only with a capital is a name ("Кирилл/K").
         var stems = new Dictionary<string, string>(150_000, StringComparer.Ordinal);
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        var lower = new HashSet<string>(StringComparer.Ordinal);
         foreach (var line in ReadLines("Vox.Core.ru_RU.dic.gz").Skip(1))
         {
             var slash = line.IndexOf('/', StringComparison.Ordinal);
-            var stem = Normal(slash < 0 ? line : line[..slash]);
+            var spelled = slash < 0 ? line : line[..slash];
+            var stem = Normal(spelled);
             var flags = slash < 0 ? "" : line[(slash + 1)..];
             stems[stem] = stems.TryGetValue(stem, out var had) ? had + flags : flags;
+            (char.IsUpper(spelled[0]) ? names : lower).Add(stem);
         }
 
-        return new Lexicon(stems, rules, longest);
+        names.ExceptWith(lower);
+        return new Lexicon(stems, names, rules, longest);
     }
 
     private static IEnumerable<string> ReadLines(string resource)

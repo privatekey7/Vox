@@ -7,6 +7,7 @@ namespace Vox.Core.Models;
 /// <param name="NeedsItn">False when the model already writes numbers as digits.</param>
 /// <param name="Kind">How sherpa-onnx runs it: NeMo transducer, or Qwen3-ASR (<see cref="Joiner"/> is its conv
 /// front end, <see cref="Tokens"/> its tokenizer folder).</param>
+/// <param name="MaxPieceSeconds">Longest audio decoded at once; longer is split at pauses (D030).</param>
 public sealed record SpeechModel(
     string Id,
     string DisplayName,
@@ -19,7 +20,8 @@ public sealed record SpeechModel(
     string Joiner,
     string Tokens,
     bool NeedsItn,
-    ModelKind Kind = ModelKind.NemoTransducer);
+    ModelKind Kind = ModelKind.NemoTransducer,
+    double MaxPieceSeconds = 12);
 
 public enum ModelKind
 {
@@ -43,7 +45,9 @@ public static class ModelCatalog
         Decoder: "decoder.onnx",
         Joiner: "joiner.onnx",
         Tokens: "tokens.txt",
-        NeedsItn: false); // writes "11:30", "150 000 ₽" itself; ITN would only damage it
+        NeedsItn: false, // writes "11:30", "150 000 ₽" itself; ITN would only damage it
+        // Every cut costs words and a stray capital or full stop; GigaAM loses words only beyond ~45 s (D030).
+        MaxPieceSeconds: 30);
 
     public static readonly SpeechModel Parakeet = new(
         Id: "parakeet-tdt-0.6b-v3",

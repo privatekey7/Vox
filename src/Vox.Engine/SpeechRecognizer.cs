@@ -1,6 +1,7 @@
 using SherpaOnnx;
 using Vox.Core.Audio;
 using Vox.Core.Models;
+using Vox.Core.Text;
 
 namespace Vox.Engine;
 
@@ -17,9 +18,6 @@ public interface ISpeechRecognizer : IDisposable
 public sealed class SpeechRecognizer : ISpeechRecognizer
 {
     public const int SampleRate = 16000;
-
-    /// <summary>Longest piece sent to the model at once; longer audio is split at pauses.</summary>
-    public const double MaxSegmentSeconds = 12;
 
     private readonly OfflineRecognizer _recognizer;
     private readonly Lock _lock = new();
@@ -72,7 +70,7 @@ public sealed class SpeechRecognizer : ISpeechRecognizer
     {
         // Long input degrades both models (empty text, dropped words): decode pause-separated
         // pieces in one batch and join them.
-        var pieces = Segmenter.SplitOnPauses(samples, sampleRate, MaxSegmentSeconds);
+        var pieces = Segmenter.SplitOnPauses(samples, sampleRate, Model.MaxPieceSeconds);
         if (pieces.Count == 0)
         {
             return "";
@@ -90,8 +88,7 @@ public sealed class SpeechRecognizer : ISpeechRecognizer
             try
             {
                 _recognizer.Decode(streams);
-                var texts = streams.Select(s => (s.Result.Text ?? "").Trim()).Where(t => t.Length > 0);
-                return string.Join(' ', texts);
+                return PieceJoiner.Join(streams.Select(s => s.Result.Text ?? ""));
             }
             finally
             {
