@@ -112,6 +112,9 @@ internal sealed class DictationService : IDisposable
     /// <summary>Ctrl+S: remember the fix the user just made in the dictation (see <see cref="FieldWatcher.ConfirmFix"/>).</summary>
     public void ConfirmFix() => _watcher.ConfirmFix();
 
+    /// <summary>An editing key in this window: self-learning checks the fix is typed by hand (<see cref="FieldWatcher.Edited"/>).</summary>
+    public void Edited(nint window) => _watcher.Edited(window);
+
     /// <summary>Tray: forget the last learned pair; (wrong, correct) or null.</summary>
     public (string Wrong, string Correct)? UndoLastLearned()
     {

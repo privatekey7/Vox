@@ -85,6 +85,7 @@ public partial class App : Application
             _hook.Pressed += _dictation.OnPressed;
             _hook.Released += _dictation.OnReleased;
             _hook.SavePressed += _dictation.ConfirmFix;
+            _hook.Edited += _dictation.Edited;
             _pill = new RecordingPill(_audio);
             _dictation.StateChanged += s => Dispatcher.BeginInvoke(() => OnDictationState(s));
             _dictation.CorrectionLearned += (w, c, fixedTarget) => Dispatcher.BeginInvoke(() => _pill?.ShowLearned(w, c, fixedTarget));

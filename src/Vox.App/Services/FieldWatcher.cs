@@ -24,12 +24,14 @@ internal sealed class FieldWatcher : IDisposable
     private static readonly TimeSpan StableFor = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan GiveUpAfter = TimeSpan.FromMinutes(10);
     private static readonly TimeSpan ConfirmWithin = TimeSpan.FromMinutes(2); // Ctrl+S after a rejected fix
+    private static readonly TimeSpan SampleAfter = TimeSpan.FromMilliseconds(100); // the hook sees a key before the app
 
     private readonly BlockingCollection<Action> _work = new(boundedCapacity: 16);
     private readonly Thread _thread;
     private readonly Timer _poll;
     private Pending? _pending;
     private (Pending Field, DateTime At)? _rejected; // the last edit that was not learned
+    private int _sampling; // one field sample at a time: the queue also carries pastes and Ctrl+S
 
     public FieldWatcher()
     {
@@ -128,7 +130,8 @@ internal sealed class FieldWatcher : IDisposable
         else
         {
             Log.Info($"[LEARN] Watching the field in {app} via {(source == FieldSource.Uia ? "uia" : "wm_gettext")}");
-            _pending = new Pending(read, text, inserted, DateTime.UtcNow, text, DateTime.UtcNow, Native.GetForegroundWindow(), Environment.TickCount64);
+            _pending = new Pending(read, text, inserted, DateTime.UtcNow, text, DateTime.UtcNow, Native.GetForegroundWindow(), Environment.TickCount64,
+                new TypingTrace(text, inserted));
         }
     });
 
@@ -146,17 +149,42 @@ internal sealed class FieldWatcher : IDisposable
         Enqueue(() => Confirm(window));
     }
 
+    /// <summary>
+    /// Call when the user pressed an editing key in <paramref name="window"/>: a look at the field shortly after shows
+    /// whether a fix is typed by hand (<see cref="TypingTrace"/>).
+    /// </summary>
+    public void Edited(nint window)
+    {
+        if (_pending?.Window != window || Interlocked.Exchange(ref _sampling, 1) == 1)
+        {
+            return;
+        }
+
+        _ = Task.Delay(SampleAfter).ContinueWith(_ =>
+        {
+            if (!Enqueue(Sample))
+            {
+                Volatile.Write(ref _sampling, 0);
+            }
+        }, TaskScheduler.Default);
+    }
+
     public void Dispose()
     {
         _poll.Dispose();
         _work.CompleteAdding();
     }
 
-    private void Enqueue(Action action)
+    private bool Enqueue(Action action) =>
+        Enabled && !_work.IsAddingCompleted
+        && _work.TryAdd(action); // a full queue means the watcher is stuck on a hung app — skip
+
+    private void Sample()
     {
-        if (Enabled && !_work.IsAddingCompleted)
+        Volatile.Write(ref _sampling, 0);
+        if (_pending is { } p && p.Read() is { } now)
         {
-            _work.TryAdd(action); // a full queue means the watcher is stuck on a hung app — skip
+            p.Typing.Add(now);
         }
     }
 
@@ -224,6 +252,12 @@ internal sealed class FieldWatcher : IDisposable
     private bool Compare(Pending p, string now, bool confirmed)
     {
         var by = confirmed ? "Ctrl+S: " : "";
+        if (!confirmed && CorrectionDetector.Detect(p.Before, now, p.Inserted, IsTarget) is var (_, fixedTo) && !p.Typing.ShowsTyping(now, fixedTo))
+        {
+            Log.Info("[LEARN] The word changed in one step, not typed by hand: nothing learned (Ctrl+S remembers it)");
+            return false;
+        }
+
         if (CorrectionDetector.Detect(p.Before, now, p.Inserted, IsTarget, confirmed) is var (wrong, correct))
         {
             Log.Info($"[LEARN] {by}Correction: \"{wrong}\" → \"{correct}\"");
@@ -281,5 +315,5 @@ internal sealed class FieldWatcher : IDisposable
 
     private sealed record Pending(
         Func<string?> Read, string Before, string Inserted, DateTime PastedAt, string LastSeen, DateTime LastChange,
-        nint Window, long PastedTick);
+        nint Window, long PastedTick, TypingTrace Typing);
 }

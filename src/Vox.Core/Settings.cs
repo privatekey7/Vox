@@ -211,4 +211,25 @@ public static class Hotkeys
     /// </summary>
     public static bool IsSave(int virtualKey, bool ctrl, bool shift, bool alt, bool win) =>
         virtualKey == 0x53 && ctrl && !shift && !alt && !win;
+
+    /// <summary>
+    /// A key that edits text (security audit L5, 25.10): a character, Backspace, Delete, paste, cut, undo. Only these
+    /// count as the user's own typing for self-learning; Space, Enter, arrows and other shortcuts do not, so a page
+    /// script cannot wait for any key and pass its own change off as the user's fix.
+    /// </summary>
+    /// <remarks>AltGr is Ctrl+Alt: it types characters on many layouts. Text from AutoHotkey or the on-screen
+    /// keyboard comes as VK_PACKET, from an IME as VK_PROCESSKEY.</remarks>
+    public static bool IsEditing(int virtualKey, bool ctrl, bool shift, bool alt, bool win)
+    {
+        var character = virtualKey is >= 0x30 and <= 0x39 or >= 0x41 and <= 0x5A or >= 0x60 and <= 0x6F
+            or >= 0xBA and <= 0xC0 or >= 0xDB and <= 0xDF or 0xE2;
+        return !win && (virtualKey switch
+        {
+            0x08 or 0x2E => true, // Backspace, Delete (Ctrl too: a whole word)
+            0xE5 or 0xE7 => true, // VK_PROCESSKEY, VK_PACKET
+            0x2D => shift && !ctrl && !alt, // Shift+Insert: paste
+            0x56 or 0x58 or 0x59 or 0x5A when ctrl && !alt => true, // Ctrl+V, X, Y, Z (with Shift: plain paste, redo)
+            _ => character && (ctrl == alt), // plain or AltGr; Ctrl+A or Alt+F are shortcuts
+        });
+    }
 }
