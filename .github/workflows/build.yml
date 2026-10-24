@@ -46,14 +46,18 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "10.0.x"
-      # Not locked here: on Linux the WPF app resolves System.Drawing.Common as a package, while the
-      # lock files (made on Windows) get it from the Windows Desktop framework (NU1102). The shipped
-      # installer is built by windows-installer, which restores in locked mode.
-      - run: dotnet restore Vox.sln -p:RestoreLockedMode=false
-      # The whole solution, the WPF app included (EnableWindowsTargeting): `dotnet test` alone
-      # only builds what the tests reference.
-      - run: dotnet build Vox.sln -c Release --no-restore
-      - run: dotnet test Vox.sln -c Release --no-build --filter "Category!=Models"
+      # The tests and the replay tool, not the WPF app: on Linux the app's Windows-made lock file
+      # cannot restore (System.Drawing.Common comes from the Windows Desktop framework there, NU1102).
+      # windows-installer builds the app, also in locked mode. A lock file out of step with
+      # Directory.Packages.props fails here (NU1004) instead of resolving something new.
+      - run: |
+          dotnet restore tests/Vox.Core.Tests --locked-mode
+          dotnet restore tests/Vox.Engine.Tests --locked-mode
+          dotnet restore tools/Vox.Replay --locked-mode
+      - run: dotnet build tools/Vox.Replay -c Release --no-restore
+      - run: |
+          dotnet test tests/Vox.Core.Tests -c Release --no-restore --filter "Category!=Models"
+          dotnet test tests/Vox.Engine.Tests -c Release --no-restore --filter "Category!=Models"
 
   windows-installer:
     needs: [test, secrets]
