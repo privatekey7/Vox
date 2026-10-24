@@ -54,7 +54,29 @@ public class RecognizerWithoutModelsTests
 {
     [Fact]
     public void Missing_model_files_fail_fast() =>
-        Assert.Throws<FileNotFoundException>(() => new SpeechRecognizer(ModelCatalog.GigaAm, Path.GetTempPath()));
+        Assert.Throws<ModelIntegrityException>(() => new SpeechRecognizer(ModelCatalog.GigaAm, Path.GetTempPath()));
+
+    [Fact]
+    public void Model_file_that_differs_from_its_pin_is_not_loaded()
+    {
+        // M1: a model planted in the shared folder never reaches sherpa-onnx.
+        var root = Directory.CreateTempSubdirectory("vox-models-").FullName;
+        try
+        {
+            var dir = Directory.CreateDirectory(ModelCatalog.DirectoryOf(ModelCatalog.GigaAm, root)).FullName;
+            foreach (var pin in ModelCatalog.GigaAm.Files)
+            {
+                File.WriteAllText(Path.Combine(dir, pin.Path), "planted");
+            }
+
+            var error = Assert.Throws<ModelIntegrityException>(() => new SpeechRecognizer(ModelCatalog.GigaAm, root));
+            Assert.Contains("изменён", error.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
 }
 
 internal static class Wav
