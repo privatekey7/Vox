@@ -1,0 +1,12 @@
+# gitleaks: findings checked by hand and accepted (one fingerprint per line: commit:file:rule:line).
+#
+# Fake secrets in the ScreenWords tests: Vox must drop keys, tokens and wallet addresses that it reads
+# from the screen, so the tests feed it made-up ones. Commit 7748ba7 added them whole; 7a7240a split
+# each literal in two ("gh" + "p_...") so scanners no longer match the current source. History keeps
+# the old form, hence these entries. None of the values was ever a real credential.
+#
+# Ignore by exact fingerprint only, never by path: a real leak in the same file must still fail CI.
+7748ba7a07f996f20a6b222249051a4195b76d03:tests/Vox.Core.Tests/ScreenNamesTests.cs:generic-api-key:34
+7748ba7a07f996f20a6b222249051a4195b76d03:tests/Vox.Core.Tests/ScreenNamesTests.cs:github-pat:35
+7748ba7a07f996f20a6b222249051a4195b76d03:tests/Vox.Core.Tests/ScreenNamesTests.cs:jwt:39
+7a7240a1484d100290b4e00542f323f29ff93f93:tests/Vox.Core.Tests/ScreenNamesTests.cs:jwt:41

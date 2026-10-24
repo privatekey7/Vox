@@ -9,6 +9,9 @@
 - Репозиторий `privatekey7/Vox` публичный, релизы на GitHub (v1.0.0–v1.2.0), к v1.2.0 приложен только
   `vox-setup.exe`. Релизы создаются вручную.
 - CI (`build.yml`) на теге `v*` собирает `vox-setup.exe` и `.sha256`, но кладёт их только в артефакт.
+  Хеш также пишется в summary запуска и в output `sha256` job `windows-installer` (его возьмёт будущий
+  шаг релиза для описания); job `provenance` делает attestation (`gh attestation verify`).
+  Формат `.sha256` прежний: одна строка с хешем в верхнем регистре.
 - `vox.iss`: тот же AppId, установка поверх сохраняет данные, `PrepareToInstall` закрывает Vox
   (событие `Local\Vox.Quit`, потом taskkill). Запуск после установки `skipifsilent`: при тихой установке
   Vox сам не стартует. Версия в `Directory.Build.props` и `MyAppVersion`.

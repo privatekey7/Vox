@@ -106,7 +106,12 @@ Windows не даёт обычным программам перехватыва
 <details>
 <summary><b>SmartScreen предупреждает об установщике</b></summary>
 
-Нажмите **«Подробнее» → «Выполнить в любом случае»**. Установщик пока не подписан сертификатом: его собирает GitHub Actions из открытого кода этого репозитория, рядом лежит контрольная сумма SHA-256.
+Нажмите **«Подробнее» → «Выполнить в любом случае»**. Установщик пока не подписан сертификатом: его собирает GitHub Actions из открытого кода этого репозитория.
+
+Скачивайте Vox только со страницы [Releases](https://github.com/privatekey7/vox/releases/latest). Проверить, что файл не подменили, можно двумя способами:
+
+- **Контрольная сумма.** В PowerShell в папке с файлом выполните `(Get-FileHash .\vox-setup.exe -Algorithm SHA256).Hash` и сравните результат с SHA-256 в описании релиза. Та же сумма есть в отчёте сборки на вкладке Actions.
+- **Подтверждение сборки.** Если у вас есть [GitHub CLI](https://cli.github.com/), выполните `gh attestation verify vox-setup.exe --repo privatekey7/Vox`. Команда проверит, что файл собран из этого репозитория. Работает для релизов начиная с 2.0.
 </details>
 
 ---
@@ -125,6 +130,8 @@ dotnet run --project tools/Vox.Replay -- --audio путь/к/recordings --compar
 ```
 
 Установщик (`vox-setup.exe`) собирает GitHub Actions: `.github/workflows/build.yml` → Inno Setup (`vox.iss`).
+
+Версии пакетов NuGet закреплены в `packages.lock.json` каждого проекта, CI ставит пакеты строго по ним (`--locked-mode`). Добавили или обновили пакет: выполните `dotnet restore` и закоммитьте изменённые `packages.lock.json`.
 
 | Проект | Что внутри |
 |---|---|
