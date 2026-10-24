@@ -109,6 +109,32 @@ public sealed class ImportBackupsTests : IDisposable
     }
 }
 
+public sealed class CrashDumpsTests : IDisposable
+{
+    private readonly string _dir = Directory.CreateTempSubdirectory("vox-test-").FullName;
+
+    public void Dispose() => Directory.Delete(_dir, recursive: true);
+
+    [Fact]
+    public void Clearing_deletes_the_dumps_keeps_the_folder_and_skips_a_locked_one()
+    {
+        File.WriteAllText(Path.Combine(_dir, "Vox.exe.1234.dmp"), "memory");
+        File.WriteAllText(Path.Combine(_dir, "Vox.exe.5678.dmp"), "memory");
+        var locked = Path.Combine(_dir, "Vox.exe.9999.dmp");
+        File.WriteAllText(locked, "being written");
+
+        using (new FileStream(locked, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            Assert.Equal(2, Vox.Core.Diagnostics.CrashDumps.DeleteAll(_dir));
+        }
+
+        Assert.True(Directory.Exists(_dir));
+        Assert.Equal([locked], Directory.GetFiles(_dir));
+        Assert.Equal(1, Vox.Core.Diagnostics.CrashDumps.DeleteAll(_dir));
+        Assert.Equal(0, Vox.Core.Diagnostics.CrashDumps.DeleteAll(Path.Combine(_dir, "missing")));
+    }
+}
+
 public sealed class SettingsTests : IDisposable
 {
     private readonly string _dir = Directory.CreateTempSubdirectory("vox-test-").FullName;

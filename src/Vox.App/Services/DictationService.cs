@@ -213,15 +213,16 @@ internal sealed class DictationService : IDisposable
     /// <summary>
     /// Settings → History → "Очистить": every place Vox keeps dictations' text goes, not just the table: the
     /// database (securely, <see cref="VoxDatabase.ClearHistory"/>), the recordings, the copies made before an
-    /// import (in <paramref name="dataRoot"/>) and the log. The dictionary, screen names and settings stay.
+    /// import (in <paramref name="dataRoot"/>), crash dumps and the log. The dictionary, screen names and settings stay.
     /// </summary>
     public void ClearHistory(string dataRoot)
     {
         _db.ClearHistory();
         var recordings = _recordings.Clear();
         var backups = ImportBackups.DeleteAll(dataRoot);
+        var dumps = Vox.Core.Diagnostics.CrashDumps.DeleteAll(Vox.Core.Diagnostics.CrashDumps.DefaultFolder);
         Log.Clear();
-        Log.Info($"[HISTORY] Cleared: the history, {recordings} recordings, {backups} import backups and the log");
+        Log.Info($"[HISTORY] Cleared: the history, {recordings} recordings, {backups} import backups, {dumps} crash dumps and the log");
     }
 
     /// <summary>Settings: what Vox remembered from the screen, the latest first.</summary>

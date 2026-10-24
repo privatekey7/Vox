@@ -343,7 +343,7 @@ public partial class SettingsWindow : Window
     {
         if (MessageBox.Show(this,
                 "Удалить все диктовки?\n\n" +
-                "Удалятся история, записи голоса, лог Vox и копии данных, которые Vox сохранял перед загрузкой из файла.\n" +
+                "Удалятся история, записи голоса, лог Vox, отчёты о сбоях и копии данных, которые Vox сохранял перед загрузкой из файла.\n" +
                 "Словарь, названия с экрана и настройки останутся.\n\n" +
                 "Это нельзя отменить.", "Vox",
                 MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
