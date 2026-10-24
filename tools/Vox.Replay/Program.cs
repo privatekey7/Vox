@@ -5,8 +5,9 @@ using Vox.Core.Text;
 using Vox.Engine;
 
 // Replays dictations through the text pipeline: `dotnet run --project tools/Vox.Replay -- input.txt`.
-// Input is vox.log itself ([STT] Raw / [STT] Final lines), or plain lines: one Raw per line,
-// optionally followed by a tab and the logged Final.
+// Input is vox.log itself ([STT] Raw / [STT] Final lines: only with Settings → "Писать тексты диктовок в лог"),
+// recordings.tsv (its raw and final columns), or plain lines: one Raw per line, optionally followed by a tab
+// and the logged Final.
 // Output (UTF-8, tab-separated): Raw → Final; with --diff only lines where the new Final differs
 // from the one in the log: Raw, logged Final, new Final.
 // Options: --model gigaam|parakeet (default gigaam), --dict file (user dictionary: wrong<TAB>correct).

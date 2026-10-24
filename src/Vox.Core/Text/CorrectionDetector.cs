@@ -120,6 +120,18 @@ public static class CorrectionDetector
         return $"{reason}; {changes.Count} change{(changes.Count == 1 ? "" : "s")}: {string.Join(", ", shown)}{(changes.Count > 3 ? ", …" : "")}";
     }
 
+    /// <summary>
+    /// <see cref="Describe"/> without the words, for a log without texts: why, and how many places changed
+    /// ("several places changed; 2 changes"). What the user typed stays out of the log.
+    /// </summary>
+    public static string DescribeWithoutText(
+        string before, string after, string inserted, Func<string, bool>? isTarget = null, bool confirmed = false)
+    {
+        var reason = Analyze(before, after, inserted, isTarget, confirmed).Reason;
+        var count = Changes(before, after, inserted)?.Changes.Count ?? 0;
+        return count == 0 ? reason : $"{reason}; {count} change{(count == 1 ? "" : "s")}";
+    }
+
     private static string Clip(string s) => s.Length > 40 ? s[..40] + "…" : s;
 
     private static (List<Word> Old, List<Word> Now, List<Change> Changes, int First, int Last)? Changes(

@@ -109,7 +109,9 @@ public partial class SettingsWindow : Window
         AutostartToggle.IsChecked = Autostart.IsEnabled;
         ClipboardToggle.IsChecked = _app.Settings.RestoreClipboard;
         RecordingsToggle.IsChecked = _app.Settings.SaveRecordings;
-        if (_app.Settings.SaveRecordings)
+        LogTextsToggle.IsChecked = _app.Settings.LogTexts;
+        ShowLogTextsNote();
+        if (_app.Settings.SaveRecordings || _app.Settings.LogTexts)
         {
             ShowDeveloper(true); // the one who turned it on sees it
         }
@@ -227,8 +229,22 @@ public partial class SettingsWindow : Window
         {
             _app.Settings.SaveRecordings = RecordingsToggle.IsChecked == true;
         }
+        else if (sender == LogTextsToggle)
+        {
+            _app.Settings.LogTexts = LogTextsToggle.IsChecked == true;
+            Log.Texts = _app.Settings.LogTexts;
+            Log.Info($"[SETTINGS] Texts in the log {(Log.Texts ? "on" : "off")}");
+            ShowLogTextsNote();
+        }
 
         _app.Settings.Save();
+    }
+
+    // Where Vox points at the log: a note only while the log holds dictations' texts.
+    private void ShowLogTextsNote()
+    {
+        LogTextsNote.Visibility = Log.Texts ? Visibility.Visible : Visibility.Collapsed;
+        HistoryLogsButton.ToolTip = Log.Texts ? LogTextsNote.Text : null;
     }
 
     private void ShowHowTo() => HowTo.Text =
@@ -323,13 +339,35 @@ public partial class SettingsWindow : Window
         return day == today.AddDays(-1) ? "Вчера" : day.ToString("d MMMM yyyy", CultureInfo.GetCultureInfo("ru-RU"));
     }
 
-    private void OnClearHistory(object sender, RoutedEventArgs e)
+    private async void OnClearHistory(object sender, RoutedEventArgs e)
     {
-        if (MessageBox.Show(this, "Удалить всю историю диктовок? Это нельзя отменить.", "Vox",
-                MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
+        if (MessageBox.Show(this,
+                "Удалить все диктовки?\n\n" +
+                "Удалятся история, записи голоса, лог Vox и копии данных, которые Vox сохранял перед загрузкой из файла.\n" +
+                "Словарь, названия с экрана и настройки останутся.\n\n" +
+                "Это нельзя отменить.", "Vox",
+                MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
         {
-            _app.Database.ClearHistory();
+            return;
+        }
+
+        var button = (Button)sender;
+        button.IsEnabled = false;
+        try
+        {
+            await Task.Run(() => _app.Dictation.ClearHistory(App.Paths.Root)); // VACUUM rewrites the whole database
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or Microsoft.Data.Sqlite.SqliteException)
+        {
+            Log.Error("[HISTORY] Clearing failed", ex);
+            MessageBox.Show(this, "Не всё получилось удалить: файл занят другой программой. Закройте её и нажмите «Очистить» ещё раз.",
+                "Vox", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        finally
+        {
+            button.IsEnabled = true;
             LoadHistory();
+            TransferRecordingsRow.Visibility = _app.Dictation.HasRecordings ? Visibility.Visible : Visibility.Collapsed;
         }
     }
 
@@ -501,7 +539,7 @@ public partial class SettingsWindow : Window
 
         try
         {
-            var backup = Path.Combine(App.Paths.Root, $"vox-до-импорта-{DateTime.Now:yyyy-MM-dd-HHmmss}.zip");
+            var backup = ImportBackups.PathFor(App.Paths.Root, DateTime.Now);
             var c = _app.Dictation.ImportData(dialog.FileName, backup);
             LoadDictionary();
             MessageBox.Show(this,

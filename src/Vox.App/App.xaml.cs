@@ -77,6 +77,7 @@ public partial class App : Application
         {
             ThemeManager.Start();
             Settings = Settings.Load(Paths.Config);
+            Log.Texts = Settings.LogTexts;
             _db = new VoxDatabase(Paths.Database);
             _sounds = new Sounds { Enabled = Settings.Sounds };
             _audio = new AudioCapture(Settings.Microphone);
@@ -115,7 +116,7 @@ public partial class App : Application
         catch (Exception ex)
         {
             Log.Error("[FATAL] Startup failed", ex);
-            MessageBox.Show($"Vox не смог запуститься:\n\n{ex.Message}\n\nПодробности в логе:\n{Paths.LogFile}",
+            MessageBox.Show($"Vox не смог запуститься:\n\n{ex.Message}\n\nПодробности в логе:\n{Paths.LogFile}{Log.TextsWarning}",
                 "Vox", MessageBoxButton.OK, MessageBoxImage.Error);
             Shutdown();
         }
@@ -225,7 +226,7 @@ public partial class App : Application
     private void OnUiException(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
         Log.Error("[ERROR] UI", e.Exception);
-        MessageBox.Show($"Что-то пошло не так:\n\n{e.Exception.Message}\n\nVox продолжит работать. Подробности в логе.",
+        MessageBox.Show($"Что-то пошло не так:\n\n{e.Exception.Message}\n\nVox продолжит работать. Подробности в логе.{Log.TextsWarning}",
             "Vox", MessageBoxButton.OK, MessageBoxImage.Warning);
         e.Handled = true;
     }

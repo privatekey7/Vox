@@ -124,7 +124,25 @@ public sealed class VoxDatabase : IDisposable
 
     public void DeleteTranscription(long id) => Execute("DELETE FROM transcriptions WHERE id = $id", ("$id", id));
 
-    public void ClearHistory() => Execute("DELETE FROM transcriptions");
+    /// <summary>
+    /// Deletes every dictation so that its text is gone from the files too, not just from the table: SQLite
+    /// otherwise keeps it in free pages, in the WAL and in the FTS5 segments (its deletes are only tombstones).
+    /// </summary>
+    public void ClearHistory()
+    {
+        // secure_delete zeroes freed pages (and stays on for this connection). VACUUM, never inside a transaction,
+        // rewrites the file without the old pages; in WAL mode it writes through the WAL, so the checkpoint comes
+        // after it and empties the WAL file. One command: a dictation saved meanwhile waits for the lock.
+        Execute("""
+            PRAGMA secure_delete=ON;
+            BEGIN;
+            DELETE FROM transcriptions;
+            INSERT INTO transcriptions_fts(transcriptions_fts) VALUES ('delete-all');
+            COMMIT;
+            VACUUM;
+            PRAGMA wal_checkpoint(TRUNCATE);
+            """);
+    }
 
     public void AddDictionaryEntry(string wrong, string correct, string lang, string source)
     {

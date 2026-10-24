@@ -385,6 +385,9 @@ Text (окна Ideal, плашка как до 2f9c20c), «Не расслыша
 - Свежая часть: `tr -d '\r' < vox.log | grep -n 'started at' | tail` и дальше
   `grep -vE '\[CLIP\]|\[DB\]|\[PASTE\]'`. Важные строки: `[STT] Raw/Final`, `[CTX]`, `[LEARN]`,
   `peak` (норма 5–20 тыс.).
+- Тексты в логе есть, только если у владельца включено Настройки → Помощь → «Для разработчика» →
+  «Писать тексты диктовок в лог». Иначе строки те же, но вместо текста размер: `[STT] Raw (24 chars, 4 words)`.
+  Тексты для `Vox.Replay` есть ещё в `recordings.tsv` («Сохранять записи диктовок»).
 - Регрессия: вытащить Raw (`sed -n 's/.*Raw: "\(.*\)"$/\1/p'`), сделать `Raw<TAB>Raw`, прогнать
   `dotnet run -c Release --project tools/Vox.Replay -- [--model parakeet] файл.tsv` на двух
   коммитах (git worktree) и сравнить построчно. `.NET 10`: `apt-get update && apt-get install -y

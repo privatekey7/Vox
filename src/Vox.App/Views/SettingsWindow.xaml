@@ -117,7 +117,7 @@
       <Grid>
         <TextBlock Text="История" Style="{StaticResource Vox.Section}"/>
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-          <Button Content="Открыть логи" Style="{StaticResource Vox.SecondaryButton}" Click="OnOpenLogs" Margin="0,0,16,0"/>
+          <Button x:Name="HistoryLogsButton" Content="Открыть логи" Style="{StaticResource Vox.SecondaryButton}" Click="OnOpenLogs" Margin="0,0,16,0"/>
           <Button Content="Очистить" Style="{StaticResource Vox.LinkButton}" VerticalAlignment="Center" Click="OnClearHistory"/>
         </StackPanel>
       </Grid>
@@ -243,6 +243,8 @@
               <Button Content="Открыть логи" Style="{StaticResource Vox.SecondaryButton}" Click="OnOpenLogs"/>
               <Button Content="Папка с моделями" Style="{StaticResource Vox.SecondaryButton}" Margin="10,0,0,0" Click="OnOpenModels"/>
             </StackPanel>
+            <TextBlock x:Name="LogTextsNote" Style="{StaticResource Vox.Caption}" TextWrapping="Wrap" Margin="0,8,0,0" Visibility="Collapsed"
+                       Text="В логе есть тексты ваших диктовок. Не отправляйте его тому, кому не стали бы их показывать."/>
           </StackPanel>
         </Border>
         <Border Style="{StaticResource Vox.Card}" Padding="20" Margin="0,12,0,0">
@@ -274,18 +276,32 @@
         </Border>
         <Button x:Name="DeveloperButton" Content="Для разработчика" Style="{StaticResource Vox.LinkButton}" HorizontalAlignment="Left" Margin="4,16,0,0" Click="OnShowDeveloper"/>
         <Border x:Name="DeveloperCard" Style="{StaticResource Vox.Card}" Margin="0,8,0,0" Visibility="Collapsed">
-          <Grid Margin="16,14">
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="*"/>
-              <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <StackPanel VerticalAlignment="Center">
-              <TextBlock Text="Сохранять записи диктовок" Style="{StaticResource Vox.Body}"/>
-              <TextBlock Text="Для проверки распознавания. Записи хранятся только на этом компьютере." Style="{StaticResource Vox.Caption}"/>
-              <Button Content="Открыть папку с записями" Style="{StaticResource Vox.LinkButton}" HorizontalAlignment="Left" Margin="0,4,0,0" Click="OnOpenRecordings"/>
-            </StackPanel>
-            <CheckBox x:Name="RecordingsToggle" Grid.Column="1" Style="{StaticResource Vox.Toggle}" Click="OnToggle"/>
-          </Grid>
+          <StackPanel>
+            <Grid Margin="16,14">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="Сохранять записи диктовок" Style="{StaticResource Vox.Body}"/>
+                <TextBlock Text="Для проверки распознавания. Записи хранятся только на этом компьютере." Style="{StaticResource Vox.Caption}"/>
+                <Button Content="Открыть папку с записями" Style="{StaticResource Vox.LinkButton}" HorizontalAlignment="Left" Margin="0,4,0,0" Click="OnOpenRecordings"/>
+              </StackPanel>
+              <CheckBox x:Name="RecordingsToggle" Grid.Column="1" Style="{StaticResource Vox.Toggle}" Click="OnToggle"/>
+            </Grid>
+            <Border Height="1" Background="{DynamicResource Vox.CardStroke}"/>
+            <Grid Margin="16,14">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="Писать тексты диктовок в лог" Style="{StaticResource Vox.Body}"/>
+                <TextBlock Text="Чтобы разбирать ошибки распознавания. Без этого в логе только длина текста, без самих слов." Style="{StaticResource Vox.Caption}" TextWrapping="Wrap"/>
+              </StackPanel>
+              <CheckBox x:Name="LogTextsToggle" Grid.Column="1" Style="{StaticResource Vox.Toggle}" Click="OnToggle"/>
+            </Grid>
+          </StackPanel>
         </Border>
         <TextBlock x:Name="VersionText" Style="{StaticResource Vox.Caption}" Margin="4,16,0,0"/>
       </StackPanel>

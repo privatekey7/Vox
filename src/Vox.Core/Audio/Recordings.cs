@@ -158,6 +158,31 @@ public sealed class RecordingStore(string directory, int maxCount = RecordingSto
         }
     }
 
+    /// <summary>
+    /// Deletes every recording and recordings.tsv (Settings → "Очистить" in the history); returns how many WAVs
+    /// went. The folder stays: Explorer may have it open.
+    /// </summary>
+    public int Clear()
+    {
+        lock (_lock)
+        {
+            if (!System.IO.Directory.Exists(Directory))
+            {
+                return 0;
+            }
+
+            var wavs = new DirectoryInfo(Directory).GetFiles("*.wav");
+            foreach (var file in wavs)
+            {
+                file.Delete();
+            }
+
+            File.Delete(Index);
+            File.Delete(Index + ".tmp");
+            return wavs.Length;
+        }
+    }
+
     /// <summary>The recordings listed in recordings.tsv of <paramref name="directory"/>, oldest first.</summary>
     public static List<Recording> Read(string directory)
     {

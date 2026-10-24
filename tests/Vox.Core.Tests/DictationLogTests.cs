@@ -28,4 +28,40 @@ public sealed class DictationLogTests
     public void Reads_plain_lines_with_an_optional_final() =>
         Assert.Equal([new("один", null), new LoggedDictation("два", "Два.")],
             DictationLog.Read(["один\r", "", "два\tДва."]).ToList());
+
+    [Fact]
+    public void Reads_raw_and_final_from_recordings_tsv_skipping_empty_dictations() =>
+        Assert.Equal([new LoggedDictation("сделай комет", "Сделай коммит.")],
+            DictationLog.Read([
+                "file\ttime\tmodel\traw\tfinal\tnote\r",
+                "20261022-193005-123.wav\t2026-10-22 19:30:05\tgigaam-v3-rnnt-punct\tсделай комет\tСделай коммит.\t",
+                "20261022-193006-000.wav\t2026-10-22 19:30:06\tgigaam-v3-rnnt-punct\t\t\tno speech",
+            ]).ToList());
+
+    // Security audit M4: by default the log has no dictation text, and Vox.Replay must not take a size for one.
+    [Fact]
+    public void A_log_without_texts_has_sizes_only_and_no_dictations_to_replay()
+    {
+        var raw = LogText.Field("Raw", "переведи 500 рублей маме", full: false);
+        var final = LogText.Field("Final", " Переведи 500 рублей маме.", full: false);
+        var fix = LogText.Pair("кубернетис", "Kubernetes", full: false);
+
+        Assert.Equal("Raw (24 chars, 4 words)", raw);
+        Assert.Equal("Final (26 chars, 4 words)", final);
+        Assert.Equal("1 word → 1 word", fix);
+        Assert.Empty(DictationLog.Read([$"12:00:01.000 [STT] {raw}", $"12:00:01.001 [STT] {final}"]));
+    }
+
+    [Fact]
+    public void A_log_with_texts_reads_back_as_before()
+    {
+        var lines = new[]
+        {
+            $"12:00:01.000 [STT] {LogText.Field("Raw", "залей на гитхаб", full: true)}",
+            $"12:00:01.001 [STT] {LogText.Field("Final", " Залей на GitHub.", full: true)}",
+        };
+
+        Assert.Equal([new LoggedDictation("залей на гитхаб", " Залей на GitHub.")], DictationLog.Read(lines).ToList());
+        Assert.Equal("\"кубер\" → \"Kubernetes\"", LogText.Pair("кубер", "Kubernetes", full: true));
+    }
 }

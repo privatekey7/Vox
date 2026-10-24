@@ -226,12 +226,14 @@ internal sealed class FieldWatcher : IDisposable
         var by = confirmed ? "Ctrl+S: " : "";
         if (CorrectionDetector.Detect(p.Before, now, p.Inserted, IsTarget, confirmed) is var (wrong, correct))
         {
-            Log.Info($"[LEARN] {by}Correction: \"{wrong}\" → \"{correct}\"");
+            Log.Info($"[LEARN] {by}Correction: {Log.Pair(wrong, correct)}");
             Learned?.Invoke(wrong, correct, KeyboardHook.UserTypedIn(p.Window, p.PastedTick));
             return true;
         }
 
-        var diff = CorrectionDetector.Describe(p.Before, now, p.Inserted, IsTarget, confirmed);
+        var diff = Log.Texts // what the user typed is their text: only with texts in the log
+            ? CorrectionDetector.Describe(p.Before, now, p.Inserted, IsTarget, confirmed)
+            : CorrectionDetector.DescribeWithoutText(p.Before, now, p.Inserted, IsTarget, confirmed);
         Log.Info(diff.StartsWith("no change", StringComparison.Ordinal)
             ? $"[LEARN] {by}The field changed outside the dictation: nothing learned"
             : $"[LEARN] {by}The field was edited, nothing learned: {diff}");
