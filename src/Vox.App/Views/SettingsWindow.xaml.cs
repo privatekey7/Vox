@@ -539,18 +539,25 @@ public partial class SettingsWindow : Window
 
         try
         {
+            using var file = DataTransfer.Open(dialog.FileName);
+            var preview = _app.Dictation.PreviewImport(file);
+            if (!ConfirmImport(preview))
+            {
+                return;
+            }
+
             var backup = ImportBackups.PathFor(App.Paths.Root, DateTime.Now);
-            var c = _app.Dictation.ImportData(dialog.FileName, backup);
+            var c = _app.Dictation.ImportData(file, backup);
             LoadDictionary();
             MessageBox.Show(this,
                 $"Добавлено: пар словаря {c.Dictionary}, названий {c.Names}, диктовок {c.History}, записей {c.Recordings}.\n" +
-                "Настройки взяты из файла, часть из них применится после перезапуска Vox.\n" +
+                "Настройки взяты из файла, часть из них применится после перезапуска Vox.\n" + LeftOutNote(preview) +
                 $"Прежние данные сохранены в {Path.GetFileName(backup)} в папке Vox.", "Vox");
         }
         catch (InvalidDataException ex)
         {
             Log.Info($"[TRANSFER] Import refused: {ex.Message}");
-            MessageBox.Show(this, "Это не файл переноса Vox, он повреждён или сделан более новой версией Vox.", "Vox",
+            MessageBox.Show(this, "Это не файл переноса Vox, он повреждён, слишком большой или сделан более новой версией Vox.", "Vox",
                 MessageBoxButton.OK, MessageBoxImage.Warning);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -575,6 +582,26 @@ public partial class SettingsWindow : Window
         {
             _app.DeletePersonalDataAndQuit();
         }
+    }
+
+    // New and replaced dictionary pairs are shown before the import (security audit M5); a file that changes no
+    // pair (the same file again) goes straight on, so "Добавлено: 0" still shows.
+    private bool ConfirmImport(TransferPreview preview) =>
+        preview.Pairs.Count == 0 || new ImportConfirmWindow(preview) { Owner = this }.ShowDialog() == true;
+
+    // What the import left out on purpose (security audit M5, L1), for the message after it.
+    private static string LeftOutNote(TransferPreview preview)
+    {
+        var note = preview.Rejected > 0
+            ? $"Не взято пар словаря: {preview.Rejected}, в них перенос строки, невидимые знаки или слишком длинный текст.\n"
+            : "";
+        if (preview.PrivacyKeptOff.Count > 0)
+        {
+            var names = preview.PrivacyKeptOff.Select(k => k == "screen_text" ? "«Читать текст активного окна»" : "«Сохранять записи диктовок»");
+            note += $"В файле включено {string.Join(" и ", names)}, здесь это осталось выключенным. Если нужно, включите в настройках.\n";
+        }
+
+        return note;
     }
 
     private void OnOpenLogs(object sender, RoutedEventArgs e) => OpenFolder(App.Paths.Logs);

@@ -153,7 +153,7 @@ public sealed class RecordingStore(string directory, int maxCount = RecordingSto
             Wav.Write(Path.Combine(Directory, name), Resampler.Resample(samples, sampleRate, SampleRate), SampleRate);
             var line = string.Join('\t', name, time.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture), Clean(model), Clean(raw), Clean(final), Clean(note));
             File.AppendAllText(Index, (File.Exists(Index) ? "" : Header + "\n") + line + "\n", Encoding.UTF8);
-            Trim();
+            TrimFiles();
             return name;
         }
     }
@@ -198,8 +198,20 @@ public sealed class RecordingStore(string directory, int maxCount = RecordingSto
             p[2], p[3], p[4], p.Length > 5 ? p[5] : ""))];
     }
 
-    // Oldest WAVs go first (names sort by time), their lines with them.
-    private void Trim()
+    /// <summary>Keeps the newest <see cref="MaxCount"/> and <see cref="MaxBytes"/>: also after an import (security audit L2).</summary>
+    /// <remarks>Oldest WAVs go first (names sort by time), their lines with them.</remarks>
+    public void Trim()
+    {
+        lock (_lock)
+        {
+            if (System.IO.Directory.Exists(Directory))
+            {
+                TrimFiles();
+            }
+        }
+    }
+
+    private void TrimFiles()
     {
         var files = new DirectoryInfo(Directory).GetFiles("*.wav").OrderBy(f => f.Name, StringComparer.Ordinal).ToList();
         var bytes = files.Sum(f => f.Length);
@@ -212,7 +224,7 @@ public sealed class RecordingStore(string directory, int maxCount = RecordingSto
             files.RemoveAt(0);
         }
 
-        if (removed.Count > 0)
+        if (removed.Count > 0 && File.Exists(Index))
         {
             var lines = File.ReadAllLines(Index, Encoding.UTF8).Where((l, i) => i == 0 || !removed.Contains(l.Split('\t')[0]));
             var tmp = Index + ".tmp";

@@ -1,0 +1,46 @@
+<Window x:Class="Vox.App.Views.ImportConfirmWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Vox" Width="600" Height="560" MinWidth="440" MinHeight="360"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False" Style="{StaticResource Vox.Window}"
+        Icon="pack://application:,,,/Assets/vox.ico">
+  <!-- Before an import changes the dictionary (security audit M5): the pairs a file adds or replaces. -->
+  <Grid Margin="24,20,24,20">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="Auto"/>
+    </Grid.RowDefinitions>
+
+    <TextBlock Text="Проверьте словарь из файла" Style="{StaticResource Vox.Section}"/>
+    <TextBlock x:Name="SummaryText" Grid.Row="1" Style="{StaticResource Vox.Subtitle}" Margin="0,8,0,12"/>
+    <Border Grid.Row="2" Style="{StaticResource Vox.Card}" Padding="0">
+      <ItemsControl x:Name="PairList" VirtualizingPanel.IsVirtualizing="True">
+        <ItemsControl.Template>
+          <ControlTemplate TargetType="ItemsControl">
+            <ScrollViewer CanContentScroll="True" VerticalScrollBarVisibility="Auto" Padding="16,8,4,8">
+              <ItemsPresenter/>
+            </ScrollViewer>
+          </ControlTemplate>
+        </ItemsControl.Template>
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <VirtualizingStackPanel/>
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate>
+            <TextBlock Text="{Binding}" Style="{StaticResource Vox.Body}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" Margin="0,3,12,3"/>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </Border>
+    <TextBlock x:Name="RejectedText" Grid.Row="3" Style="{StaticResource Vox.Caption}" Margin="0,10,0,0" Visibility="Collapsed"/>
+    <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+      <Button Content="Отмена" Style="{StaticResource Vox.SecondaryButton}" IsCancel="True"/>
+      <Button Content="Загрузить" Style="{StaticResource Vox.PrimaryButton}" Margin="10,0,0,0" Click="OnImport"/>
+    </StackPanel>
+  </Grid>
+</Window>

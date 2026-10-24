@@ -71,6 +71,7 @@ public sealed class VoxDatabase : IDisposable
 
     private readonly SqliteConnection _connection;
     private readonly Lock _lock = new();
+    private SqliteTransaction? _transaction; // only while InOneTransaction holds _lock
 
     public VoxDatabase(string path)
     {
@@ -199,6 +200,29 @@ public sealed class VoxDatabase : IDisposable
 
     // ---- Transfer to another PC (DataTransfer) ----------------------------------------------
 
+    /// <summary>
+    /// Runs <paramref name="import"/> as one transaction (security audit L2): an error halfway leaves the database
+    /// as it was. Other threads wait for the end, so a dictation saved meanwhile is not rolled back with it.
+    /// </summary>
+    public T InOneTransaction<T>(Func<T> import)
+    {
+        lock (_lock)
+        {
+            using var transaction = _connection.BeginTransaction();
+            _transaction = transaction;
+            try
+            {
+                var result = import();
+                transaction.Commit();
+                return result;
+            }
+            finally
+            {
+                _transaction = null;
+            }
+        }
+    }
+
     /// <summary>Every dictionary entry with its time, for export.</summary>
     public IReadOnlyList<StoredEntry> DictionaryForExport() => Query(
         "SELECT wrong, correct, lang, source, created_at FROM dictionary ORDER BY wrong",
@@ -241,6 +265,7 @@ public sealed class VoxDatabase : IDisposable
         {
             using var cmd = _connection.CreateCommand();
             cmd.CommandText = sql;
+            cmd.Transaction = _transaction;
             using var r = cmd.ExecuteReader();
             var list = new List<T>();
             while (r.Read())
@@ -258,6 +283,7 @@ public sealed class VoxDatabase : IDisposable
         {
             using var cmd = _connection.CreateCommand();
             cmd.CommandText = sql;
+            cmd.Transaction = _transaction;
             foreach (var (name, value) in parameters)
             {
                 cmd.Parameters.AddWithValue(name, value);
