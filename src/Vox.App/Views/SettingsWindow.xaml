@@ -170,7 +170,11 @@
                 <Button x:Name="ScreenMemoryButton" Content="Что Vox запомнил с экрана" Style="{StaticResource Vox.LinkButton}" Click="OnShowScreenMemory"/>
                 <Button Content="Очистить память названий" Style="{StaticResource Vox.LinkButton}" Margin="16,0,0,0" Click="OnClearScreenMemory"/>
               </StackPanel>
-              <StackPanel x:Name="ScreenMemoryList" Visibility="Collapsed" Margin="0,8,0,0"/>
+              <!-- Its own scroll: the cards above the dictionary do not scroll with the page. -->
+              <ScrollViewer Visibility="{Binding Visibility, ElementName=ScreenMemoryList}"
+                            MaxHeight="220" Margin="0,8,0,0" VerticalScrollBarVisibility="Auto">
+                <StackPanel x:Name="ScreenMemoryList" Visibility="Collapsed"/>
+              </ScrollViewer>
             </StackPanel>
             <CheckBox x:Name="ScreenToggle" Grid.Column="1" Style="{StaticResource Vox.Toggle}" Click="OnToggle"/>
           </Grid>
