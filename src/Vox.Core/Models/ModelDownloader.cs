@@ -15,7 +15,7 @@ public enum DownloadStage
 }
 
 /// <summary>
-/// Downloads a model archive, checks it against its pin and installs it atomically into the models folder (D034).
+/// Downloads a model archive, checks it against its pin and installs it atomically into the models folder (D036).
 /// </summary>
 public sealed class ModelDownloader(HttpClient http, string modelsRoot)
 {

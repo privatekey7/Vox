@@ -10,7 +10,7 @@ TestResults/
 vox-setup.exe
 
 # --- Vox runtime data (never commit: models, logs, dictation history, personal config) ---
-models/
+/models/
 logs/
 *.log
 config.json

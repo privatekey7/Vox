@@ -20,7 +20,7 @@ public sealed class AppPaths(string root, string sharedRoot, string? localRoot =
     /// <summary>
     /// sherpa-onnx opens model files through narrow-character APIs on Windows, so a profile path
     /// like C:\Users\Иван breaks loading. Such users get the models in %ProgramData%\Vox instead.
-    /// Every user can write there, so model files are trusted only when they match their pins (D034).
+    /// Every user can write there, so model files are trusted only when they match their pins (D036).
     /// </summary>
     public string Models => Path.Combine(SharedModels ? sharedRoot : Root, "models");
 

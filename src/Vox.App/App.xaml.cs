@@ -224,7 +224,7 @@ public partial class App : Application
         }
     }
 
-    /// <summary>Delete a model that failed to load or failed its check (D034), so the next install downloads it again.</summary>
+    /// <summary>Delete a model that failed to load or failed its check (D036), so the next install downloads it again.</summary>
     internal static void RemoveModel(SpeechModel model)
     {
         try

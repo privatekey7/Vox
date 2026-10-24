@@ -53,7 +53,7 @@ public sealed class SpeechRecognizer : ISpeechRecognizer
         config.ModelConfig.Provider = "cpu";
         config.DecodingMethod = "greedy_search";
 
-        // Only files that match their pins are loaded, and they stay locked until sherpa-onnx has read them (D034).
+        // Only files that match their pins are loaded, and they stay locked until sherpa-onnx has read them (D036).
         using (ModelFiles.OpenVerified(model, modelsRoot, rejectLinks: ModelFiles.IsSharedFolder(modelsRoot)))
         {
             _recognizer = new OfflineRecognizer(config);

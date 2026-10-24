@@ -24,7 +24,7 @@ public sealed class ModelIntegrityException : Exception
 }
 
 /// <summary>
-/// Checks an installed model against <see cref="SpeechModel.Files"/> before sherpa-onnx loads it (D034).
+/// Checks an installed model against <see cref="SpeechModel.Files"/> before sherpa-onnx loads it (D036).
 /// The files stay open for reading only, so nobody can change, rename or replace them, or any folder
 /// above them, until the caller has loaded the model and disposes the result.
 /// </summary>

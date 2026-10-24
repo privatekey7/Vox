@@ -8,8 +8,8 @@ namespace Vox.Core.Models;
 /// <param name="Kind">How sherpa-onnx runs it: NeMo transducer, or Qwen3-ASR (<see cref="Joiner"/> is its conv
 /// front end, <see cref="Tokens"/> its tokenizer folder).</param>
 /// <param name="MaxPieceSeconds">Longest audio decoded at once; longer is split at pauses (D030).</param>
-/// <param name="Archive">Size and SHA-256 of the download, checked before it is unpacked (D034).</param>
-/// <param name="Files">Every file sherpa-onnx loads, checked before each load (D034).</param>
+/// <param name="Archive">Size and SHA-256 of the download, checked before it is unpacked (D036).</param>
+/// <param name="Files">Every file sherpa-onnx loads, checked before each load (D036).</param>
 public sealed record SpeechModel(
     string Id,
     string DisplayName,
@@ -29,7 +29,7 @@ public sealed record SpeechModel(
 
 /// <summary>
 /// A file Vox trusts only with exactly this size and SHA-256 (lowercase hex). The values come from the
-/// GitHub release digests of k2-fsa/sherpa-onnx <c>asr-models</c>, checked by downloading once (D034).
+/// GitHub release digests of k2-fsa/sherpa-onnx <c>asr-models</c>, checked by downloading once (D036).
 /// </summary>
 /// <param name="Path">The archive's file name, or a model file relative to <see cref="SpeechModel.ExtractedDir"/>.</param>
 public sealed record PinnedFile(string Path, long Size, string Sha256);
