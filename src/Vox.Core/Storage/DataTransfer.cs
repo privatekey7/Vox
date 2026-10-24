@@ -368,19 +368,11 @@ public static class DataTransfer
                 continue; // already here
             }
 
-            using (var to = new FileStream(target, FileMode.CreateNew))
+            // The database is already merged: a WAV that fails (a full disk, a size the zip lied about) ends the
+            // recordings, the ones added so far stay with their lines.
+            if (!TryExtract(wav, target))
             {
-                try
-                {
-                    using var from = wav.Open();
-                    CopyAtMost(from, to, wav.Length, wav.FullName); // no more than the size the check counted
-                }
-                catch
-                {
-                    to.Dispose();
-                    File.Delete(target);
-                    throw;
-                }
+                break;
             }
 
             added.Add(line);
@@ -393,6 +385,30 @@ public static class DataTransfer
         }
 
         return added.Count;
+    }
+
+    private static bool TryExtract(ZipArchiveEntry wav, string target)
+    {
+        try
+        {
+            using var to = new FileStream(target, FileMode.CreateNew);
+            try
+            {
+                using var from = wav.Open();
+                CopyAtMost(from, to, wav.Length, wav.FullName); // no more than the size the check counted
+                return true;
+            }
+            catch (Exception e) when (e is IOException or InvalidDataException)
+            {
+                to.Dispose();
+                File.Delete(target);
+                return false;
+            }
+        }
+        catch (IOException)
+        {
+            return false; // the file appeared meanwhile, or the folder is not writable
+        }
     }
 
     private static void Write<T>(ZipArchive zip, string name, T value) => WriteText(zip, name, JsonSerializer.Serialize(value));
