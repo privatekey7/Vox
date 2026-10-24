@@ -90,6 +90,15 @@ internal static class Log
         }
     }
 
+    /// <summary>No more writes (before «Удалить мои данные» deletes the log folder).</summary>
+    public static void Stop()
+    {
+        lock (Gate)
+        {
+            _path = null;
+        }
+    }
+
     public static void Info(string message) =>
         Write($"{DateTime.Now.ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture)} {message}");
 
@@ -97,13 +106,13 @@ internal static class Log
 
     private static void Write(string line)
     {
-        if (_path is null)
-        {
-            return;
-        }
-
         lock (Gate)
         {
+            if (_path is null)
+            {
+                return;
+            }
+
             try
             {
                 File.AppendAllText(_path, line + Environment.NewLine, Encoding.UTF8);

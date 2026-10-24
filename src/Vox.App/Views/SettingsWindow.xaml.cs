@@ -560,6 +560,23 @@ public partial class SettingsWindow : Window
         }
     }
 
+    private void OnDeletePersonalData(object sender, RoutedEventArgs e)
+    {
+        // A shared models folder stays (PersonalData.Folders): say so instead of promising to delete it.
+        var models = App.Paths.SharedModels
+            ? $"Модели распознавания останутся в общей папке {App.Paths.Models}: ими могут пользоваться другие пользователи этого компьютера.\n\n"
+            : "";
+        var what = App.Paths.SharedModels ? "логи и автозапуск" : "логи, модели распознавания и автозапуск";
+        if (MessageBox.Show(this,
+                "Удалить все ваши данные Vox на этом компьютере?\n\nИстория диктовок, личный словарь, выученные исправления, названия с экрана, " +
+                $"настройки, записи, {what}. Это нельзя отменить.\n\n{models}" +
+                "Vox закроется. Если нужно перенести данные на другой компьютер, сначала сохраните их в файл.",
+                "Vox", MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No) == MessageBoxResult.Yes)
+        {
+            _app.DeletePersonalDataAndQuit();
+        }
+    }
+
     private void OnOpenLogs(object sender, RoutedEventArgs e) => OpenFolder(App.Paths.Logs);
 
     private void OnOpenModels(object sender, RoutedEventArgs e) => OpenFolder(App.Paths.Models);

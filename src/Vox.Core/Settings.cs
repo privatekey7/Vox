@@ -5,19 +5,27 @@ namespace Vox.Core;
 
 /// <summary>Where Vox keeps its data: %APPDATA%\vox — the same folder as Vox 1.x, so an upgrade keeps everything.</summary>
 /// <param name="sharedRoot">Fallback for models when <paramref name="root"/> has non-ASCII characters.</param>
-public sealed class AppPaths(string root, string sharedRoot)
+/// <param name="localRoot">%LOCALAPPDATA%\vox: crash dumps (WER LocalDumps in vox.iss).</param>
+public sealed class AppPaths(string root, string sharedRoot, string? localRoot = null)
 {
     public static AppPaths Default { get; } = new(
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "vox"),
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "Vox"));
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "Vox"),
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "vox"));
 
     public string Root { get; } = root;
+
+    public string? LocalRoot { get; } = localRoot;
 
     /// <summary>
     /// sherpa-onnx opens model files through narrow-character APIs on Windows, so a profile path
     /// like C:\Users\Иван breaks loading. Such users get the models in %ProgramData%\Vox instead.
     /// </summary>
-    public string Models => Path.Combine(Root.All(char.IsAscii) ? Root : sharedRoot, "models");
+    public string Models => Path.Combine(SharedModels ? sharedRoot : Root, "models");
+
+    /// <summary>The models are in the folder shared by this PC's users with non-ASCII profile paths.</summary>
+    public bool SharedModels => !Root.All(char.IsAscii);
+
     public string Logs => Path.Combine(Root, "logs");
     public string LogFile => Path.Combine(Logs, "vox.log");
     public string Database => Path.Combine(Root, "vox_data.db");

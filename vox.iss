@@ -81,15 +81,18 @@ Name: "hebrew";     MessagesFile: "compiler:Languages\Hebrew.isl"
 english.AutostartDescription=Start Vox with Windows
 english.AutostartGroup=Additional options:
 english.LaunchAfterInstall=Launch {#MyAppName} now
-english.DeletePersonalData=Also delete your dictation history, personal dictionary and settings?
+english.DeletePersonalData=Also delete your dictation history, personal dictionary and settings?%n%nFolder: %1%n%nVox data of other Windows accounts stays.
+english.PersonalDataElsewhere=The Windows account %1 has no Vox data. If Vox was used under another account, its history, dictionary and settings stay in the AppData\Roaming\vox and AppData\Local\vox folders of that account and can be deleted by hand.
 russian.AutostartDescription=Запускать Vox при старте Windows
 russian.AutostartGroup=Дополнительно:
 russian.LaunchAfterInstall=Запустить {#MyAppName} сейчас
-russian.DeletePersonalData=Удалить также историю диктовок, личный словарь и настройки?
+russian.DeletePersonalData=Удалить также историю диктовок, личный словарь и настройки?%n%nПапка: %1%n%nДанные Vox других учётных записей Windows останутся.
+russian.PersonalDataElsewhere=У учётной записи Windows %1 нет данных Vox. Если Vox пользовались под другой учётной записью, её история, словарь и настройки остались в папках AppData\Roaming\vox и AppData\Local\vox этой записи. Их можно удалить вручную.
 ukrainian.AutostartDescription=Запускати Vox разом з Windows
 ukrainian.AutostartGroup=Додатково:
 ukrainian.LaunchAfterInstall=Запустити {#MyAppName} зараз
-ukrainian.DeletePersonalData=Видалити також історію диктовок, особистий словник і налаштування?
+ukrainian.DeletePersonalData=Видалити також історію диктовок, особистий словник і налаштування?%n%nПапка: %1%n%nДані Vox інших облікових записів Windows залишаться.
+ukrainian.PersonalDataElsewhere=Обліковий запис Windows %1 не має даних Vox. Якщо Vox користувалися під іншим обліковим записом, його історія, словник і налаштування залишилися в папках AppData\Roaming\vox і AppData\Local\vox цього запису. Їх можна видалити вручну.
 german.AutostartDescription=Vox mit Windows starten
 german.AutostartGroup=Weitere Optionen:
 german.LaunchAfterInstall={#MyAppName} jetzt starten
@@ -164,9 +167,9 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilen
 
 [Registry]
 ; Vox 1.x wrote autostart for all users (HKLM); 2.0 keeps it per user (HKCU) so the
-; "Запускать вместе с Windows" switch in the app can turn it on and off.
+; "Запускать вместе с Windows" switch in the app can turn it on and off. Setup does not write HKCU
+; itself: elevated, it may run as another account (see the autostart line in [Run]).
 Root: HKLM; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueName: "Vox"; Flags: deletevalue dontcreatekey
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "Vox"; ValueData: """{app}\{#MyAppExeName}"""; Flags: uninsdeletevalue; Tasks: autostart
 ; Crash dumps for native crashes (speech engine) that the app cannot log itself: Windows Error
 ; Reporting writes up to 3 minidumps of Vox.exe to %LOCALAPPDATA%\vox\crashes.
 Root: HKLM; Subkey: "SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps\Vox.exe"; ValueType: expandsz; ValueName: "DumpFolder"; ValueData: "%LOCALAPPDATA%\vox\crashes"; Flags: uninsdeletekey; Check: IsAdminInstallMode
@@ -177,6 +180,10 @@ Root: HKLM; Subkey: "SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDum
 ; Vox 2.0 lives at the same path as 1.x (C:\Program Files\Vox\vox.exe), so Windows keeps showing
 ; the old icon from its icon cache. Refresh the cache for the user who runs setup.
 Filename: "{sys}\ie4uinit.exe"; Parameters: "-show"; Flags: runhidden runasoriginaluser skipifdoesntexist
+; Autostart is the user's own Run value (HKCU). Setup runs elevated, and when UAC asked for another
+; account's password its HKCU is that administrator's, so Vox writes the value itself as the user who
+; started setup (docs/adr/034). Re-applied on an update while the task stays selected.
+Filename: "{app}\{#MyAppExeName}"; Parameters: "--enable-autostart"; Flags: runasoriginaluser runhidden waituntilterminated; Tasks: autostart
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchAfterInstall}"; Flags: nowait postinstall skipifsilent
 
 [Code]
@@ -225,9 +232,38 @@ begin
   Result := True;
 end;
 
+// Vox writes its Run value as the user (see [Run]). The admin-mode uninstaller may run as another
+// account (UAC asked for an administrator's password), so HKCU here is not that user's: remove the
+// value from every loaded user hive, only where it starts this Vox.exe. A user who is signed out keeps
+// a dead entry, which Windows skips.
+procedure RemoveAutostart();
+var
+  Users: TArrayOfString;
+  I: Integer;
+  RunKey, Value: String;
+begin
+  RunKey := 'Software\Microsoft\Windows\CurrentVersion\Run';
+  if not IsAdminInstallMode() then
+  begin
+    RegDeleteValue(HKEY_CURRENT_USER, RunKey, 'Vox');
+    exit;
+  end;
+  if not RegGetSubkeyNames(HKEY_USERS, '', Users) then
+    exit;
+  for I := 0 to GetArrayLength(Users) - 1 do
+    if RegQueryStringValue(HKEY_USERS, Users[I] + '\' + RunKey, 'Vox', Value) and
+       (CompareText(Value, '"' + ExpandConstant('{app}\{#MyAppExeName}') + '"') = 0) then
+      RegDeleteValue(HKEY_USERS, Users[I] + '\' + RunKey, 'Vox');
+end;
+
 // Uninstall only (never on update): models always go (they are large and Vox-only); history,
 // dictionary, settings, logs and crash dumps only if the user agrees. A silent uninstall keeps them.
+// {userappdata} and {localappdata} belong to the account the uninstaller runs as, which in admin mode
+// may be an administrator and not the user of Vox: the question names the folder, and the app has
+// «Удалить мои данные» for each user's own data (docs/adr/034).
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  Data: String;
 begin
   if CurUninstallStep <> usPostUninstall then
     exit;
@@ -235,12 +271,19 @@ begin
   DelTree(ExpandConstant('{userappdata}\vox\models'), True, True, True);
   DelTree(ExpandConstant('{commonappdata}\Vox\models'), True, True, True); // non-ASCII user name fallback
   RemoveDir(ExpandConstant('{commonappdata}\Vox'));
-  RegDeleteValue(HKEY_CURRENT_USER, 'Software\Microsoft\Windows\CurrentVersion\Run', 'Vox');
+  RemoveAutostart();
 
-  if not UninstallSilent() and
-     (MsgBox(CustomMessage('DeletePersonalData'), mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDYES) then
+  if UninstallSilent() then
+    exit;
+  Data := ExpandConstant('{userappdata}\vox');
+  if DirExists(Data) or DirExists(ExpandConstant('{localappdata}\vox')) then
   begin
-    DelTree(ExpandConstant('{userappdata}\vox'), True, True, True);
-    DelTree(ExpandConstant('{localappdata}\vox'), True, True, True);
-  end;
+    if MsgBox(FmtMessage(CustomMessage('DeletePersonalData'), [Data]), mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDYES then
+    begin
+      DelTree(Data, True, True, True);
+      DelTree(ExpandConstant('{localappdata}\vox'), True, True, True);
+    end;
+  end
+  else if IsAdminInstallMode() then
+    MsgBox(FmtMessage(CustomMessage('PersonalDataElsewhere'), [GetUserNameString()]), mbInformation, MB_OK);
 end;
