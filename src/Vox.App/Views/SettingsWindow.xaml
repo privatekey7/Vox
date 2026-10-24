@@ -169,7 +169,7 @@
             </Grid.RowDefinitions>
             <StackPanel VerticalAlignment="Center">
               <TextBlock Text="Подсказки с экрана: Vox учитывает названия из открытых окон" Style="{StaticResource Vox.Body}"/>
-              <TextBlock Text="Названия из заголовков окон помогают писать их правильно. Хранятся только отдельные слова, на этом компьютере." Style="{StaticResource Vox.Caption}"/>
+              <TextBlock Text="Названия из заголовков окон помогают писать их правильно. Хранятся только отдельные слова, на этом компьютере. Названия, которые давно не встречались и не пригодились, Vox забывает сам." Style="{StaticResource Vox.Caption}"/>
               <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
                 <Button x:Name="ScreenMemoryButton" Content="Что Vox запомнил с экрана" Style="{StaticResource Vox.LinkButton}" Click="OnShowScreenMemory"/>
                 <Button Content="Очистить память названий" Style="{StaticResource Vox.LinkButton}" Margin="16,0,0,0" Click="OnClearScreenMemory"/>

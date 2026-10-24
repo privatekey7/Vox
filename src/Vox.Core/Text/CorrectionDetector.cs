@@ -132,6 +132,15 @@ public static class CorrectionDetector
         return count == 0 ? reason : $"{reason}; {count} change{(count == 1 ? "" : "s")}";
     }
 
+    /// <summary>
+    /// The places inside the dictation where <paramref name="after"/> differs from <paramref name="before"/>: the words
+    /// replaced (indices of <paramref name="before"/>'s words) and the text now there. For <see cref="TypingTrace"/>.
+    /// </summary>
+    internal static List<(int OldStart, int OldEnd, string Text)> DictationEdits(string before, string after, string inserted) =>
+        Changes(before, after, inserted) is var (_, now, changes, _, _)
+            ? [.. changes.Select(c => (c.OldStart, c.OldEnd, string.Join(' ', now.Skip(c.NewStart).Take(c.NewEnd - c.NewStart).Select(w => w.Text))))]
+            : [];
+
     private static string Clip(string s) => s.Length > 40 ? s[..40] + "…" : s;
 
     private static (List<Word> Old, List<Word> Now, List<Change> Changes, int First, int Last)? Changes(

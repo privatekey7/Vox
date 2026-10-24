@@ -105,6 +105,123 @@ public class ScreenNamesTests
         Assert.Equal(0, ScreenMemory.Load(path).Count);
     }
 
+    // Security audit L6 (25.10): a name from a tab title does not stay for good.
+    private static readonly DateTime Day = new(2026, 10, 25, 12, 0, 0, DateTimeKind.Utc);
+
+    private static string[] Names(ScreenMemory memory) => [.. memory.Entries.Select(e => e.Name).Order()];
+
+    [Fact]
+    public void A_name_seen_on_one_day_only_is_forgotten_after_a_week()
+    {
+        var memory = new ScreenMemory();
+        memory.See(["Zorblax"], Day);
+        memory.See(["Zorblax"], Day.AddHours(3)); // the same day: still a one-off
+
+        Assert.Equal(0, memory.Expire(Day.AddHours(3) + ScreenMemory.BriefLife));
+        Assert.Equal(1, memory.Expire(Day.AddHours(3) + ScreenMemory.BriefLife + TimeSpan.FromMinutes(1)));
+        Assert.Empty(memory.Entries);
+    }
+
+    [Fact]
+    public void A_name_seen_on_other_days_is_forgotten_after_30_days_unseen()
+    {
+        var memory = new ScreenMemory();
+        memory.See(["Zorblax", "Quintora"], Day);
+        memory.See(["Zorblax"], Day.AddDays(2));
+
+        memory.Expire(Day.AddDays(20));
+        Assert.Equal(["Zorblax"], Names(memory)); // Quintora: one day, gone after a week
+
+        memory.See(["Velmora"], Day.AddDays(2) + ScreenMemory.Life + TimeSpan.FromMinutes(1)); // See expires too
+        Assert.Equal(["Velmora"], Names(memory));
+    }
+
+    [Fact]
+    public void A_name_that_made_a_replacement_lives_long()
+    {
+        var memory = new ScreenMemory();
+        memory.See(["Zorblax", "Quintora"], Day);
+        var used = Day.AddDays(5);
+        Assert.True(memory.Use(["zorblax", "Zorblax Studio", "DeepL"], used)); // any case; a pair or a term is not in memory
+        Assert.False(memory.Use(["Velmora"], used));
+
+        memory.Expire(used + ScreenMemory.UsedLife);
+        Assert.Equal(["Zorblax"], Names(memory));
+        memory.Expire(used + ScreenMemory.UsedLife + TimeSpan.FromMinutes(1));
+        Assert.Empty(memory.Entries);
+    }
+
+    // As DictationService does: a replacement from memory marks its name, whatever case the memory keeps.
+    [Fact]
+    public void A_replacement_from_memory_marks_its_name_used()
+    {
+        var memory = new ScreenMemory();
+        memory.See(["cruzade"], Day);
+        var log = new List<FuzzyTerms.Match>();
+        Assert.Equal("Cruzade.", Fix("Крузаде.", [.. memory.Entries.Select(e => new ScreenName(e.Name, false))], log));
+
+        Assert.True(memory.Use(log.Where(m => m.Screen == FuzzyTerms.Memory).Select(m => m.Replacement), Day.AddDays(1)));
+        memory.Expire(Day + ScreenMemory.Life + TimeSpan.FromDays(1));
+        Assert.Equal(["cruzade"], Names(memory));
+    }
+
+    // The owner's screen_names.json from before 25.10 has no first-seen time: its names keep working, 30 days unseen.
+    [Fact]
+    public void Names_saved_before_the_lifetime_keep_working()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"vox-screen-{Guid.NewGuid():N}.json");
+        File.WriteAllText(path, """[{"N":"cruzade","C":2,"T":"2026-10-24T09:00:00Z"},{"N":"BaseScan","C":1,"T":"2026-10-24T10:00:00Z"},{"N":"Velmora","C":5,"T":"2026-09-01T10:00:00Z"}]""");
+        try
+        {
+            var memory = ScreenMemory.Load(path, now: new DateTime(2026, 11, 10, 0, 0, 0, DateTimeKind.Utc)); // past a week
+            Assert.Equal(["BaseScan", "cruzade"], Names(memory)); // Velmora: unseen for 70 days
+            ScreenName[] screen = [.. memory.Entries.Select(e => new ScreenName(e.Name, false))];
+            Assert.Equal("Cruzade и BaseScan.", Fix("Крузаде и Байскан.", screen));
+
+            memory.Save();
+            Assert.Equal(["BaseScan", "cruzade"], Names(ScreenMemory.Load(path, now: new DateTime(2026, 11, 20, 0, 0, 0, DateTimeKind.Utc))));
+            Assert.Empty(ScreenMemory.Load(path, now: new DateTime(2026, 11, 24, 0, 0, 0, DateTimeKind.Utc)).Entries); // 30 days
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void The_lifetime_survives_a_restart()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"vox-screen-{Guid.NewGuid():N}.json");
+        try
+        {
+            var memory = new ScreenMemory(path);
+            memory.See(["Zorblax", "Quintora", "Velmora"], Day);
+            memory.See(["Quintora"], Day.AddDays(2));
+            memory.Use(["Velmora"], Day.AddDays(1));
+            memory.Save();
+
+            var later = Day.AddDays(10); // past a week, within 30 days
+            Assert.Equal(["Quintora", "Velmora"], Names(ScreenMemory.Load(path, now: later)));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    // A transfer file has no first-seen time either: imported names are not one-offs.
+    [Fact]
+    public void Imported_names_live_30_days_unseen()
+    {
+        var memory = new ScreenMemory();
+        memory.Merge([new ScreenMemory.Entry("Zorblax", 1, Day)]);
+
+        memory.Expire(Day.AddDays(20));
+        Assert.Equal(["Zorblax"], Names(memory));
+        memory.Expire(Day + ScreenMemory.Life + TimeSpan.FromMinutes(1));
+        Assert.Empty(memory.Entries);
+    }
+
     [Theory]
     [InlineData("Открой санвиспер", "Открой Sunwhisper")]
     [InlineData("Открой Sunwisper", "Открой Sunwhisper")]
