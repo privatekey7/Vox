@@ -7,7 +7,8 @@ public sealed record LoggedDictation(string Raw, string? Final);
 
 /// <summary>
 /// Reads dictations back from vox.log (any version: "12:00:00.000 [STT] Raw: "…"" in 2.0, other
-/// timestamps and quotes in 1.x, CRLF) or from plain lines "Raw[&lt;TAB&gt;Final]" (tools/Vox.Replay).
+/// timestamps and quotes in 1.x, CRLF), from recordings.tsv or from plain lines "Raw[&lt;TAB&gt;Final]"
+/// (tools/Vox.Replay). A log written without texts (<see cref="LogText"/>) has no dictations to read.
 /// </summary>
 public static partial class DictationLog
 {
@@ -17,6 +18,17 @@ public static partial class DictationLog
     public static IEnumerable<LoggedDictation> Read(IEnumerable<string> lines)
     {
         var all = lines.Select(l => l.TrimEnd('\r')).ToList();
+        if (all.Count > 0 && all[0].StartsWith("file\ttime\tmodel\traw\tfinal", StringComparison.Ordinal))
+        {
+            // recordings.tsv (Settings → "Сохранять записи диктовок"): the texts are there even when the log has none.
+            foreach (var fields in all.Skip(1).Select(l => l.Split('\t')).Where(p => p.Length >= 5 && p[3].Length > 0))
+            {
+                yield return new LoggedDictation(fields[3], fields[4]);
+            }
+
+            yield break;
+        }
+
         if (!all.Exists(l => l.Contains("[STT]", StringComparison.Ordinal)))
         {
             foreach (var line in all.Where(l => l.Trim().Length > 0))

@@ -33,6 +33,24 @@ public sealed class RecordingsTests : IDisposable
     }
 
     [Fact]
+    public void Clearing_deletes_every_recording_and_the_index_and_saving_goes_on()
+    {
+        var store = new RecordingStore(_dir);
+        store.Save(Tone(16000, 0.1), 16000, new DateTime(2026, 10, 22, 12, 0, 0), "m", "раз", "Раз.");
+        store.Save(Tone(16000, 0.1), 16000, new DateTime(2026, 10, 22, 12, 0, 1), "m", "два", "Два.");
+        File.WriteAllText(Path.Combine(_dir, "notes.txt"), "not ours");
+
+        Assert.Equal(2, store.Clear());
+
+        Assert.Empty(Directory.GetFiles(_dir, "*.wav"));
+        Assert.False(File.Exists(Path.Combine(_dir, RecordingStore.IndexName)));
+        Assert.True(File.Exists(Path.Combine(_dir, "notes.txt")));
+        store.Save(Tone(16000, 0.1), 16000, new DateTime(2026, 10, 22, 12, 0, 2), "m", "три", "Три.");
+        Assert.Equal("три", Assert.Single(RecordingStore.Read(_dir)).Raw);
+        Assert.Equal(0, new RecordingStore(Path.Combine(_dir, "missing")).Clear());
+    }
+
+    [Fact]
     public void An_empty_dictation_is_kept_with_a_note()
     {
         var store = new RecordingStore(_dir);

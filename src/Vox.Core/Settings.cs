@@ -37,8 +37,9 @@ public sealed class Settings
     private readonly string _path;
     private readonly JsonObject _json;
 
-    // Tied to this computer: another PC has other microphones.
-    private static readonly string[] LocalKeys = ["microphone"];
+    // Tied to this computer: another PC has other microphones. Texts in the log are this PC's developer's
+    // choice: a transfer file must not turn them on elsewhere.
+    private static readonly string[] LocalKeys = ["microphone", "log_texts"];
 
     private Settings(string path, JsonObject json)
     {
@@ -133,6 +134,16 @@ public sealed class Settings
     {
         get => GetBool("save_recordings", false);
         set => _json["save_recordings"] = value;
+    }
+
+    /// <summary>
+    /// Developer setting: write the texts of dictations and fixes into vox.log (Raw/Final for tools/Vox.Replay).
+    /// Off by default: the log then has only sizes and counts (<see cref="Diagnostics.LogText"/>).
+    /// </summary>
+    public bool LogTexts
+    {
+        get => GetBool("log_texts", false);
+        set => _json["log_texts"] = value;
     }
 
     /// <summary>Put the user's own clipboard back after pasting a dictation.</summary>

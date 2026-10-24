@@ -129,4 +129,17 @@ public class CorrectionDetectorTests
     public void Unlike_words_are_not_learned_and_the_log_says_why() =>
         Assert.Equal("the words are not alike (0.40); 1 change: \"треде\" → \"tray\"",
             CorrectionDetector.Describe("Свернуть в треде и выйти.", "Свернуть в tray и выйти.", "Свернуть в треде и выйти."));
+
+    // Security audit L3: what the user typed over the dictation (a card number, an address) stays out of the log.
+    [Fact]
+    public void Without_texts_the_log_gets_the_reason_and_the_count_but_no_words()
+    {
+        const string before = "Карта 1234 и адрес Ленина.";
+        const string after = "Карта 4276 5500 и адрес Мира.";
+
+        var line = CorrectionDetector.DescribeWithoutText(before, after, before);
+
+        Assert.Equal("several places changed; 2 changes", line);
+        Assert.Equal("no change inside the dictation", CorrectionDetector.DescribeWithoutText(before, before, before));
+    }
 }

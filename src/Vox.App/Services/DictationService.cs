@@ -195,6 +195,7 @@ internal sealed class DictationService : IDisposable
     public TransferCounts ImportData(string path, string backup)
     {
         DataTransfer.Export(backup, _db, _settings, _screenMemory, history: true, recordings: null);
+        ImportBackups.Prune(Path.GetDirectoryName(backup)!); // each holds the whole history: only the newest stay
         var counts = DataTransfer.Import(path, _db, _settings, _screenMemory, _recordings.Directory);
         _settings.Save();
         foreach (var t in _db.History(OwnWords.HistoryLimit))
@@ -207,6 +208,21 @@ internal sealed class DictationService : IDisposable
         ReloadCorrections();
         Log.Info($"[TRANSFER] Imported: {counts}");
         return counts;
+    }
+
+    /// <summary>
+    /// Settings → History → "Очистить": every place Vox keeps dictations' text goes, not just the table: the
+    /// database (securely, <see cref="VoxDatabase.ClearHistory"/>), the recordings, the copies made before an
+    /// import (in <paramref name="dataRoot"/>), crash dumps and the log. The dictionary, screen names and settings stay.
+    /// </summary>
+    public void ClearHistory(string dataRoot)
+    {
+        _db.ClearHistory();
+        var recordings = _recordings.Clear();
+        var backups = ImportBackups.DeleteAll(dataRoot);
+        var dumps = Vox.Core.Diagnostics.CrashDumps.DeleteAll(Vox.Core.Diagnostics.CrashDumps.DefaultFolder);
+        Log.Clear();
+        Log.Info($"[HISTORY] Cleared: the history, {recordings} recordings, {backups} import backups, {dumps} crash dumps and the log");
     }
 
     /// <summary>Settings: what Vox remembered from the screen, the latest first.</summary>
@@ -358,7 +374,7 @@ internal sealed class DictationService : IDisposable
             return;
         }
 
-        Log.Info($"[STT] Raw: \"{raw}\"");
+        Log.Info($"[STT] {Log.Field("Raw", raw)}");
         _ownWords.Add(raw);
         PostProcessor? pp;
         SpeechModel? model;
@@ -374,11 +390,11 @@ internal sealed class DictationService : IDisposable
         {
             var score = f.Score.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
             Log.Info(f.Screen is { } origin
-                ? $"[SCREEN] \"{f.Spoken}\" → \"{f.Replacement}\" {score} (источник: {origin})"
-                : $"{(f.English ? "[EN]" : "[FUZZY]")} \"{f.Spoken}\" → \"{f.Replacement}\" {score}");
+                ? $"[SCREEN] {Log.Pair(f.Spoken, f.Replacement)} {score} (источник: {origin})"
+                : $"{(f.English ? "[EN]" : "[FUZZY]")} {Log.Pair(f.Spoken, f.Replacement)} {score}");
         }
 
-        Log.Info($"[STT] Final: \"{text}\"");
+        Log.Info($"[STT] {Log.Field("Final", text)}");
         SaveRecording(samples, rate, model, raw, text, text.Trim().Length == 0 ? "empty final" : "");
         if (text.Trim().Length == 0)
         {
@@ -409,7 +425,8 @@ internal sealed class DictationService : IDisposable
         var (before, after, source) = _context.Read();
         text = ContextJoiner.Apply(text, before, after);
         var shownBefore = before is null ? "?" : before.Replace("\r", "\\r", StringComparison.Ordinal).Replace("\n", "\\n", StringComparison.Ordinal);
-        Log.Info($"[CTX] {source}: {ContextJoiner.Describe(before)} (before: \"{shownBefore}\"); pasted: \"{text}\""); // Final is before the join
+        var shownField = Log.Texts ? $" (before: \"{shownBefore}\")" : ""; // the letters before the cursor are the user's text too
+        Log.Info($"[CTX] {source}: {ContextJoiner.Describe(before)}{shownField}; {Log.Field("pasted", text)}"); // Final is before the join
 
         _paster.Paste(text, _settings.RestoreClipboard);
         _context.Remember(text);
