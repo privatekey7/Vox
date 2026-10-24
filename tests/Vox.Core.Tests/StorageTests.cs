@@ -118,6 +118,11 @@ public sealed class CrashDumpsTests : IDisposable
     [Fact]
     public void Clearing_deletes_the_dumps_keeps_the_folder_and_skips_a_locked_one()
     {
+        if (!OperatingSystem.IsWindows())
+        {
+            return; // only Windows refuses to delete an open file
+        }
+
         File.WriteAllText(Path.Combine(_dir, "Vox.exe.1234.dmp"), "memory");
         File.WriteAllText(Path.Combine(_dir, "Vox.exe.5678.dmp"), "memory");
         var locked = Path.Combine(_dir, "Vox.exe.9999.dmp");
