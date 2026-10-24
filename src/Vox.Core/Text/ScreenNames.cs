@@ -231,8 +231,8 @@ public sealed class ScreenMemory
     /// twice changes nothing); returns how many are new.
     /// </summary>
     /// <remarks>
-    /// The file may come from someone else (security audit L2): only names <see cref="ScreenWords"/> could have
-    /// remembered (Latin letters, at most <see cref="ScreenWords.MaxRun"/>), no time later than
+    /// The file may come from someone else (security audit L2): only names this memory keeps itself
+    /// (<see cref="IsRememberable"/>, at most <see cref="ScreenWords.MaxRun"/>, no hidden characters), no time later than
     /// <paramref name="now"/>, and the oldest go over <see cref="Limit"/> as in <see cref="See"/>.
     /// </remarks>
     public int Merge(IEnumerable<Entry> entries, DateTime? now = null)
@@ -261,8 +261,10 @@ public sealed class ScreenMemory
 
     private const int MaxCount = 1_000_000;
 
+    // What this memory keeps itself (IsRememberable, as See and Load), no longer than a name ScreenWords finds, nothing hidden.
     private static bool IsMergeable(Entry? e) =>
-        e?.Name is { Length: > 0 and <= ScreenWords.MaxRun } name && name.All(char.IsAsciiLetter);
+        e?.Name is { Length: <= ScreenWords.MaxRun } name && !string.IsNullOrWhiteSpace(name)
+        && IsRememberable(name) && SafeText.HasNoHiddenChars(name);
 
     // The ones not seen for longest go first; the caller holds _lock.
     private void DropOverLimit()

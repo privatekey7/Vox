@@ -393,12 +393,29 @@ public sealed class DataTransferTests : IDisposable
             new ScreenMemory.Entry("Quarnix", 1, now.AddDays(-2)),
             new ScreenMemory.Entry("Oldname", 1, now.AddDays(-30)),
             new ScreenMemory.Entry(new string('a', ScreenWords.MaxRun + 1), 1, now),
-            new ScreenMemory.Entry("evil.example", 1, now),
+            new ScreenMemory.Entry("Evil\u202Ename", 1, now),
+            new ScreenMemory.Entry("Qwen3", 1, now),
             new ScreenMemory.Entry("Future", int.MaxValue, now.AddYears(100)),
         ], now);
 
         Assert.Equal(4, added);
         Assert.Equal(["Future", "Zorblax"], names.Entries.Select(e => e.Name).Order(StringComparer.Ordinal));
         Assert.Equal(now, names.Entries.Single(e => e.Name == "Future").Last);
+    }
+
+    // Merge takes what the memory keeps itself. A name with digits ("Qwen3") or a pair ("Remotion Studio") is used
+    // while on screen and never remembered (ScreenMemory.IsRememberable), so it is not in a transfer file either.
+    [Fact]
+    public void Every_remembered_screen_name_survives_export_and_import()
+    {
+        using var home = NewPc("home");
+        home.Names.See(["Qwen3", "Remotion Studio", "Remotion", "LMArena", "macOS", "DeepL"], DateTime.UtcNow);
+        DataTransfer.Export(File("t.zip"), home.Db, home.Settings, home.Names, history: false, recordings: null);
+
+        using var work = NewPc("work");
+        DataTransfer.Import(File("t.zip"), work.Db, work.Settings, work.Names, work.Recordings);
+
+        Assert.Equal(["DeepL", "LMArena", "Remotion", "macOS"], home.Names.Entries.Select(e => e.Name).Order(StringComparer.Ordinal));
+        Assert.Equal(home.Names.Entries.Select(e => e.Name).Order(StringComparer.Ordinal), work.Names.Entries.Select(e => e.Name).Order(StringComparer.Ordinal));
     }
 }
