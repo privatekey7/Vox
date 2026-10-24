@@ -46,9 +46,10 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "10.0.x"
-      # Exactly the versions in the committed packages.lock.json files; a lock file out of step
-      # with Directory.Packages.props fails here (NU1004) instead of resolving something new.
-      - run: dotnet restore Vox.sln --locked-mode
+      # Not locked here: on Linux the WPF app resolves System.Drawing.Common as a package, while the
+      # lock files (made on Windows) get it from the Windows Desktop framework (NU1102). The shipped
+      # installer is built by windows-installer, which restores in locked mode.
+      - run: dotnet restore Vox.sln -p:RestoreLockedMode=false
       # The whole solution, the WPF app included (EnableWindowsTargeting): `dotnet test` alone
       # only builds what the tests reference.
       - run: dotnet build Vox.sln -c Release --no-restore
