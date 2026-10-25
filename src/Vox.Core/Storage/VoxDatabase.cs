@@ -105,8 +105,9 @@ public sealed class VoxDatabase : IDisposable
         }
     }
 
+    // Two dictations can share a millisecond (an import, a fast machine): id breaks the tie, newest first.
     public IReadOnlyList<Transcription> History(int limit = 200) =>
-        QueryTranscriptions("SELECT * FROM transcriptions ORDER BY created_at DESC LIMIT $limit", ("$limit", limit));
+        QueryTranscriptions("SELECT * FROM transcriptions ORDER BY created_at DESC, id DESC LIMIT $limit", ("$limit", limit));
 
     /// <summary>Full-text search. Plain words are matched as prefixes ("рубл" finds "рублей").</summary>
     public IReadOnlyList<Transcription> Search(string query, int limit = 200)
@@ -121,7 +122,7 @@ public sealed class VoxDatabase : IDisposable
 
         return QueryTranscriptions("""
             SELECT t.* FROM transcriptions_fts fts JOIN transcriptions t ON t.id = fts.rowid
-            WHERE transcriptions_fts MATCH $q ORDER BY t.created_at DESC LIMIT $limit
+            WHERE transcriptions_fts MATCH $q ORDER BY t.created_at DESC, t.id DESC LIMIT $limit
             """, ("$q", match), ("$limit", limit));
     }
 
