@@ -45,11 +45,8 @@ public static partial class Terms
                     copied = words[i + n - 1].Index + words[i + n - 1].Length;
                     if (replacement.EndsWith('+'))
                     {
-                        // The model's own tail: "нотпад++" → "Notepad++", not "Notepad++++".
-                        while (copied < text.Length && text[copied] == '+')
-                        {
-                            copied++;
-                        }
+                        // The model's own tail: "нотпад++" → "Notepad++", not "Notepad++++"; "Си-++" → "C++".
+                        copied += PlusTail(text, copied);
 
                         // "нотпад плюс-плюс": the source took "нотпад", the rest is the "++" said aloud.
                         if (SpokenPlus().Match(text, copied) is { Success: true } plus)
@@ -69,13 +66,28 @@ public static partial class Terms
         return copied == 0 ? text : result.Append(text, copied, text.Length - copied).ToString();
     }
 
-    // "Си++": a source ending in "+" ("си++" → C++) matches only a word the model wrote with a "+" after it.
+    // "Си++": a source ending in "+" ("си++" → C++) matches only a word the model wrote with a "+" after it
+    // ("Си-++" too), and not one glued to a following word ("c+d").
     private static Entry? Lookup(Dictionary<string, Entry> phrases, string key, string text, Match last)
     {
         var end = last.Index + last.Length;
         return phrases.TryGetValue(key, out var entry) ? entry
-            : end < text.Length && text[end] == '+' && phrases.TryGetValue(key + "+", out entry) ? entry
+            : PlusTail(text, end) is > 0 and var tail && !(end + tail < text.Length && char.IsLetterOrDigit(text[end + tail]))
+                && phrases.TryGetValue(key + "+", out entry) ? entry
             : null;
+    }
+
+    /// <summary>Length of the "+" run at <paramref name="index"/>, with a hyphen before it ("-++"); 0 without a "+".</summary>
+    internal static int PlusTail(string text, int index)
+    {
+        var at = index < text.Length - 1 && text[index] == '-' && text[index + 1] == '+' ? index + 1 : index;
+        var end = at;
+        while (end < text.Length && text[end] == '+')
+        {
+            end++;
+        }
+
+        return end == at ? 0 : end - index;
     }
 
     // Words i..i+n-1 as a lookup key, or null when they are not separated by whitespace only.

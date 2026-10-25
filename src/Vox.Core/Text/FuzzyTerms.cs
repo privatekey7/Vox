@@ -331,13 +331,14 @@ public sealed partial class FuzzyTerms
         {
             var replacement = found.Screen is not null && found.Name is { } seen && end + 1 < text.Length && text[end] == '.' && char.IsAsciiLetterLower(text[end + 1])
                 ? seen // "cruzade.com"
-                : Cased(found.Replacement, spoken, found.English, StartsSentence(text, start) || InTitle(text, start, end));
+                // A title is English words only: "Beckend Python" → "бэкенд Python".
+                : Cased(found.Replacement, spoken, found.English, StartsSentence(text, start) || (found.English && InTitle(text, start, end)));
             log?.Add(new Match(spoken, replacement, Math.Round(found.Score, 2), found.English, found.Screen));
             result.Append(text, copied, start - copied).Append(replacement);
             copied = end;
-            while (replacement.EndsWith('+') && copied < text.Length && text[copied] == '+')
+            if (replacement.EndsWith('+'))
             {
-                copied++; // "Charb++" → "C++", as Terms does
+                copied += Terms.PlusTail(text, copied); // "Charb++" → "C++", as Terms does
             }
         }
 
@@ -351,10 +352,18 @@ public sealed partial class FuzzyTerms
 
         // A Latin word becomes a Cyrillic term only inside Russian speech and in its number: "Это Plagens" →
         // "плагины", but "Stells Extra Plagin для …" stays.
-        bool RussianAround(int k, int n, string spoken, string replacement) =>
-            !(k > 0 && Spaced(words[k - 1], words[k]) && !IsCyrillic(words[k - 1].Value))
-            && !(k + n < words.Count && Spaced(words[k + n - 1], words[k + n]) && !IsCyrillic(words[k + n].Value))
-            && (replacement[^1] is not ('ы' or 'и') || spoken.EndsWith('s'));
+        // A term next to a Russian word is Russian speech too: "на Beckend Python" → "на бэкенд Python". Not next
+        // to a name: "CRM Bitrix" stays.
+        bool RussianAround(int k, int n, string spoken, string replacement)
+        {
+            bool Latin(string word) => !IsCyrillic(word) && !(char.IsLower(replacement[0]) && _targets.Contains(word));
+            return !(k > 0 && Spaced(words[k - 1], words[k]) && Latin(words[k - 1].Value))
+                && !(k + n < words.Count && Spaced(words[k + n - 1], words[k + n]) && Latin(words[k + n].Value))
+                && (replacement[^1] is not ('ы' or 'и') || spoken.EndsWith('s'));
+        }
+
+        // "C++" only for a word the model wrote with a "+" after it: "Charp" is C#, not "Charb++".
+        bool PlusAfter(int k) => Terms.PlusTail(text, words[k].Index + words[k].Length) > 0;
 
         for (var i = 0; i < words.Count;)
         {
@@ -368,7 +377,8 @@ public sealed partial class FuzzyTerms
                     && (span == 1 ? FindWord(spoken, name, EnglishNeighbour(i)) ?? (_latinOn && IsCyrillic(spoken) ? FindBrand(spoken, name) : null)
                         : Find(spoken, name, english: false, names)) is { } match
                     && (span == 1 || !Enumerable.Range(i, span).Any(k => CloserEnglish(words[k].Value, match.Score, (w, n) => FindWord(w, n))))
-                    && (IsCyrillic(spoken) || !IsCyrillic(match.Replacement) || RussianAround(i, span, spoken, match.Replacement)))
+                    && (IsCyrillic(spoken) || !IsCyrillic(match.Replacement) || RussianAround(i, span, spoken, match.Replacement))
+                    && (!match.Replacement.EndsWith('+') || PlusAfter(i + span - 1)))
                 {
                     found = match;
                     n = span;

@@ -141,6 +141,12 @@ public class FuzzyTermsTests
     [InlineData("Гитпуш, кли и кли-версия", "git push, CLI и CLI-версия")]
     [InlineData("Митсубиси Лэнд-Крузер", "Mitsubishi Land Cruiser")]
     [InlineData("пишу на nast и на go, на GO, голу", "пишу на Rust и на Go, на Go, голу")]
+    // Owner's live test of d66f396: "Charp" is C#, not "Charb++"; the other ways a model writes C++.
+    [InlineData("Сервис на Charp, тесты на Charp.", "Сервис на C#, тесты на C#.")]
+    [InlineData("Модуль на Си-++, Si++, C+ и Си-плюс-плюс", "Модуль на C++, C++, C++ и C++")]
+    [InlineData("Стандарт C++20 и формула c+d", "Стандарт C++20 и формула c+d")]
+    [InlineData("Нужен Beckend Python и Frontand React", "Нужен бэкенд Python и фронтенд React")]
+    [InlineData("Внедряем CRM Bitrix 24", "Внедряем CRM Bitrix 24")] // a name next to a term stays
     public void Live_test_phrases(string raw, string expected) =>
         Assert.Equal(expected, new PostProcessor(ModelCatalog.GigaAm).Process(raw).Trim());
 
