@@ -147,6 +147,14 @@ public class FuzzyTermsTests
     [InlineData("Стандарт C++20 и формула c+d", "Стандарт C++20 и формула c+d")]
     [InlineData("Нужен Beckend Python и Frontand React", "Нужен бэкенд Python и фронтенд React")]
     [InlineData("Внедряем CRM Bitrix 24", "Внедряем CRM Bitrix 24")] // a name next to a term stays
+    // Owner's anglicism checklist on 3e5f3ce.
+    [InlineData("Перезапусти трафик, интернет-трафик вырос", "Перезапусти трафик, интернет-трафик вырос")] // a Russian word, not Traefik
+    [InlineData("Открой Notpac+ и Notpad++, но Notpac и Word", "Открой Notepad++ и Notepad++, но Notpac и Word")]
+    [InlineData("Сервис на Котлен, обучение локальных LM-моделей", "Сервис на Kotlin, обучение локальных LLM-моделей")]
+    [InlineData("Элэлэм-модели, элэлэм моделей, LM Studio и LM Arena", "LLM-модели, LLM-моделей, LM Studio и LM Arena")]
+    [InlineData("Добавь веб-хук, ответ аппи и пакет через Peep", "Добавь webhook, ответ API и пакет через pip")]
+    [InlineData("GMini, Яндекс ДжиПТ и модель с Хью Фейс", "Gemini, YandexGPT и модель с Hugging Face")]
+    [InlineData("Запусти Clod Discopt, а потом Discord", "Запусти Claude Desktop, а потом Discord")]
     public void Live_test_phrases(string raw, string expected) =>
         Assert.Equal(expected, new PostProcessor(ModelCatalog.GigaAm).Process(raw).Trim());
 

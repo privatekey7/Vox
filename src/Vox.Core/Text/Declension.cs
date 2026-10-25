@@ -99,7 +99,8 @@ public static class Declension
 
     private static (string Stem, string[] Endings)? Paradigm(string word, int minLength = MinLength)
     {
-        if (word.Length < minLength || !IsCyrillic(word))
+        // A hyphenated word declines its last part: "lm-модель" → "lm-моделей".
+        if (word.Length < minLength || !IsCyrillic(word[(word.LastIndexOf('-') + 1)..]))
         {
             return null;
         }

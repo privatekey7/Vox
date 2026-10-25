@@ -57,6 +57,7 @@ public sealed partial class FuzzyTerms
     private const double BrandCapitalVowels = 0.9;
     private const int ShortKey = 5; // a Latin skeleton this short is checked with vowels
     private const double Threshold = 0.85;
+    private const double PlusThreshold = 0.75; // a Latin word with a "+" after it, against terms ending in "+" (FindPlus)
     private const double LatinThreshold = 0.85; // under it, dev words SCOWL lacks: "webhook" ~ "Webpack" 0.83
     private const double Margin = 0.05;
     private const double Tie = 0.02; // closer than this, frequency decides
@@ -115,6 +116,7 @@ public sealed partial class FuzzyTerms
     private readonly HashSet<string> _termWords = new(StringComparer.OrdinalIgnoreCase); // terms and their words
     private readonly HashSet<string> _targets = new(StringComparer.OrdinalIgnoreCase);
     private readonly System.Collections.Concurrent.ConcurrentDictionary<(string, bool), Candidate[]> _screenCache = new();
+    private readonly Lazy<Candidate[]> _plusTerms; // the Latin sound index of terms ending in "+" (FindPlus)
 
     [GeneratedRegex(@"\p{L}+(?:-\p{L}+)*")] private static partial Regex Word();
 
@@ -134,6 +136,7 @@ public sealed partial class FuzzyTerms
         IEnumerable<(string Source, string Target)>? exactPairs = null)
     {
         _latinOn = latin;
+        _plusTerms = new(() => [.. _latin.Values.SelectMany(b => b).Where(c => c.Target.EndsWith('+') && !c.Brand)]);
         _englishByLength = new(() =>
         {
             var byLength = new Dictionary<int, List<(string, ulong)>>();
@@ -388,6 +391,13 @@ public sealed partial class FuzzyTerms
             if (found is null && names is not null && FindShort(words[i], names) is { } shortMatch)
             {
                 found = shortMatch;
+                n = 1;
+            }
+
+            if (found is null && PlusAfter(i) && Eligible(words[i].Value, StartsSentence(text, words[i].Index), out _)
+                && FindPlus(words[i].Value) is { } plusMatch)
+            {
+                found = plusMatch;
                 n = 1;
             }
 
@@ -730,6 +740,11 @@ public sealed partial class FuzzyTerms
             return null; // not close enough, or two names about as close
         }
 
+        if (RussianWords.Contains(spoken))
+        {
+            return null; // a Russian word in any form is the word itself: "трафик" is not Traefik
+        }
+
         // Every other term, and every English word that is also close in letters ("биткоин" ~ "bitcoin"), by sound too:
         // it is Bitcoin, not the exchange BitKan. By sound alone a rare English word ("capernoities") would stand in the way of everything.
         var latin = Latinized(letters);
@@ -902,6 +917,25 @@ public sealed partial class FuzzyTerms
         return new[] { Skeleton(name), Skeleton(english), Skeleton(silent) }.Distinct().Where(k => k.Length >= 2)
             .Select(k => new Candidate(k, name, target, onScreen ? WindowRank : MemoryRank, Screen: onScreen ? Window : Memory, ShortOnly: shortOnly))
             .ToArray();
+    }
+
+    // "Notpac+": a "+" the model wrote after a Latin word is a strong hint, so the word is compared a little more
+    // loosely, and only with the terms that end in "+" ("Notepad++", "C++").
+    private Found? FindPlus(string spoken)
+    {
+        var key = Skeleton(spoken);
+        if (IsCyrillic(spoken) || key.Length < 4)
+        {
+            return null;
+        }
+
+        var hits = _plusTerms.Value.Where(c => c.Key[0] == key[0])
+            .Select(c => (c.Target, Score: Similarity(key, c.Key, PlusThreshold)))
+            .Where(h => h.Score >= PlusThreshold)
+            .GroupBy(h => h.Target).Select(g => g.MaxBy(h => h.Score)).OrderByDescending(h => h.Score).ToList();
+        return hits.Count == 1 || (hits.Count > 1 && hits[1].Score <= hits[0].Score - Margin)
+            ? new Found(hits[0].Target, hits[0].Score, false)
+            : null;
     }
 
     // A word under MinLetters ("Хап", "Hap") is a screen name only on the exact skeleton and vowels of one name
