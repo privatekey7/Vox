@@ -155,6 +155,11 @@ public class FuzzyTermsTests
     [InlineData("Добавь веб-хук, ответ аппи и пакет через Peep", "Добавь webhook, ответ API и пакет через pip")]
     [InlineData("GMini, Яндекс ДжиПТ и модель с Хью Фейс", "Gemini, YandexGPT и модель с Hugging Face")]
     [InlineData("Запусти Clod Discopt, а потом Discord", "Запусти Claude Desktop, а потом Discord")]
+    [InlineData("Нужно the deployd сегодня", "Нужно задеплоить сегодня")]
+    [InlineData("Сделай деплей вечером", "Сделай деплой вечером")]
+    [InlineData("Примеры лежат вклад Cookbooks, а Клод Cookbooks обновился", "Примеры лежат в Claude Cookbooks, а Claude Cookbooks обновился")]
+    [InlineData("Поставь ноладж ворк плагины", "Поставь Knowledge Work plugins")]
+    [InlineData("Запрос на Sque, а не Squeeze", "Запрос на SQL, а не Squeeze")]
     public void Live_test_phrases(string raw, string expected) =>
         Assert.Equal(expected, new PostProcessor(ModelCatalog.GigaAm).Process(raw).Trim());
 

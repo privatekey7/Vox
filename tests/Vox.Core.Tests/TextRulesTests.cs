@@ -73,6 +73,10 @@ public class FillersTests
     [InlineData("Если просто добавлять слова в словарь, э-э-э, ну, не факт.", "Если просто добавлять слова в словарь, ну, не факт.")]
     [InlineData("Мы, э-э, в общем, решили", "Мы, в общем, решили")]
     [InlineData("Угу. А-а-а... Как бы", "Угу. Как бы")]
+    // Owner: a comma the phrase needs anyway stays (two verbs, an opening "Так", a conjunction next).
+    [InlineData("я открыл, а-а, закрыл окно", "я открыл, закрыл окно")]
+    [InlineData("Так, э-э, добавь тест", "Так, добавь тест")]
+    [InlineData("Мне нравится, э-э, но дорого", "Мне нравится, но дорого")]
     public void Remove_strips_hesitation_sounds_only(string text, string expected) =>
         Assert.Equal(expected, Fillers.Remove(text));
 }

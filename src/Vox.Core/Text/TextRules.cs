@@ -234,6 +234,14 @@ public static partial class Fillers
     [GeneratedRegex(@"^\s*(?:ну|вот|то есть|кстати|короче|в общем|значит|наверное|кажется|видимо)\s*,", RegexOptions.IgnoreCase)]
     private static partial Regex IntroWord();
     [GeneratedRegex(@"(?<=[.!?…])\s*(?:\.{3}|…)(?=\s|$)")] private static partial Regex EllipsisAfterEnd();
+    [GeneratedRegex(@"(?:^|[.!?…])\s*(?<word>[\p{L}']+)\s*$")] private static partial Regex WordBefore();
+    [GeneratedRegex(@"(?<word>[\p{L}']+)\s*$")] private static partial Regex LastWord();
+    [GeneratedRegex(@"^\s*(?<word>[\p{L}']+)")] private static partial Regex FirstWord();
+    [GeneratedRegex(@"^\p{L}{2,}(?:[аеёиоуыюя]л[аои]?|[тч]ь|ти)(?:сь|ся)?$")] private static partial Regex VerbLike();
+
+    // A comma the phrase needs anyway stays when the hesitation between two commas goes.
+    private static readonly string[] OpeningWords = ["так", "слушай", "слушайте", "смотри", "смотрите", "нет", "да", "ой", "окей", "о'кей", "ладно", "хорошо", "короче", "кстати"];
+    private static readonly string[] Conjunctions = ["если", "когда", "но", "потому", "поэтому", "чтобы", "что", "где", "пока", "хотя", "который", "которая", "которое", "которые"];
     [GeneratedRegex(@"\s+([.!?…])")] private static partial Regex SpaceBeforeEnd();
     [GeneratedRegex(@"\s{2,}")] private static partial Regex ManySpaces();
     [GeneratedRegex("[а-яёa-z0-9]", RegexOptions.IgnoreCase)] private static partial Regex AnyWordChar();
@@ -267,6 +275,25 @@ public static partial class Fillers
             return keep ? m.Value : m.Value[..^1] + "а";
         });
 
+    /// <summary>
+    /// The comma stays where the phrase needs it without the hesitation: before an introductory word
+    /// ("словарь, э-э, ну, не факт"), after "Так" or "Слушай" opening a sentence, before "если", "когда",
+    /// "но"… and between two verbs ("записывал, а-а, появились").
+    /// </summary>
+    private static bool KeepsComma(string before, string after)
+    {
+        if (IntroWord().IsMatch(after))
+        {
+            return true;
+        }
+
+        var next = FirstWord().Match(after).Groups["word"].Value.ToLowerInvariant();
+        var opening = WordBefore().Match(before).Groups["word"].Value.ToLowerInvariant();
+        var previous = LastWord().Match(before).Groups["word"].Value.ToLowerInvariant();
+        return OpeningWords.Contains(opening) || Conjunctions.Contains(next)
+            || (VerbLike().IsMatch(previous) && VerbLike().IsMatch(next));
+    }
+
     public static string Remove(string text)
     {
         if (string.IsNullOrWhiteSpace(text))
@@ -289,7 +316,7 @@ public static partial class Fillers
         // Tidy punctuation left behind: "Э-э, запусти" → ", запусти" → "запусти".
         result = LeadingPunct().Replace(result, "");
         // "если мы, а-а, уменьшим" → "если мы уменьшим", but "в словарь, э-э, ну, не факт" keeps "в словарь, ну,".
-        result = DoubledComma().Replace(result, m => IntroWord().IsMatch(result.AsSpan(m.Index + m.Length)) ? ", " : " ");
+        result = DoubledComma().Replace(result, m => KeepsComma(result[..m.Index], result[(m.Index + m.Length)..]) ? ", " : " ");
         result = EllipsisAfterEnd().Replace(result, ""); // "Угу. А-а-а... Как бы" → "Угу. Как бы"
         result = CommaBeforeEnd().Replace(result, "$1"); // "если мы, а-а." → "если мы."
         result = LoneComma().Replace(result, " ");
