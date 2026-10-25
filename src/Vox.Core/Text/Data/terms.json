@@ -129,7 +129,8 @@
   "плагины": [
    "плагенс",
    "плаганс",
-   "plagens"
+   "plagens",
+   "plagins"
   ],
   "коммит": [
    "комит"
@@ -189,7 +190,8 @@
   "деплой": [
    "диплей",
    "диплой",
-   "деплей"
+   "деплей",
+   "депло"
   ],
   "коммит и запушь": [
    "коммент и запуши"
@@ -927,7 +929,24 @@
    "ноладж ворк plagens",
    "ноледж work plagens",
    "ноледж ворк плагины",
-   "knowledge work plagens"
+   "knowledge work plagens",
+   "knowledge work plagins",
+   "knowledge work плагины",
+   "cnolage work plagins",
+   "nolege work plagens",
+   "nolege work plagins",
+   "nolege work плагины"
+  ],
+  "Knowledge": [
+   "ноледж",
+   "нолэдж",
+   "нолэч",
+   "ноладж",
+   "нолидж",
+   "nolege",
+   "cnolage",
+   "knolage",
+   "nolage"
   ],
   "Claude Agent SDK": [
    "клод агент эс ди кей",
@@ -1756,6 +1775,7 @@
   ],
   "SQL": [
    "sque",
+   "esquel",
    "скюэл",
    "эскуэль",
    "эс кью эль",
@@ -2268,6 +2288,7 @@
    "гидхаб",
    "гитхаб",
    "гитхап",
+   "githab",
    "гит хаб",
    "гит хап",
    "github"
@@ -2646,6 +2667,11 @@
    "постгря"
   ],
   "MySQL": [
+   "майску",
+   "майскуль",
+   "misqul",
+   "mysqua",
+   "micq",
    "майскюэл",
    "маскюэл",
    "май эс кью эль"

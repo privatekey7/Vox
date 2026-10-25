@@ -77,6 +77,8 @@ public class FillersTests
     [InlineData("я открыл, а-а, закрыл окно", "я открыл, закрыл окно")]
     [InlineData("Так, э-э, добавь тест", "Так, добавь тест")]
     [InlineData("Мне нравится, э-э, но дорого", "Мне нравится, но дорого")]
+    [InlineData("Так, смотри, а-а-а, вышла новая версия", "Так, смотри, вышла новая версия")]
+    [InlineData("Возьмём логи, э-э, то есть свежие записи", "Возьмём логи, то есть свежие записи")]
     public void Remove_strips_hesitation_sounds_only(string text, string expected) =>
         Assert.Equal(expected, Fillers.Remove(text));
 }

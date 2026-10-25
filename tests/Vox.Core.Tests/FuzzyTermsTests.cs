@@ -160,6 +160,10 @@ public class FuzzyTermsTests
     [InlineData("Примеры лежат вклад Cookbooks, а Клод Cookbooks обновился", "Примеры лежат в Claude Cookbooks, а Claude Cookbooks обновился")]
     [InlineData("Поставь ноладж ворк плагины", "Поставь Knowledge Work plugins")]
     [InlineData("Запрос на Sque, а не Squeeze", "Запрос на SQL, а не Squeeze")]
+    [InlineData("Сначала депло, потом на Githab и в GitLab", "Сначала деплой, потом на GitHub и в GitLab")]
+    [InlineData("Включи Cnolage Work Plagins и Nolege work plagens", "Включи Knowledge Work plugins и Knowledge Work plugins")]
+    [InlineData("Это база нолэч", "Это база Knowledge")]
+    [InlineData("Esquel и Misqul, потом Mysqua", "SQL и MySQL, потом MySQL")]
     public void Live_test_phrases(string raw, string expected) =>
         Assert.Equal(expected, new PostProcessor(ModelCatalog.GigaAm).Process(raw).Trim());
 
