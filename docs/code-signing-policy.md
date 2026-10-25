@@ -1,7 +1,7 @@
 # Code signing policy
 
-> Draft for the SignPath Foundation application (docs/adr/032). The first line becomes true only
-> once the project is accepted; link this page from the README and the Releases page then.
+> Status: an application to SignPath Foundation is pending. Until it is accepted, releases are not
+> signed and the line below describes the planned setup.
 
 Free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by
 [SignPath Foundation](https://signpath.org/).
@@ -13,13 +13,19 @@ Only the Windows installer `vox-setup.exe` of tagged releases (`v*`). It is buil
 hand. Third-party components (sherpa-onnx, .NET runtime, NAudio, …) are shipped as published by
 their authors.
 
+Release tags are protected: they cannot be deleted or moved to another commit, and the `main` branch
+cannot be force-pushed or deleted.
+
 ## Team roles
 
 - Committers and reviewers: [privatekey7](https://github.com/privatekey7)
 - Approvers (each signing request is approved by hand): [privatekey7](https://github.com/privatekey7)
 
+Every team member must use multi-factor authentication for GitHub and SignPath.
+
 ## Privacy policy
 
-Vox works offline: audio and text never leave the computer. The program connects to the network
-only when the user asks it to download a speech model (from GitHub Releases of
+Vox recognises speech on the computer: audio and text never leave it. The program connects to the
+network only to download a speech model (from GitHub Releases of
 [k2-fsa/sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx/releases)). No telemetry, no accounts.
+Full policy: [docs/privacy.md](privacy.md).
