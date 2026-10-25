@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Text.RegularExpressions;
 using Vox.Core.Models;
 using Vox.Core.Text;
@@ -10,7 +9,7 @@ public class ScreenNamesTests
 {
     private static List<string> Extract(string text) => ScreenWords.Extract(text, FuzzyTerms.IsEnglishName);
 
-    private static ScreenName[] OnScreen(params string[] titles) =>
+    internal static ScreenName[] OnScreen(params string[] titles) =>
         [.. titles.SelectMany(Extract).Distinct().Select(n => new ScreenName(n, OnScreen: true))];
 
     private static string Fix(string raw, IReadOnlyCollection<ScreenName>? screen, ICollection<FuzzyTerms.Match>? log = null) =>
@@ -464,23 +463,6 @@ public class ScreenNamesTests
         var common = FuzzyTerms.LoadEnglish().Where(e => e.Level <= 20).Take(5000).Select(e => e.Word).ToList();
         var changed = common.Select(w => (w, FuzzyTerms.Apply(w, null, screen))).Where(p => p.w != p.Item2).ToList();
         Assert.Equal([], changed);
-    }
-
-    [Fact]
-    public void Matching_with_a_full_memory_is_fast()
-    {
-        var names = Terms.LoadPairs().Select(p => p[1]).Where(t => t.All(char.IsAsciiLetter) && t.Length >= 3).Distinct()
-            .Select((n, i) => n + "x" + (char)('a' + (i % 26))).Take(ScreenMemory.Limit).ToList(); // unknown names
-        ScreenName[] screen = [.. names.Select(n => new ScreenName(n, false)), .. OnScreen("Sunwhisper Settings - Google Chrome")];
-        const string text = "Открой санвиспер, проверь фронтенд и Bek End в нашем проекте, потом напиши отчёт";
-        FuzzyTerms.Apply(text, null, screen); // warm up: skeletons are cached
-        var sw = Stopwatch.StartNew();
-        for (var i = 0; i < 20; i++)
-        {
-            FuzzyTerms.Apply(text, null, screen);
-        }
-
-        Assert.True(sw.Elapsed.TotalMilliseconds / 20 < 10, $"{sw.Elapsed.TotalMilliseconds / 20:0.0} ms");
     }
 
     private static List<string> CyrillicCorpus()
