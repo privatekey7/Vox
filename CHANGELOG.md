@@ -137,6 +137,7 @@ Vox переписан на C# (.NET 10, WPF) с новым дизайном VOX
   Cookbooks», «Ноладж Work plagens» → Knowledge Work plugins, «Sque» и «Esquel» → SQL, «депло» → «деплой»,
   «Githab» → GitHub, «Cnolage Work Plagins» и «Nolege work plagens» → Knowledge Work plugins, «Нолэч» →
   Knowledge, «Майску», «Misqul», «Mysqua», «MicQ» → MySQL.
+- Слова на «г», «к», «х» склоняются и во множественном числе на «-и»: «веб-хуки» → webhook.
 - Запятая вокруг «а-а» и «э-э» остаётся, если она нужна фразе и без них: между двумя глаголами («записывал,
   появились»), после «Так» в начале предложения, после «слушай» и «смотри» и перед «если», «когда», «но»,
   «потому что», «то есть».

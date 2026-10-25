@@ -22,6 +22,8 @@ public sealed class DeclensionTests
     // Regression (owner's log): "клод-код" said with a hyphen.
     [InlineData("Открой клод-код.", "Открой Claude Code.")]
     [InlineData("В клод-коде.", "В Claude Code.")]
+    // Owner: after г, к, х the plural ends in "-и" ("веб-хуки"), not "-ы".
+    [InlineData("Подключим веб-хуки.", "Подключим webhook.")]
     public void Built_in_terms_match_case_forms(string spoken, string expected) =>
         Assert.Equal(expected, Terms.Replace(spoken));
 
@@ -41,6 +43,13 @@ public sealed class DeclensionTests
     [InlineData("Это керил.", "Это Кирилл.")]
     public void User_corrections_carry_the_ending_over(string spoken, string expected) =>
         Assert.Equal(expected, UserCorrections.Apply(spoken, new Dictionary<string, string> { ["керил"] = "Кирилл" }));
+
+    [Theory]
+    [InlineData("Где мои бурундуки?", "Где мои Бурундуки?")] // a velar word to a velar word keeps "-и"
+    [InlineData("Позови бурундука.", "Позови Бурундука.")]
+    [InlineData("Где мои бурундуки?", "Где мои бурундуки?", "Кирилл")] // "-и" does not fit a non-velar target
+    public void Velar_words_take_the_plural_in_i(string spoken, string expected, string? target = null) =>
+        Assert.Equal(expected, UserCorrections.Apply(spoken, new Dictionary<string, string> { ["бурундук"] = target ?? "Бурундук" }));
 
     [Fact]
     public void Latin_targets_drop_the_ending() =>

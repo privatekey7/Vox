@@ -11,6 +11,7 @@ public static class Declension
 
     // Paradigms by the word's last letter (nouns): consonant, -а/-я, -ь, -й.
     private static readonly string[] Hard = ["а", "у", "ом", "е", "ы", "ов", "ам", "ами", "ах"];
+    private static readonly string[] Velar = ["а", "у", "ом", "е", "и", "ов", "ам", "ами", "ах"]; // after г, к, х: "хуки", not "хукы"
     private static readonly string[] AYa = ["ы", "и", "е", "у", "ой", "ою", "ам", "ами", "ах", "ям", "ями", "ях"];
     private static readonly string[] Soft = ["я", "ю", "ем", "и", "ей", "е", "ям", "ями", "ях"];
     private static readonly string[] Yot = ["я", "ю", "ем", "е", "ев", "и", "ям", "ями", "ях"];
@@ -54,7 +55,7 @@ public static class Declension
 
         if (Paradigm(target[head..].ToLowerInvariant(), Math.Min(minLength, MinLength)) is not var (stem, endings)
             || Paradigm(source.ToLowerInvariant(), minLength) is not var (_, sourceEndings)
-            || !ReferenceEquals(endings, sourceEndings))
+            || !ReferenceEquals(Family(endings), Family(sourceEndings)) || !endings.Contains(ending))
         {
             return null;
         }
@@ -110,10 +111,13 @@ public static class Declension
             'а' or 'я' => (word[..^1], AYa),
             'ь' => (word[..^1], Soft),
             'й' => (word[..^1], Yot),
+            'г' or 'к' or 'х' => (word, Velar),
             var c when IsConsonant(c) => (word, Hard),
             _ => null, // -о, -е, -и…: usually indeclinable borrowings
         };
     }
+
+    private static string[] Family(string[] endings) => ReferenceEquals(endings, Velar) ? Hard : endings;
 
     private static bool IsConsonant(char c) => "бвгджзклмнпрстфхцчшщ".Contains(c, StringComparison.Ordinal);
 
