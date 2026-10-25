@@ -29,3 +29,6 @@ desktop.ini
 # --- Leftovers from Vox 1.x (Python) checkouts ---
 __pycache__/
 .venv/
+
+# Temporary files and caches
+.tmp/
