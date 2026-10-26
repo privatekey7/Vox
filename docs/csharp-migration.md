@@ -26,10 +26,15 @@
   падает. **Вживую не проверено**, ввод в само окно RustDesk под вопросом. На ноутбуке стоит тестовая сборка
   до аудита: поставить новую. Поднять версию до 2.0.1: `Directory.Build.props`, `vox.iss`,
   `src/Vox.App/app.manifest`, затем `dotnet restore` и закоммитить `packages.lock.json` (там `Vox.Core [2.0.0, )`).
-- **RustDesk (решение владельца 26.10: не делать).** Диктовка с ноутбука в окно RustDesk до офисного ПК не
-  доходит, а офисный Vox ловит переданный правый Ctrl и пишет тишину (peak 0). Пропуск чужих нажатий
-  (LLKHF_INJECTED) и доставку текста через удалённый рабочий стол владелец счёл лишними. Не предлагать снова.
-  На ноутбуке после обновления 13 из 13 диктовок вставлены, буфер ни разу не занят.
+- **Диктовка через RustDesk (27.10, `1fb54f1`…`ff8a049`, проверено владельцем вживую).** Сначала красные
+  тесты (`RemoteDesktopTests`), потом код, в ветке `feat/remote-desktop`, влита в `csharp` fast-forward.
+  - Управляемый ПК: `Hotkeys.IsFromRemoteControl` пропускает горячую клавишу с `dwExtraInfo == 100`
+    (RustDesk `ENIGO_INPUT_EXTRA_VALUE`), а не все LLKHF_INJECTED: PowerToys/AutoHotkey работают.
+  - Управляющий ПК: `PasteTiming.For("rustdesk")` ждёт 700 мс до Ctrl+V (RustDesk шлёт буфер раз в 333 мс,
+    `CLIPBOARD_INTERVAL`) и 1,5 с до возврата буфера.
+  - Главная причина: RustDesk передаёт клавиши по скан-коду (`map_keyboard_mode`, `position_code`), а
+    `Native.Key` слал scan 0. Теперь `wScan = MapVirtualKeyW(vk)`.
+  - На ноутбуке после исправления буфера 13 из 13 диктовок вставлены, буфер ни разу не занят.
 - **Dependabot.** 62 предупреждения были из `uv.lock` Python-версии в `main`; после перемотки файла нет.
   `dependabot.yml` теперь в ветке по умолчанию, PR с обновлениями идут в `csharp` по понедельникам.
 
