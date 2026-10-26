@@ -263,6 +263,15 @@ public static class Hotkeys
     /// </summary>
     public static bool Swallow(int virtualKey) => virtualKey is < 0xA0 or > 0xA5;
 
+    /// <summary>RustDesk tags every key it replays from the controlling computer (ENIGO_INPUT_EXTRA_VALUE).</summary>
+    public const nint RustDeskInputMarker = 100;
+
+    /// <summary>
+    /// A key replayed by remote control: the hotkey is held on the other computer, whose own Vox
+    /// records it. Remapped keys (PowerToys, AutoHotkey) carry other markers and still count.
+    /// </summary>
+    public static bool IsFromRemoteControl(nint extraInfo) => false;
+
     /// <summary>
     /// Ctrl+S, the user's "remember this fix" (owner, 23.10). Only Ctrl: Ctrl+Shift+S, Ctrl+Alt+S
     /// (AltGr is Ctrl+Alt) and Win combinations are other shortcuts.
