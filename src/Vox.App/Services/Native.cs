@@ -205,11 +205,26 @@ internal static partial class Native
         }
     }
 
+    /// <summary>
+    /// A key with its scan code too, as a keyboard sends it: RustDesk passes a key to the other computer
+    /// by scan code (map_keyboard_mode), so a Ctrl+V with scan code 0 never arrived there.
+    /// </summary>
     public static INPUT Key(ushort vk, bool up) => new()
     {
         type = INPUT_KEYBOARD,
-        ki = new KEYBDINPUT { wVk = vk, dwFlags = up ? KEYEVENTF_KEYUP : 0, dwExtraInfo = VoxInputMarker },
+        ki = new KEYBDINPUT
+        {
+            wVk = vk,
+            wScan = (ushort)MapVirtualKeyW(vk, MAPVK_VK_TO_VSC),
+            dwFlags = up ? KEYEVENTF_KEYUP : 0,
+            dwExtraInfo = VoxInputMarker,
+        },
     };
+
+    private const uint MAPVK_VK_TO_VSC = 0;
+
+    [LibraryImport("user32.dll", EntryPoint = "MapVirtualKeyW")]
+    private static partial uint MapVirtualKeyW(uint uCode, uint uMapType);
 
     /// <summary>One UTF-16 unit typed as a character, whatever the keyboard layout (a surrogate pair is two).</summary>
     public static INPUT Char(char c, bool up) => new()
