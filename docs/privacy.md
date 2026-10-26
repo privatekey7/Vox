@@ -13,7 +13,8 @@ Vox распознаёт речь на вашем компьютере. Голо
   не сохраняется. Исключение: настройка для разработчика «Сохранять записи диктовок» (по умолчанию
   выключена). С ней Vox хранит до 500 последних записей, не больше 300 МБ, в папке `%APPDATA%\vox`.
 - **Текст диктовки** вставляется в поле у курсора через буфер обмена. Эта копия не попадает в журнал
-  буфера Win+V и в облачную синхронизацию буфера. Если включено «Сохранять мой буфер обмена», после
+  буфера Win+V и в облачную синхронизацию буфера. Если буфер занят другой программой, Vox набирает текст
+  сам, без буфера. Если включено «Сохранять мой буфер обмена», после
   вставки Vox возвращает то, что вы копировали до этого.
 - **История диктовок** хранится в `%APPDATA%\vox\vox_data.db`, чтобы диктовку можно было найти и
   скопировать. Кнопка «Очистить» в разделе «История» удаляет её.
@@ -62,7 +63,8 @@ Vox has no accounts, no ads and no telemetry.
   computer and is not saved, except with the developer setting "Save dictation recordings" (off by
   default): then Vox keeps up to the last 500 recordings, at most 300 MB, in `%APPDATA%\vox`.
 - **Dictated text** is pasted at the cursor through the clipboard. This copy is kept out of the Win+V
-  clipboard history and clipboard cloud sync. With "Keep my clipboard" on, Vox puts back what you had
+  clipboard history and clipboard cloud sync. If another app keeps the clipboard busy, Vox types the
+  text instead. With "Keep my clipboard" on, Vox puts back what you had
   copied before.
 - **Dictation history** is stored in `%APPDATA%\vox\vox_data.db`, so you can find and copy a dictation.
   The "Clear" button in "History" deletes it.

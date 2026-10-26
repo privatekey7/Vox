@@ -18,6 +18,14 @@
   GitHub. После одобрения: проект `vox`, политика `release-signing`, `gh variable set SIGNPATH_ORGANIZATION_ID`,
   `gh secret set SIGNPATH_API_TOKEN`, затем подписанная 2.0.1 и громкий анонс. В Microsoft Store владелец
   регистрируется сам (storedeveloper.microsoft.com). Метки Claude в коммитах условиям SignPath и Store не мешают.
+- **Буфер занят (26.10, после релиза, `b2b29f1` и следующий коммит).** Лог ноутбука: 6 из 22 диктовок
+  потеряны, `OpenClipboard` ~2 с отвечал CLIPBRD_E_CANT_OPEN (скорее всего RustDesk синхронизирует буфер).
+  Теперь `ClipboardBusyException` (имя держателя через `GetOpenClipboardWindow`, может быть «?»), любая ошибка
+  записи буфера → `Paster.Type` (KEYEVENTF_UNICODE, переводы строк пробелом через `TypedText`, никогда Enter),
+  неудача → `DictationState.NotInserted`, плашка «Не вставилось» (1,5 с). Копирование из трея и «Истории» не
+  падает. **Вживую не проверено**, ввод в само окно RustDesk под вопросом. На ноутбуке стоит тестовая сборка
+  до аудита: поставить новую. Поднять версию до 2.0.1: `Directory.Build.props`, `vox.iss`,
+  `src/Vox.App/app.manifest`, затем `dotnet restore` и закоммитить `packages.lock.json` (там `Vox.Core [2.0.0, )`).
 - **Dependabot.** 62 предупреждения были из `uv.lock` Python-версии в `main`; после перемотки файла нет.
   `dependabot.yml` теперь в ветке по умолчанию, PR с обновлениями идут в `csharp` по понедельникам.
 

@@ -32,10 +32,12 @@ internal sealed class Paster(Dispatcher ui)
             // With restoring off the dictation stays as the user's clipboard: an ordinary copy.
             written = ui.Invoke(() => SystemClipboard.WriteText(body, keepPrivate: restoreClipboard));
         }
-        catch (SystemClipboard.ClipboardBusyException e)
+        catch (Win32Exception e)
         {
             // A remote desktop syncing the clipboard can hold it for seconds; the dictation is not lost.
-            Log.Info($"[CLIP] {e.Holder} kept the clipboard busy; typing the text instead");
+            Log.Info(e is SystemClipboard.ClipboardBusyException busy
+                ? $"[CLIP] {busy.Holder} kept the clipboard busy; typing the text instead"
+                : $"[CLIP] Could not write the clipboard ({e.Message}); typing the text instead");
             return Type(text);
         }
 
@@ -104,7 +106,19 @@ internal sealed class Paster(Dispatcher ui)
     /// Copy without pasting (tray: "Скопировать последнюю диктовку", history: "Копировать"). The user
     /// asked for it, so it is an ordinary copy that may go to clipboard history.
     /// </summary>
-    public void Copy(string text) => ui.Invoke(() => SystemClipboard.WriteText(text, keepPrivate: false));
+    public bool Copy(string text)
+    {
+        try
+        {
+            ui.Invoke(() => SystemClipboard.WriteText(text, keepPrivate: false));
+            return true;
+        }
+        catch (Win32Exception e)
+        {
+            Log.Info($"[CLIP] Could not copy ({e.Message}{(e is SystemClipboard.ClipboardBusyException busy ? $", held by {busy.Holder}" : "")})");
+            return false;
+        }
+    }
 
     private static void Restore(ClipboardSnapshot previous, uint written)
     {

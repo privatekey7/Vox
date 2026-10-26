@@ -327,8 +327,7 @@ public partial class SettingsWindow : Window
         var copy = new Button { Content = "Копировать", Style = (Style)FindResource("Vox.LinkButton"), Margin = new Thickness(16, 0, 0, 0) };
         copy.Click += (_, _) =>
         {
-            new Paster(Dispatcher).Copy(t.ProcessedText.Trim());
-            copy.Content = "Скопировано";
+            copy.Content = new Paster(Dispatcher).Copy(t.ProcessedText.Trim()) ? "Скопировано" : "Буфер занят";
         };
         Grid.SetColumn(copy, 2);
         row.Children.Add(copy);
