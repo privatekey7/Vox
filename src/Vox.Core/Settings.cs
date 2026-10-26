@@ -270,7 +270,7 @@ public static class Hotkeys
     /// A key replayed by remote control: the hotkey is held on the other computer, whose own Vox
     /// records it. Remapped keys (PowerToys, AutoHotkey) carry other markers and still count.
     /// </summary>
-    public static bool IsFromRemoteControl(nint extraInfo) => false;
+    public static bool IsFromRemoteControl(nint extraInfo) => extraInfo == RustDeskInputMarker;
 
     /// <summary>
     /// Ctrl+S, the user's "remember this fix" (owner, 23.10). Only Ctrl: Ctrl+Shift+S, Ctrl+Alt+S

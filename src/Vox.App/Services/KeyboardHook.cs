@@ -12,7 +12,8 @@ namespace Vox.App.Services;
 /// thread, so slow work (first sound, log I/O, GC) never hits Windows' LowLevelHooksTimeout —
 /// a slow hook is silently removed for good. Key presses Vox injects itself
 /// (the Ctrl+V paste) carry <see cref="Native.VoxInputMarker"/> and are ignored, so they cannot
-/// re-trigger recording; keys remapped by other tools (PowerToys, AutoHotkey) still count.
+/// re-trigger recording; keys remapped by other tools (PowerToys, AutoHotkey) still count. A hotkey
+/// RustDesk replays from the controlling computer is ignored (<see cref="Hotkeys.IsFromRemoteControl"/>).
 /// </remarks>
 internal sealed class KeyboardHook : IDisposable
 {
@@ -31,6 +32,7 @@ internal sealed class KeyboardHook : IDisposable
     private volatile int _hotkeyVk;
     private bool _hotkeyDown;
     private bool _chord;
+    private bool _remoteHotkeyDown; // logs a replayed hotkey once, not every auto-repeat
     private long _lastEventTick = Environment.TickCount64;
     private readonly Timer _watchdog;
 
@@ -155,7 +157,17 @@ internal sealed class KeyboardHook : IDisposable
                     }
                 }
 
-                if (info.vkCode == _hotkeyVk)
+                if (info.vkCode == _hotkeyVk && Hotkeys.IsFromRemoteControl(info.dwExtraInfo))
+                {
+                    // Held on the controlling computer: its own Vox records there, this one would record silence.
+                    if (down && !_remoteHotkeyDown)
+                    {
+                        Raise(() => Log.Info("[HOOK] Hotkey replayed by RustDesk from the other computer: ignored"));
+                    }
+
+                    _remoteHotkeyDown = down;
+                }
+                else if (info.vkCode == _hotkeyVk)
                 {
                     if (down && !_hotkeyDown)
                     {

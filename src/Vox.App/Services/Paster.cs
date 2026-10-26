@@ -13,10 +13,9 @@ namespace Vox.App.Services;
 /// </summary>
 internal sealed class Paster(Dispatcher ui)
 {
-    // The target app reads the clipboard asynchronously after Ctrl+V.
-    // debt: fixed delay; a very busy app could read after the restore. Upgrade path: delayed
+    // The target app reads the clipboard asynchronously after Ctrl+V (PasteTiming).
+    // debt: fixed delays; a very busy app could read after the restore. Upgrade path: delayed
     // clipboard rendering (WM_RENDERFORMAT) to learn exactly when the paste happened.
-    private static readonly TimeSpan RestoreDelay = TimeSpan.FromMilliseconds(500);
 
     /// <summary>False if the text did not reach the cursor (it is still in the history).</summary>
     public bool Paste(string text, bool restoreClipboard)
@@ -42,7 +41,9 @@ internal sealed class Paster(Dispatcher ui)
         }
 
         Log.Info(restoreClipboard ? "[CLIP] Copied to clipboard (kept out of clipboard history)" : "[CLIP] Copied to clipboard");
-        Thread.Sleep(50);
+        var (target, elevated) = Native.ForegroundApp();
+        var delays = PasteTiming.For(target);
+        Thread.Sleep(delays.BeforePaste);
 
         var keys = new List<Native.INPUT>();
         if (separator.Length > 0)
@@ -56,7 +57,6 @@ internal sealed class Paster(Dispatcher ui)
         keys.Add(Native.Key(Native.VK_V, up: false));
         keys.Add(Native.Key(Native.VK_V, up: true));
         keys.Add(Native.Key(Native.VK_CONTROL, up: true));
-        var (target, elevated) = Native.ForegroundApp();
         var sent = Native.SendInput((uint)keys.Count, [.. keys], Marshal.SizeOf<Native.INPUT>());
         Log.Info(sent == keys.Count ? $"[PASTE] Pasted into {target}" : $"[PASTE] SendInput sent {sent} of {keys.Count} keys to {target}");
         var blocked = elevated && !Environment.IsPrivilegedProcess;
@@ -71,7 +71,7 @@ internal sealed class Paster(Dispatcher ui)
             return sent == keys.Count;
         }
 
-        Thread.Sleep(RestoreDelay);
+        Thread.Sleep(delays.BeforeRestore);
         ui.Invoke(() => Restore(previous, written));
         return sent == keys.Count;
     }
