@@ -45,7 +45,10 @@ internal static partial class SystemClipboard
     /// <summary>Puts a saved clipboard back (an empty snapshot leaves the clipboard empty).</summary>
     public static void Restore(ClipboardSnapshot snapshot) => Write(snapshot.ItemsToRestore());
 
-    /// <summary>Saves every format that is plain memory. Null if the clipboard stayed busy.</summary>
+    /// <summary>
+    /// Saves every format that is plain memory. Null if it could not be read; throws
+    /// <see cref="ClipboardBusyException"/> if another app held the clipboard the whole time.
+    /// </summary>
     public static ClipboardSnapshot? TrySave()
     {
         try
@@ -68,7 +71,7 @@ internal static partial class SystemClipboard
 
             return snapshot;
         }
-        catch (Win32Exception e)
+        catch (Win32Exception e) when (e is not ClipboardBusyException)
         {
             Log.Info($"[CLIP] Could not save the clipboard ({e.Message}); it will not be restored");
             return null;
@@ -173,17 +176,20 @@ internal static partial class SystemClipboard
             var error = Marshal.GetLastPInvokeError();
             if (attempt == OpenAttempts)
             {
-                throw new Win32Exception(error);
+                throw new ClipboardBusyException(error, Holder());
             }
 
             if (attempt == 1)
             {
-                Log.Info($"[CLIP] Clipboard busy ({new Win32Exception(error).Message}), retrying");
+                Log.Info($"[CLIP] Clipboard busy ({new Win32Exception(error).Message}), held by {Holder()}, retrying");
             }
 
             Thread.Sleep(OpenRetryDelay);
         }
     }
+
+    // The app whose window has the clipboard open (clipboard sync of remote desktops, clipboard managers).
+    private static string Holder() => Native.WindowProcessName(Native.GetOpenClipboardWindow());
 
     private static unsafe string? FormatName(uint format)
     {
@@ -195,6 +201,12 @@ internal static partial class SystemClipboard
         var buffer = stackalloc char[256];
         var length = GetClipboardFormatNameW(format, buffer, 256);
         return length > 0 ? new string(buffer, 0, length) : null;
+    }
+
+    /// <summary>Another app kept the clipboard open through every retry.</summary>
+    public sealed class ClipboardBusyException(int error, string holder) : Win32Exception(error)
+    {
+        public string Holder { get; } = holder;
     }
 
     private readonly struct ClipboardLock : IDisposable

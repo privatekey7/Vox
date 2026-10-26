@@ -32,6 +32,7 @@ internal static partial class Native
     public const ushort VK_RMENU = 0xA5;
     public const ushort VK_MASK = 0xE8; // unassigned: tells Windows an Alt press was not a lone tap
     public const uint KEYEVENTF_KEYUP = 0x0002;
+    public const uint KEYEVENTF_UNICODE = 0x0004;
     public const uint INPUT_KEYBOARD = 1;
 
     public delegate nint LowLevelKeyboardProc(int nCode, nint wParam, nint lParam);
@@ -209,6 +210,35 @@ internal static partial class Native
         type = INPUT_KEYBOARD,
         ki = new KEYBDINPUT { wVk = vk, dwFlags = up ? KEYEVENTF_KEYUP : 0, dwExtraInfo = VoxInputMarker },
     };
+
+    /// <summary>One UTF-16 unit typed as a character, whatever the keyboard layout (a surrogate pair is two).</summary>
+    public static INPUT Char(char c, bool up) => new()
+    {
+        type = INPUT_KEYBOARD,
+        ki = new KEYBDINPUT { wScan = c, dwFlags = KEYEVENTF_UNICODE | (up ? KEYEVENTF_KEYUP : 0), dwExtraInfo = VoxInputMarker },
+    };
+
+    [LibraryImport("user32.dll")]
+    public static partial nint GetOpenClipboardWindow();
+
+    /// <summary>The process that owns a window, for the log; "?" if it is gone or there is no window.</summary>
+    public static string WindowProcessName(nint hwnd)
+    {
+        if (hwnd == 0 || GetWindowThreadProcessId(hwnd, out var pid) == 0)
+        {
+            return "?";
+        }
+
+        try
+        {
+            using var process = System.Diagnostics.Process.GetProcessById((int)pid);
+            return process.ProcessName;
+        }
+        catch (Exception e) when (e is ArgumentException or InvalidOperationException)
+        {
+            return "?";
+        }
+    }
 
     // Reading a focused control's text without UI Automation (FieldWatcher, Notepad++/Scintilla).
     public const uint WM_GETTEXT = 0x000D;

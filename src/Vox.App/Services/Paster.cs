@@ -8,7 +8,8 @@ namespace Vox.App.Services;
 
 /// <summary>
 /// Puts a dictation at the cursor: clipboard + synthetic Ctrl+V, then gives the user their own
-/// clipboard back, every format of it that is plain memory. Clipboard calls run on the UI thread.
+/// clipboard back, every format of it that is plain memory. If another app keeps the clipboard
+/// open, the text is typed instead. Clipboard calls run on the UI thread.
 /// </summary>
 internal sealed class Paster(Dispatcher ui)
 {
@@ -17,14 +18,27 @@ internal sealed class Paster(Dispatcher ui)
     // clipboard rendering (WM_RENDERFORMAT) to learn exactly when the paste happened.
     private static readonly TimeSpan RestoreDelay = TimeSpan.FromMilliseconds(500);
 
-    public void Paste(string text, bool restoreClipboard)
+    /// <summary>False if the text did not reach the cursor (it is still in the history).</summary>
+    public bool Paste(string text, bool restoreClipboard)
     {
         var (separator, body) = Spacing.SplitLeadingSeparator(text);
-        var previous = restoreClipboard ? ui.Invoke(SystemClipboard.TrySave) : null;
+        ClipboardSnapshot? previous;
+        uint written;
+        try
+        {
+            previous = restoreClipboard ? ui.Invoke(SystemClipboard.TrySave) : null;
 
-        // A copy that exists only until the restore stays out of Win+V history and the cloud clipboard.
-        // With restoring off the dictation stays as the user's clipboard: an ordinary copy.
-        var written = ui.Invoke(() => SystemClipboard.WriteText(body, keepPrivate: restoreClipboard));
+            // A copy that exists only until the restore stays out of Win+V history and the cloud clipboard.
+            // With restoring off the dictation stays as the user's clipboard: an ordinary copy.
+            written = ui.Invoke(() => SystemClipboard.WriteText(body, keepPrivate: restoreClipboard));
+        }
+        catch (SystemClipboard.ClipboardBusyException e)
+        {
+            // A remote desktop syncing the clipboard can hold it for seconds; the dictation is not lost.
+            Log.Info($"[CLIP] {e.Holder} kept the clipboard busy; typing the text instead");
+            return Type(text);
+        }
+
         Log.Info(restoreClipboard ? "[CLIP] Copied to clipboard (kept out of clipboard history)" : "[CLIP] Copied to clipboard");
         Thread.Sleep(50);
 
@@ -52,11 +66,38 @@ internal sealed class Paster(Dispatcher ui)
 
         if (previous is null || blocked)
         {
-            return;
+            return sent == keys.Count;
         }
 
         Thread.Sleep(RestoreDelay);
         ui.Invoke(() => Restore(previous, written));
+        return sent == keys.Count;
+    }
+
+    /// <summary>
+    /// Types the text key by key (KEYEVENTF_UNICODE: any layout, any letter) without the clipboard.
+    /// Slower than Ctrl+V for a long text, and a few apps (games, some remote desktops) ignore such keys.
+    /// </summary>
+    private static bool Type(string text)
+    {
+        var typed = TypedText.ForTyping(text);
+        var keys = new Native.INPUT[typed.Length * 2];
+        for (var i = 0; i < typed.Length; i++)
+        {
+            keys[2 * i] = Native.Char(typed[i], up: false);
+            keys[(2 * i) + 1] = Native.Char(typed[i], up: true);
+        }
+
+        var (target, elevated) = Native.ForegroundApp();
+        var sent = Native.SendInput((uint)keys.Length, keys, Marshal.SizeOf<Native.INPUT>());
+        Log.Info(sent == keys.Length ? $"[PASTE] Typed into {target}" : $"[PASTE] SendInput typed {sent} of {keys.Length} keys into {target}");
+        if (elevated && !Environment.IsPrivilegedProcess)
+        {
+            Log.Info($"[PASTE] {target} probably runs as administrator — Windows blocks the typed text");
+            return false;
+        }
+
+        return sent == keys.Length;
     }
 
     /// <summary>

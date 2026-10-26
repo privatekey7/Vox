@@ -15,6 +15,7 @@ public enum DictationState
     Listening,
     Recognizing,
     Inserted,
+    NotInserted,
     NotHeard,
     ModelLoading,
     ModelNotReady,
@@ -452,9 +453,16 @@ internal sealed class DictationService : IDisposable
         var shownField = Log.Texts ? $" (before: \"{shownBefore}\")" : ""; // the letters before the cursor are the user's text too
         Log.Info($"[CTX] {source}: {ContextJoiner.Describe(before)}{shownField}; {Log.Field("pasted", text)}"); // Final is before the join
 
-        _paster.Paste(text, _settings.RestoreClipboard);
+        var inserted = _paster.Paste(text, _settings.RestoreClipboard);
+        LastText = text.TrimStart(); // tray "Скопировать последнюю диктовку" works either way
+        if (!inserted)
+        {
+            _sounds.Error();
+            Report(DictationState.NotInserted);
+            return;
+        }
+
         _context.Remember(text);
-        LastText = text.TrimStart();
         _watcher.AfterPaste(LastText);
         Report(DictationState.Inserted);
         Inserted?.Invoke(LastText);

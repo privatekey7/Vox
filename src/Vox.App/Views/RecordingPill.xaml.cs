@@ -68,6 +68,11 @@ public partial class RecordingPill : Window
                 SetMessage("", "#FCE100", "Не расслышал", "");
                 HideAfter(TimeSpan.FromSeconds(0.5)); // owner: as quick as "Вставлено"
                 break;
+            case DictationState.NotInserted:
+                // Short like "Не расслышал" (owner: a long label spoils the pill). The text is in the history.
+                SetMessage("", "#FCE100", "Не вставилось", "");
+                HideAfter(TimeSpan.FromSeconds(1.5));
+                break;
             case DictationState.ModelNotReady:
                 SetMessage("\uE916", "#60CDFF", "Модель ещё загружается…", "подождите немного");
                 HideAfter(TimeSpan.FromSeconds(2.5));
