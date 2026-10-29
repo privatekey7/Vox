@@ -18,6 +18,7 @@ public enum DictationState
     NotInserted,
     NotHeard,
     MicrophoneSilent,
+    MicrophoneBack, // sends audio again while the key is still held
     ModelLoading,
     ModelNotReady,
 }
@@ -299,7 +300,7 @@ internal sealed class DictationService : IDisposable
         }
 
         var silent = SilentMicrophone.IsSilent(buffer.HasAudio, Stopwatch.GetElapsedTime(_startTimestamp));
-        if (silent && !_silenceShown)
+        if (silent && !_silenceShown && ReferenceEquals(_current, buffer))
         {
             _silenceShown = true;
             Log.Info($"[AUDIO] No audio {SilentMicrophone.CheckAfter.TotalMilliseconds:F0} ms after the press: the microphone is silent, reopening it");
@@ -307,11 +308,11 @@ internal sealed class DictationService : IDisposable
             StateChanged?.Invoke(DictationState.MicrophoneSilent);
             _audio.ReopenInBackground();
         }
-        else if (!silent && _silenceShown)
+        else if (!silent && _silenceShown && ReferenceEquals(_current, buffer))
         {
             _silenceShown = false;
             Log.Info("[AUDIO] The microphone sends audio again");
-            StateChanged?.Invoke(DictationState.Listening);
+            StateChanged?.Invoke(DictationState.MicrophoneBack);
         }
     }
 

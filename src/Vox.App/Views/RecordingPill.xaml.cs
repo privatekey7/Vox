@@ -55,9 +55,10 @@ public partial class RecordingPill : Window
         switch (state)
         {
             case DictationState.Listening:
-                if (previous != DictationState.MicrophoneSilent)
+            case DictationState.MicrophoneBack:
+                if (state == DictationState.Listening)
                 {
-                    _startedAt = Stopwatch.GetTimestamp(); // not when the microphone came back mid-press
+                    _startedAt = Stopwatch.GetTimestamp(); // the press goes on when the microphone comes back
                 }
 
                 Listening.Visibility = Visibility.Visible;

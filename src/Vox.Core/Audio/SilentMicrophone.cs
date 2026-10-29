@@ -6,8 +6,11 @@ namespace Vox.Core.Audio;
 /// </summary>
 public static class SilentMicrophone
 {
-    /// <summary>The device sends a block every 50 ms (AudioCapture), so none after this long means it is silent.</summary>
-    public static TimeSpan CheckAfter { get; } = TimeSpan.FromMilliseconds(300);
+    /// <summary>
+    /// The device sends a block every 50 ms (AudioCapture), but the first one came up to 218 ms late in 3 of
+    /// 3500 working dictations (logs 27.10): none after this long means the microphone is silent.
+    /// </summary>
+    public static TimeSpan CheckAfter { get; } = TimeSpan.FromMilliseconds(500);
 
     /// <summary>True when <paramref name="sincePress"/> has passed and the recording still has no audio.</summary>
     public static bool IsSilent(bool hasAudio, TimeSpan sincePress) => !hasAudio && sincePress >= CheckAfter;

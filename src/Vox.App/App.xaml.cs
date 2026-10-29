@@ -298,7 +298,7 @@ public partial class App : Application
     private void OnDictationState(DictationState state)
     {
         _pill?.Show(state);
-        _tray?.SetRecording(state == DictationState.Listening);
+        _tray?.SetRecording(state is DictationState.Listening or DictationState.MicrophoneBack);
     }
 
     private void OnUiException(object sender, DispatcherUnhandledExceptionEventArgs e)
