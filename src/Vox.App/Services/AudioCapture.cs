@@ -31,6 +31,7 @@ internal sealed class AudioCapture : IDisposable
     private WasapiCapture? _capture;
     private RecordingBuffer? _recording;
     private int _sampleRate = 16000;
+    private int _reopening; // 1 while ReopenInBackground's reopen is queued or running
     private bool _disposed;
 
     public AudioCapture(string? deviceId)
@@ -80,10 +81,32 @@ internal sealed class AudioCapture : IDisposable
 
         if (_capture is null)
         {
-            ThreadPool.QueueUserWorkItem(_ => Reopen()); // the device may be back
+            ReopenInBackground(); // the device may be back
         }
 
         return buffer;
+    }
+
+    /// <summary>
+    /// <see cref="Reopen"/> on a pool thread, one at a time: closing a stuck device took 5 s (27.10), and
+    /// the dictation that asked for it waited.
+    /// </summary>
+    public void ReopenInBackground()
+    {
+        if (Interlocked.Exchange(ref _reopening, 1) == 0)
+        {
+            ThreadPool.QueueUserWorkItem(_ =>
+            {
+                try
+                {
+                    Reopen();
+                }
+                finally
+                {
+                    Volatile.Write(ref _reopening, 0);
+                }
+            });
+        }
     }
 
     /// <summary>
@@ -121,6 +144,10 @@ internal sealed class AudioCapture : IDisposable
                 lock (_bufferLock)
                 {
                     _sampleRate = capture.WaveFormat.SampleRate;
+                    if (_recording is { HasAudio: false } recording)
+                    {
+                        recording.SampleRate = _sampleRate; // reopened while the key is held: the audio comes at the new rate
+                    }
                 }
 
                 capture.DataAvailable += OnData;

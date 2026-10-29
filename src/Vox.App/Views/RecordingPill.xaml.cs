@@ -20,6 +20,7 @@ public partial class RecordingPill : Window
     private readonly DispatcherTimer _hide = new();
     private long _startedAt;
     private float _level;
+    private DictationState _shown;
 
     internal RecordingPill(AudioCapture audio)
     {
@@ -49,10 +50,16 @@ public partial class RecordingPill : Window
     internal void Show(DictationState state)
     {
         _hide.Stop();
+        var previous = _shown;
+        _shown = state;
         switch (state)
         {
             case DictationState.Listening:
-                _startedAt = Stopwatch.GetTimestamp();
+                if (previous != DictationState.MicrophoneSilent)
+                {
+                    _startedAt = Stopwatch.GetTimestamp(); // not when the microphone came back mid-press
+                }
+
                 Listening.Visibility = Visibility.Visible;
                 Message.Visibility = Visibility.Collapsed;
                 _tick.Start();
@@ -72,6 +79,14 @@ public partial class RecordingPill : Window
                 // Short like "Не расслышал" (owner: a long label spoils the pill). The text is in the history.
                 SetMessage("", "#FCE100", "Не вставилось", "");
                 HideAfter(TimeSpan.FromSeconds(1.5));
+                break;
+            case DictationState.MicrophoneSilent:
+                SetMessage("", "#FCE100", "Микрофон молчит", "");
+                if (previous != DictationState.Listening)
+                {
+                    HideAfter(TimeSpan.FromSeconds(1.5)); // after the release; while the key is held it stays
+                }
+
                 break;
             case DictationState.ModelNotReady:
                 SetMessage("\uE916", "#60CDFF", "Модель ещё загружается…", "подождите немного");

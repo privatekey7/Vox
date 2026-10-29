@@ -10,5 +10,5 @@ public static class SilentMicrophone
     public static TimeSpan CheckAfter { get; } = TimeSpan.FromMilliseconds(300);
 
     /// <summary>True when <paramref name="sincePress"/> has passed and the recording still has no audio.</summary>
-    public static bool IsSilent(bool hasAudio, TimeSpan sincePress) => throw new NotImplementedException();
+    public static bool IsSilent(bool hasAudio, TimeSpan sincePress) => !hasAudio && sincePress >= CheckAfter;
 }

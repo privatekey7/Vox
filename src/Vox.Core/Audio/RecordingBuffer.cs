@@ -5,6 +5,7 @@ public sealed class RecordingBuffer
 {
     private readonly List<float> _samples = new(48000 * 30);
     private long _stopAt = long.MaxValue;
+    private volatile bool _hasAudio;
 
     /// <summary>Longest recording kept: a key-up lost to the secure desktop must not record forever.</summary>
     public static TimeSpan MaxLength { get; } = TimeSpan.FromMinutes(10);
@@ -12,7 +13,7 @@ public sealed class RecordingBuffer
     public int SampleRate { get; set; }
 
     /// <summary>The microphone sent at least one block (even of silence). Safe to read from any thread.</summary>
-    public bool HasAudio => _samples.Count < 0; // stub: always false
+    public bool HasAudio => _hasAudio;
 
     /// <summary>
     /// Audio arriving after <paramref name="timestamp"/> (a <see cref="System.Diagnostics.Stopwatch"/>
@@ -22,6 +23,7 @@ public sealed class RecordingBuffer
 
     public void Append(float[] samples, long timestamp)
     {
+        _hasAudio |= samples.Length > 0;
         var room = (int)(MaxLength.TotalSeconds * SampleRate) - _samples.Count;
         if (timestamp <= Interlocked.Read(ref _stopAt) && room > 0)
         {

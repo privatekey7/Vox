@@ -17,6 +17,7 @@ public enum DictationState
     Inserted,
     NotInserted,
     NotHeard,
+    MicrophoneSilent,
     ModelLoading,
     ModelNotReady,
 }
@@ -30,6 +31,7 @@ internal sealed class DictationService : IDisposable
     private const int MinRecordMs = 250;
     private const int ErrorSignalMinMs = 1000; // shorter presses are usually accidental
     private const float MinPeak = 100f / 32768f; // quieter than this is silence
+    private const string NoAudio = "no audio"; // why a recording is empty, saved with it
     private static readonly TimeSpan Tail = TimeSpan.FromMilliseconds(150);
     private static readonly TimeSpan TitlesTimeout = TimeSpan.FromMilliseconds(50);
     private static readonly TimeSpan WindowTextTimeout = TimeSpan.FromMilliseconds(300); // runs while the model recognises
@@ -48,6 +50,8 @@ internal sealed class DictationService : IDisposable
     private IReadOnlyDictionary<string, string> _corrections;
     private long _startTimestamp;
     private volatile RecordingBuffer? _current;
+    private System.Threading.Timer? _microphoneCheck; // while the key is held
+    private volatile bool _silenceShown;
 
     private readonly FieldWatcher _watcher = new();
     private readonly SelfLearning _learning;
@@ -273,11 +277,42 @@ internal sealed class DictationService : IDisposable
         }
 
         _startTimestamp = Stopwatch.GetTimestamp();
-        _current = _audio.BeginRecording();
+        var buffer = _audio.BeginRecording();
+        _current = buffer;
+        _silenceShown = false;
+        _microphoneCheck = new System.Threading.Timer(_ => CheckMicrophone(buffer), null, SilentMicrophone.CheckAfter, TimeSpan.FromMilliseconds(200));
         _watcher.BeforeNextDictation();
         _sounds.Start();
         Log.Info("[REC] Listening...");
         StateChanged?.Invoke(DictationState.Listening);
+    }
+
+    /// <summary>
+    /// Says so while the key is still held when the microphone sends nothing, instead of "Не расслышал"
+    /// after the user has spoken; the recording goes on in case the reopened device comes back.
+    /// </summary>
+    private void CheckMicrophone(RecordingBuffer buffer)
+    {
+        if (!ReferenceEquals(_current, buffer))
+        {
+            return; // released; the timer is being disposed
+        }
+
+        var silent = SilentMicrophone.IsSilent(buffer.HasAudio, Stopwatch.GetElapsedTime(_startTimestamp));
+        if (silent && !_silenceShown)
+        {
+            _silenceShown = true;
+            Log.Info($"[AUDIO] No audio {SilentMicrophone.CheckAfter.TotalMilliseconds:F0} ms after the press: the microphone is silent, reopening it");
+            _sounds.Error();
+            StateChanged?.Invoke(DictationState.MicrophoneSilent);
+            _audio.ReopenInBackground();
+        }
+        else if (!silent && _silenceShown)
+        {
+            _silenceShown = false;
+            Log.Info("[AUDIO] The microphone sends audio again");
+            StateChanged?.Invoke(DictationState.Listening);
+        }
     }
 
     /// <summary>Hotkey up (hotkey thread).</summary>
@@ -289,6 +324,8 @@ internal sealed class DictationService : IDisposable
         }
 
         _current = null;
+        _microphoneCheck?.Dispose();
+        _microphoneCheck = null;
         var elapsed = Stopwatch.GetElapsedTime(_startTimestamp);
         var releasedAt = Stopwatch.GetTimestamp();
         buffer.StopAt(releasedAt + (long)(Tail.TotalSeconds * Stopwatch.Frequency)); // even if processing lags
@@ -302,11 +339,12 @@ internal sealed class DictationService : IDisposable
         }
 
         // Window titles are read while the model recognises: ready by the time the text is.
-        _jobs.Add(new Job(buffer, releasedAt, elapsed, _settings.ScreenHints ? Task.Run(ScreenNames) : null));
+        _jobs.Add(new Job(buffer, releasedAt, elapsed, _settings.ScreenHints ? Task.Run(ScreenNames) : null, _silenceShown));
     }
 
     public void Dispose()
     {
+        _microphoneCheck?.Dispose();
         _watcher.Dispose();
         _stopping.Cancel(); // queued dictations are dropped, nothing is pasted
         _jobs.CompleteAdding();
@@ -381,7 +419,16 @@ internal sealed class DictationService : IDisposable
         {
             Log.Info("[STT] No speech recognized");
             SaveRecording(samples, rate, Model, "", "", why);
-            if (ms >= ErrorSignalMinMs)
+            if (why == NoAudio)
+            {
+                if (!job.SilenceShown)
+                {
+                    _sounds.Error();
+                }
+
+                Report(DictationState.MicrophoneSilent);
+            }
+            else if (ms >= ErrorSignalMinMs)
             {
                 _sounds.Error();
                 Report(DictationState.NotHeard);
@@ -568,8 +615,8 @@ internal sealed class DictationService : IDisposable
         if (samples.Length == 0)
         {
             Log.Info("[STT] No audio from microphone — reopening it");
-            _audio.Reopen();
-            return ("", "no audio");
+            _audio.ReopenInBackground(); // closing a stuck device took 5 s, and the pill waited for it
+            return ("", NoAudio);
         }
 
         var peak = samples.Max(Math.Abs);
@@ -604,5 +651,6 @@ internal sealed class DictationService : IDisposable
     }
 
     /// <param name="Screen">Names on screen at key-up (<see cref="ScreenNames"/>), null when screen hints are off.</param>
-    private sealed record Job(RecordingBuffer Buffer, long ReleasedAt, TimeSpan Elapsed, Task<List<ScreenName>>? Screen);
+    /// <param name="SilenceShown">"Микрофон молчит" was already shown and sounded while the key was held.</param>
+    private sealed record Job(RecordingBuffer Buffer, long ReleasedAt, TimeSpan Elapsed, Task<List<ScreenName>>? Screen, bool SilenceShown);
 }

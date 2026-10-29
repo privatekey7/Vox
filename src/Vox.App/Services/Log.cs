@@ -68,7 +68,7 @@ internal static class Log
         }
     }
 
-    /// <summary>A run that ended normally logged "[EXIT] Bye" after its start banner.</summary>
+    /// <summary>A run that ended normally logged "[EXIT] Bye", or the end of the Windows session, after its start banner.</summary>
     private static bool PreviousRunCrashed(string path)
     {
         if (!File.Exists(path))
@@ -80,9 +80,7 @@ internal static class Log
         {
             using var file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
             file.Seek(Math.Max(0, file.Length - 64 * 1024), SeekOrigin.Begin);
-            var tail = new StreamReader(file, Encoding.UTF8).ReadToEnd();
-            var start = tail.LastIndexOf("=== Vox", StringComparison.Ordinal);
-            return start >= 0 && !tail.AsSpan(start).Contains("[EXIT] Bye", StringComparison.Ordinal);
+            return !RunEnd.EndedNormally(new StreamReader(file, Encoding.UTF8).ReadToEnd());
         }
         catch (IOException)
         {

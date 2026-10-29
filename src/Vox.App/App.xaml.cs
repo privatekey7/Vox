@@ -1,9 +1,11 @@
 using System.Net.Http;
 using System.Windows;
 using System.Windows.Threading;
+using Microsoft.Win32;
 using Vox.App.Services;
 using Vox.App.Views;
 using Vox.Core;
+using Vox.Core.Diagnostics;
 using Vox.Core.Models;
 using Vox.Core.Storage;
 
@@ -86,6 +88,10 @@ public partial class App : Application
             a.SetObserved();
         };
 
+        // Windows may kill Vox before OnExit logs "Bye": without this line the next start reported a crash.
+        SessionEnding += (_, a) => Log.Info($"{RunEnd.SessionEnding}: {a.ReasonSessionEnding}");
+        SystemEvents.PowerModeChanged += OnPowerModeChanged;
+
         try
         {
             ThemeManager.Start();
@@ -138,11 +144,21 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        SystemEvents.PowerModeChanged -= OnPowerModeChanged;
         StopServices();
-        Log.Info("[EXIT] Bye");
+        Log.Info(RunEnd.Bye);
         _quitRequest?.Dispose();
         _singleInstance?.Dispose(); // last: the installer waits for this mutex to disappear
         base.OnExit(e);
+    }
+
+    /// <summary>Sleep and wake-up in the log: a gap in it is then not mistaken for a hang.</summary>
+    private static void OnPowerModeChanged(object sender, PowerModeChangedEventArgs e)
+    {
+        if (e.Mode is PowerModes.Suspend or PowerModes.Resume)
+        {
+            Log.Info(e.Mode == PowerModes.Suspend ? "[POWER] Going to sleep" : "[POWER] Woke up");
+        }
     }
 
     /// <summary>Stops everything that holds or writes Vox's files (the model, the database). Safe to call twice.</summary>

@@ -15,5 +15,15 @@ public static class RunEnd
     public const string SessionEnding = "[EXIT] Windows is ending the session (shutdown, restart or sign-out)";
 
     /// <summary>False when the last run in <paramref name="logTail"/> ended without logging its exit.</summary>
-    public static bool EndedNormally(string logTail) => throw new NotImplementedException();
+    public static bool EndedNormally(string logTail)
+    {
+        var start = logTail.LastIndexOf(Banner, StringComparison.Ordinal);
+        if (start < 0)
+        {
+            return true;
+        }
+
+        var run = logTail.AsSpan(start);
+        return run.Contains(Bye, StringComparison.Ordinal) || run.Contains(SessionEnding, StringComparison.Ordinal);
+    }
 }
