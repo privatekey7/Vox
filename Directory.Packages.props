@@ -8,7 +8,7 @@
     <PackageVersion Include="Microsoft.Data.Sqlite.Core" Version="10.0.13" />
     <!-- Explicit: the transitive 2.1.11 has GHSA-2m69-gcr7-jv3q. -->
     <PackageVersion Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.5" />
-    <PackageVersion Include="NAudio.Wasapi" Version="3.1.0" />
+    <PackageVersion Include="NAudio.Wasapi" Version="3.2.0" />
     <PackageVersion Include="NAudio.Core" Version="3.1.0" />
     <PackageVersion Include="SharpZipLib" Version="1.4.2" />
     <PackageVersion Include="H.NotifyIcon.Wpf" Version="2.4.1" />
