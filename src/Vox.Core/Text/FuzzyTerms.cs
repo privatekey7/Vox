@@ -407,6 +407,14 @@ public sealed partial class FuzzyTerms
                 var end = words[i + n - 1].Index + words[i + n - 1].Length;
                 Put(start, end, text[start..end], f);
                 i += n;
+                // "Fruty Lups Studio" → "FL Studio", not "FL Studio Studio": the term's last word was said as well.
+                if (i < words.Count && Spaced(words[i - 1], words[i]) && f.Replacement.Contains(' ', StringComparison.Ordinal)
+                    && f.Replacement[(f.Replacement.LastIndexOf(' ') + 1)..].Equals(words[i].Value, StringComparison.OrdinalIgnoreCase))
+                {
+                    copied = words[i].Index + words[i].Length;
+                    i++;
+                }
+
                 continue;
             }
 
@@ -866,12 +874,12 @@ public sealed partial class FuzzyTerms
                 || (!SpelledInLatin(spoken, c.Source) && (c.Screen == Window ? !russian() : foreign())))));
 
     // How Russian letters are written in Latin: passports, file names, chats. Not "к" as "c": "крузаде" is heard
-    // "Cruzade", not spelled.
+    // "Cruzade", not spelled. An unstressed "о" sounds and is written "а" ("шкалота" for "Shkolota", 31.10).
     private static readonly Dictionary<char, string> LatinSpellings = new()
     {
-        ['а'] = "a", ['б'] = "b", ['в'] = "(?:v|w)", ['г'] = "g", ['д'] = "d", ['е'] = "(?:e|ye|je)", ['ё'] = "(?:e|yo|jo)",
+        ['а'] = "(?:a|o)", ['б'] = "b", ['в'] = "(?:v|w)", ['г'] = "g", ['д'] = "d", ['е'] = "(?:e|ye|je)", ['ё'] = "(?:e|yo|jo)",
         ['ж'] = "(?:zh|j)", ['з'] = "z", ['и'] = "i", ['й'] = "(?:y|i|j)", ['к'] = "k", ['л'] = "l", ['м'] = "m", ['н'] = "n",
-        ['о'] = "o", ['п'] = "p", ['р'] = "r", ['с'] = "s", ['т'] = "t", ['у'] = "u", ['ф'] = "f", ['х'] = "(?:kh|h|x)",
+        ['о'] = "(?:o|a)", ['п'] = "p", ['р'] = "r", ['с'] = "s", ['т'] = "t", ['у'] = "u", ['ф'] = "f", ['х'] = "(?:kh|h|x)",
         ['ц'] = "(?:ts|c|tz)", ['ч'] = "ch", ['ш'] = "sh", ['щ'] = "(?:shch|sch)", ['ъ'] = "", ['ы'] = "(?:y|i)", ['ь'] = "'?",
         ['э'] = "e", ['ю'] = "(?:yu|iu|ju)", ['я'] = "(?:ya|ia|ja)",
     };
