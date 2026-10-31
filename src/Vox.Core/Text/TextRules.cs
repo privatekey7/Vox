@@ -707,15 +707,17 @@ public static class UserCorrections
 /// <summary>
 /// "открой вфиспере" → "открой в виспере": "в" before a word on "в", "ф", "v" or "w" is said as one sound, and the
 /// model glues it on, often as "ф" ("вфиспере", "ввокс", "фвиспере"; owner, 01.11). The rest is split off only when it
-/// is a term or a word of the user's dictionary and the whole is no Russian word ("ввод", "вводит" stay). A lone
-/// "ф" before such a word is "в" too ("ф виспере").
+/// is a term or a word of the user's dictionary, as listed or found by sound or on screen (<see cref="FuzzyTerms"/>:
+/// "вкубернейтис", "влюмалабс" with Lumalabs in a window), and the whole is none of these and no Russian word
+/// ("ввод", "вредит" stay). A lone "ф" before such a word is "в" too ("ф виспере").
 /// </summary>
 public static partial class GluedPreposition
 {
     [GeneratedRegex(@"(?<![\p{L}\p{Nd}-])(?:(?<p>[вфВФ])(?<rest>\p{L}{4,})|(?<p>[фФ])\s+(?<next>\p{L}+))(?![\p{L}\p{Nd}-])")]
     private static partial Regex Glued();
 
-    public static string Split(string text, IReadOnlyDictionary<string, string>? corrections = null)
+    /// <param name="screen">Names in open windows and remembered ones, as for <see cref="FuzzyTerms.Apply"/>.</param>
+    public static string Split(string text, IReadOnlyDictionary<string, string>? corrections = null, IReadOnlyCollection<ScreenName>? screen = null)
     {
         if (string.IsNullOrEmpty(text))
         {
@@ -725,7 +727,8 @@ public static partial class GluedPreposition
         // The user's words with their case forms, built on the first glued word only.
         var userWords = new Lazy<HashSet<string>>(() =>
             [.. (corrections ?? new Dictionary<string, string>()).Keys.SelectMany(k => Declension.Forms(k).Select(f => f.Form).Prepend(k))]);
-        bool Known(string word) => Terms.IsSource(word) || userWords.Value.Contains(word.ToLowerInvariant());
+        bool Known(string word) =>
+            Terms.IsSource(word) || userWords.Value.Contains(word.ToLowerInvariant()) || FuzzyTerms.Apply(word, null, screen) != word;
 
         return Glued().Replace(text, m =>
         {
@@ -737,7 +740,8 @@ public static partial class GluedPreposition
             }
 
             var word = m.Value;
-            return !Known(word) && Variants(m.Groups["rest"].Value).FirstOrDefault(Known) is { } rest && !RussianWords.Contains(word)
+            return !RussianWords.Contains(word) && !Known(word)
+                && Variants(m.Groups["rest"].Value).FirstOrDefault(Known) is { } rest
                 ? preposition + " " + rest
                 : word;
         });

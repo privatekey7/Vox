@@ -277,9 +277,11 @@ public class ScreenNamesTests
     [Theory]
     [InlineData("Сделай влюмалабс.", "Сделай в Lumalabs.")]
     [InlineData("Открой фсанвиспер.", "Открой в Sunwhisper.")]
+    [InlineData("Сделай ф люмалабс.", "Сделай в Lumalabs.")]
+    [InlineData("Открой флуксар.", "Открой Fluxar.")] // a name of its own, not "в Luxar"
     [InlineData("Сделай влюмалабс.", "Сделай влюмалабс.", false)] // the name is not on screen
     public void A_glued_preposition_is_split_off_a_name_on_screen(string raw, string expected, bool onScreen = true) =>
-        Assert.Equal(expected, Fix(raw, onScreen ? OnScreen("Lumalabs Dream Machine", "Sunwhisper Settings - Google Chrome") : null));
+        Assert.Equal(expected, Fix(raw, onScreen ? OnScreen("Lumalabs Dream Machine", "Sunwhisper Settings - Google Chrome", "Fluxar", "Luxar") : null));
 
     // A loop in the owner's test: the model's "Jamper X Change", pasted into a chat, came back as a name.
     [Fact]

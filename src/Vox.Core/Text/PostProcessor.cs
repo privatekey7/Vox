@@ -27,7 +27,7 @@ public sealed class PostProcessor(SpeechModel model)
         }
 
         var text = UnknownToken.Remove(raw);
-        text = GluedPreposition.Split(text, corrections);
+        text = GluedPreposition.Split(text, corrections, screen);
         text = corrections is null ? text : UserCorrections.Apply(text, corrections);
         text = ClaudeNames.Apply(text, latinCloud: model.Language == "ru"); // GigaAM hears Claude as "Cloud"
 
