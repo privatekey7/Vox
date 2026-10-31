@@ -265,11 +265,13 @@ public class ScreenNamesTests
     [InlineData("Батина подписка.")]
     [InlineData("Вот и продолжает батина.")]
     [InlineData("Серия про батину подписку.")]
+    [InlineData("Опять эта шкалота.")] // 31.10: an unstressed "о" is heard and written "а" ("Shkolota" on screen)
+    [InlineData("Школоте не понравится.")]
     [InlineData("Открой санвиспер.", "Открой Sunwhisper.")] // heard in Russian, not spelled: still a name
     [InlineData("Сделай в люмалабс.", "Сделай в Lumalabs.")]
     [InlineData("Открой Крузаде.", "Открой Cruzade.")]
     public void A_word_spelled_in_latin_on_screen_stays_russian(string raw, string? expected = null) =>
-        Assert.Equal(expected ?? raw, Fix(raw, OnScreen("Batina Podpiska - Remotion Studio", "Sunwhisper", "Lumalabs Dream Machine", "cruzade.com - Mozilla Firefox")));
+        Assert.Equal(expected ?? raw, Fix(raw, OnScreen("Batina Podpiska - Remotion Studio", "Shkolota.mp4 - Remotion", "Sunwhisper", "Lumalabs Dream Machine", "cruzade.com - Mozilla Firefox")));
 
     // A loop in the owner's test: the model's "Jamper X Change", pasted into a chat, came back as a name.
     [Fact]

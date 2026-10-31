@@ -220,4 +220,11 @@ public class FuzzyTermsTests
         Assert.Equal(" Пишу во фронтенде.", new PostProcessor(ModelCatalog.GigaAm).Process("Пишу во фронтинде.", null, fuzzy));
         Assert.Equal("фронтинде", Assert.Single(fuzzy).Spoken);
     }
+
+    // 31.10: "до Fruty Lups Studio" became "до FL Studio Studio": the term's last word was said too.
+    [Theory]
+    [InlineData("Там от Fruty Lups Studio.", "Там от FL Studio.")]
+    [InlineData("Там от Fruty Lups studio и ещё.", "Там от FL Studio и ещё.")]
+    public void A_term_does_not_repeat_its_last_word(string raw, string expected) =>
+        Assert.Equal(expected, FuzzyTerms.Apply(raw));
 }
