@@ -259,6 +259,18 @@ public class ScreenNamesTests
     public void A_russian_word_written_in_latin_on_screen_stays_russian(string raw, string? expected = null) =>
         Assert.Equal(expected ?? raw, Fix(raw, OnScreen("Podpiska - Remotion Studio", "podpiska-cover.png - Paint")));
 
+    // 31.10, the owner's test of the fix above: "батина" is not in the dictionary, and "Batina" on screen still won.
+    // A name that is the spoken word letter by letter in Latin is that word, not a foreign name.
+    [Theory]
+    [InlineData("Батина подписка.")]
+    [InlineData("Вот и продолжает батина.")]
+    [InlineData("Серия про батину подписку.")]
+    [InlineData("Открой санвиспер.", "Открой Sunwhisper.")] // heard in Russian, not spelled: still a name
+    [InlineData("Сделай в люмалабс.", "Сделай в Lumalabs.")]
+    [InlineData("Открой Крузаде.", "Открой Cruzade.")]
+    public void A_word_spelled_in_latin_on_screen_stays_russian(string raw, string? expected = null) =>
+        Assert.Equal(expected ?? raw, Fix(raw, OnScreen("Batina Podpiska - Remotion Studio", "Sunwhisper", "Lumalabs Dream Machine", "cruzade.com - Mozilla Firefox")));
+
     // A loop in the owner's test: the model's "Jamper X Change", pasted into a chat, came back as a name.
     [Fact]
     public void The_models_own_words_are_not_names()
