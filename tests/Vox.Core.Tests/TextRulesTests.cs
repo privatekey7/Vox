@@ -240,3 +240,41 @@ public class FileExtensionsTests
     public void Spoken_dot_before_an_extension(string raw, string expected) =>
         Assert.Equal(expected, new PostProcessor(Vox.Core.Models.ModelCatalog.GigaAm).Process(raw));
 }
+
+// 01.11, owner: a long question often ends with a full stop. The model puts "?" by the question words at the start
+// (94% of such sentences up to 6 words, 60% from 13 words in the history), and loses them over a long sentence.
+public class QuestionMarksTests
+{
+    [Theory]
+    [InlineData("Есть ли доступ к этой видеокарте.", "Есть ли доступ к этой видеокарте?")]
+    [InlineData("Ну что там у нас долго так.", "Ну что там у нас долго так?")]
+    [InlineData("Хорошо, как мне теперь правильно с теми средами в приложении на компьютере поработать так, чтобы всё у меня это было теперь синхронизировано.",
+        "Хорошо, как мне теперь правильно с теми средами в приложении на компьютере поработать так, чтобы всё у меня это было теперь синхронизировано?")]
+    [InlineData("Почему не работает. Проверь лог.", "Почему не работает? Проверь лог.")]
+    [InlineData("Проверь лог. Слушай, а сколько это стоит.", "Проверь лог. Слушай, а сколько это стоит?")]
+    [InlineData("Можно ли так сделать.", "Можно ли так сделать?")]
+    [InlineData("Зачем нам второй сервер.", "Зачем нам второй сервер?")]
+    [InlineData("Как мне открыть github.com.", "Как мне открыть github.com?")]
+    [InlineData("Это ты сделал вчера, правильно.", "Это ты сделал вчера, правильно?")]
+    public void A_sentence_that_starts_as_a_question_ends_with_a_question_mark(string text, string expected) =>
+        Assert.Equal(expected, QuestionMarks.Fix(text));
+
+    [Theory]
+    [InlineData("Так как это связанные видео, я думаю, загрузку сделаем прямо сейчас.")]
+    [InlineData("Почему-то замена не сработала.")]
+    [InlineData("Сколько угодно агентов привлекай.")]
+    [InlineData("Посмотри, нет ли блокировки.")] // an indirect question
+    [InlineData("Скажи, как мне это настроить.")]
+    [InlineData("Вот как это работает.")]
+    [InlineData("Как будто всё хорошо.")]
+    [InlineData("Что-то не так.")]
+    [InlineData("Да, верно.")]
+    [InlineData("Почему не работает...")]
+    [InlineData("Почему не работает? Проверь лог.")]
+    [InlineData("Почему не работает")] // no full stop to change: the end of a cut dictation
+    public void Other_sentences_stay(string text) => Assert.Equal(text, QuestionMarks.Fix(text));
+
+    [Fact]
+    public void Gigaam_dictation_gets_the_question_mark() =>
+        Assert.Equal(" Есть ли доступ к этой видеокарте?", new PostProcessor(Vox.Core.Models.ModelCatalog.GigaAm).Process("Есть ли доступ к этой видеокарте."));
+}

@@ -758,3 +758,8 @@ public static partial class GluedPreposition
         }
     }
 }
+
+public static class QuestionMarks
+{
+    public static string Fix(string text) => text;
+}
