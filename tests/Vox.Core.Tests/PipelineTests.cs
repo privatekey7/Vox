@@ -41,6 +41,13 @@ public class PostProcessorTests
     public void A_glued_preposition_is_split_off_a_term(string raw, string expected) =>
         Assert.Equal(expected, new PostProcessor(ModelCatalog.GigaAm).Process(raw));
 
+    // The rest found by sound, not only as listed.
+    [Theory]
+    [InlineData("Ошибка вфронтинде.", " Ошибка в фронтенде.")]
+    [InlineData("Настрой вкубернейтис.", " Настрой в Kubernetes.")]
+    public void A_glued_preposition_is_split_off_a_term_found_by_sound(string raw, string expected) =>
+        Assert.Equal(expected, new PostProcessor(ModelCatalog.GigaAm).Process(raw));
+
     [Theory]
     [InlineData("Открой вфлюксар.")]
     [InlineData("Работаю вфлюксаре.")] // a case form

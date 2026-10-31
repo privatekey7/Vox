@@ -273,6 +273,14 @@ public class ScreenNamesTests
     public void A_word_spelled_in_latin_on_screen_stays_russian(string raw, string? expected = null) =>
         Assert.Equal(expected ?? raw, Fix(raw, OnScreen("Batina Podpiska - Remotion Studio", "Shkolota.mp4 - Remotion", "Sunwhisper", "Lumalabs Dream Machine", "cruzade.com - Mozilla Firefox")));
 
+    // 01.11: "в" glued to a name on screen ("в люмалабс" heard as one word).
+    [Theory]
+    [InlineData("Сделай влюмалабс.", "Сделай в Lumalabs.")]
+    [InlineData("Открой фсанвиспер.", "Открой в Sunwhisper.")]
+    [InlineData("Сделай влюмалабс.", "Сделай влюмалабс.", false)] // the name is not on screen
+    public void A_glued_preposition_is_split_off_a_name_on_screen(string raw, string expected, bool onScreen = true) =>
+        Assert.Equal(expected, Fix(raw, onScreen ? OnScreen("Lumalabs Dream Machine", "Sunwhisper Settings - Google Chrome") : null));
+
     // A loop in the owner's test: the model's "Jamper X Change", pasted into a chat, came back as a name.
     [Fact]
     public void The_models_own_words_are_not_names()
