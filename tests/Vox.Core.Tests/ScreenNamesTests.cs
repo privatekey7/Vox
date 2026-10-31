@@ -250,6 +250,14 @@ public class ScreenNamesTests
     public void Live_test_of_screen_words(string raw, string expected) =>
         Assert.Equal(expected, Fix(raw, OnScreen("DeepL Translate - Google Chrome", "cruzade.com - Mozilla Firefox")));
 
+    // 30.10: a Remotion project "Batina Podpiska" was open, and every "подписка" came out as "Podpiska" (score 1.00).
+    [Theory]
+    [InlineData("Допустим, серия один, батина подписка.")]
+    [InlineData("Подписка.")]
+    [InlineData("Надпись на обложке: батина подписка.")]
+    public void A_russian_word_written_in_latin_on_screen_stays_russian(string raw) =>
+        Assert.Equal(raw, Fix(raw, OnScreen("Batina Podpiska - Remotion Studio", "podpiska-cover.png - Paint")));
+
     // A loop in the owner's test: the model's "Jamper X Change", pasted into a chat, came back as a name.
     [Fact]
     public void The_models_own_words_are_not_names()

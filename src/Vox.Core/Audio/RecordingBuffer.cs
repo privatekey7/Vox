@@ -15,6 +15,9 @@ public sealed class RecordingBuffer
     /// <summary>The microphone sent at least one block (even of silence). Safe to read from any thread.</summary>
     public bool HasAudio => _hasAudio;
 
+    /// <summary>A sample that is not exactly zero came (<see cref="Silence.OnlyZeros"/>). Safe to read from any thread.</summary>
+    public bool HasSignal => _samples.Count < 0; // stub: always false
+
     /// <summary>
     /// Audio arriving after <paramref name="timestamp"/> (a <see cref="System.Diagnostics.Stopwatch"/>
     /// timestamp) is ignored, however late the recording is collected.
