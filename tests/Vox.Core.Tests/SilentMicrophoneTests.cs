@@ -23,6 +23,26 @@ public sealed class SilentMicrophoneTests
     }
 
     [Fact]
+    public void An_empty_block_is_no_audio()
+    {
+        var buffer = new RecordingBuffer { SampleRate = 16000 };
+        buffer.Append([], timestamp: 100);
+
+        Assert.False(buffer.HasAudio);
+    }
+
+    [Fact]
+    public void Audio_stays_once_it_came()
+    {
+        var buffer = new RecordingBuffer { SampleRate = 16000 };
+        buffer.Append([0.1f], timestamp: 100);
+        buffer.Append([0f], timestamp: 150);
+
+        Assert.True(buffer.HasAudio);
+        Assert.True(buffer.HasSignal);
+    }
+
+    [Fact]
     public void Digital_zeros_are_audio_without_a_signal()
     {
         // 30.10 14:24: the headset sent 1.9 s of exact zeros, the pill said "Слушаю" all along.
@@ -59,7 +79,11 @@ public sealed class SilentMicrophoneTests
 
     [Theory]
     [InlineData(300, false, false)]  // an accidental tap: nothing, as before
+    [InlineData(499, false, false)]
+    [InlineData(500, true, false)]
     [InlineData(700, true, false)]   // 30.10: five such presses vanished without a word
+    [InlineData(999, true, false)]
+    [InlineData(1000, true, true)]
     [InlineData(1500, true, true)]
     public void An_empty_dictation_says_so_from_half_a_second(int pressMs, bool show, bool sound)
     {
