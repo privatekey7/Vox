@@ -27,6 +27,34 @@ public class PostProcessorTests
         Assert.Equal(" Настрой Kubernetes.", new PostProcessor(ModelCatalog.GigaAm)
             .Process("Настрой кубернетис.", new Dictionary<string, string> { ["кубернетис"] = "Kubernetes" }));
 
+    // 01.11, owner: "в" before a word on "в", "ф", "v" or "w" is one sound, and the model glues it on, often as "ф".
+    [Theory]
+    [InlineData("Открой вфиспере.", " Открой в Whisper.")]
+    [InlineData("Запиши ввокс.", " Запиши в Vox.")]
+    [InlineData("Ввокс запиши.", " В Vox запиши.")]
+    [InlineData("Работаю ввоксе.", " Работаю в Vox.")]
+    [InlineData("Открой фвиспере.", " Открой в Whisper.")]
+    [InlineData("Открой ф виспере.", " Открой в Whisper.")]
+    [InlineData("Открой вWhisper.", " Открой в Whisper.")]
+    [InlineData("Залей вгитхаб.", " Залей в GitHub.")] // any glued "в", not only before "в" and "ф"
+    public void A_glued_preposition_is_split_off_a_term(string raw, string expected) =>
+        Assert.Equal(expected, new PostProcessor(ModelCatalog.GigaAm).Process(raw));
+
+    [Fact]
+    public void A_glued_preposition_is_split_off_a_word_of_the_users_dictionary() =>
+        Assert.Equal(" Открой в Fluxar.", new PostProcessor(ModelCatalog.GigaAm)
+            .Process("Открой вфлюксар.", new Dictionary<string, string> { ["флюксар"] = "Fluxar" }));
+
+    [Theory]
+    [InlineData("Нажми ввод.")]
+    [InlineData("Это вводит в заблуждение.")]
+    [InlineData("Держи вфокусе.")]
+    [InlineData("Буква ф в слове.")]
+    [InlineData("Сохрани в Vox.")]
+    [InlineData("Вставь сюда.")]
+    public void Ordinary_words_on_в_and_a_lone_ф_stay(string raw) =>
+        Assert.Equal(" " + raw, new PostProcessor(ModelCatalog.GigaAm).Process(raw));
+
     [Theory]
     [InlineData("")]
     [InlineData("   ")]
