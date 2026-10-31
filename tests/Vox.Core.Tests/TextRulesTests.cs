@@ -254,8 +254,13 @@ public class QuestionMarksTests
     [InlineData("Проверь лог. Слушай, а сколько это стоит.", "Проверь лог. Слушай, а сколько это стоит?")]
     [InlineData("Можно ли так сделать.", "Можно ли так сделать?")]
     [InlineData("Зачем нам второй сервер.", "Зачем нам второй сервер?")]
+    [InlineData("Разве это сложно.", "Разве это сложно?")]
+    [InlineData("Где тут настройки.", "Где тут настройки?")]
+    [InlineData("Куда мне это сохранить.", "Куда мне это сохранить?")]
+    [InlineData("Так, что думаешь про этот вариант.", "Так, что думаешь про этот вариант?")]
     [InlineData("Как мне открыть github.com.", "Как мне открыть github.com?")]
-    [InlineData("Это ты сделал вчера, правильно.", "Это ты сделал вчера, правильно?")]
+    [InlineData("Это ты сделал вчера, не так ли.", "Это ты сделал вчера, не так ли?")]
+    [InlineData("Ты же это сделал, так ведь.", "Ты же это сделал, так ведь?")]
     public void A_sentence_that_starts_as_a_question_ends_with_a_question_mark(string text, string expected) =>
         Assert.Equal(expected, QuestionMarks.Fix(text));
 
@@ -268,7 +273,8 @@ public class QuestionMarksTests
     [InlineData("Вот как это работает.")]
     [InlineData("Как будто всё хорошо.")]
     [InlineData("Что-то не так.")]
-    [InlineData("Да, верно.")]
+    [InlineData("Ага, Python правильно звучит, Python отдельно, правильно.")] // owner's history: agreeing, not asking
+    [InlineData("Да, так ведь.")]
     [InlineData("Почему не работает...")]
     [InlineData("Почему не работает? Проверь лог.")]
     [InlineData("Почему не работает")] // no full stop to change: the end of a cut dictation

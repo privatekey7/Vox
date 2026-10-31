@@ -5,7 +5,7 @@ namespace Vox.Core.Text;
 /// <summary>
 /// Turns raw model output into the text that is pasted:
 /// &lt;unk&gt; → glued "в" → user dictionary → Claude → mixed alphabets → terms → phonetic terms → model versions → file extensions → key shortcuts → fillers → ITN (if the model needs it)
-/// → dashes → currency → sentence spacing
+/// → dashes → currency → question marks → sentence spacing
 /// → one leading space.
 /// </summary>
 public sealed class PostProcessor(SpeechModel model)
@@ -51,6 +51,7 @@ public sealed class PostProcessor(SpeechModel model)
         {
             text = Currency.SpellOut(text);
             text = Frequency.Fix(text);
+            text = QuestionMarks.Fix(text);
         }
 
         text = SentenceSpacing.Normalize(text);

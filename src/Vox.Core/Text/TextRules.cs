@@ -759,7 +759,39 @@ public static partial class GluedPreposition
     }
 }
 
-public static class QuestionMarks
+/// <summary>
+/// "Есть ли доступ к видеокарте." → "Есть ли доступ к видеокарте?": the model puts "?" by the question words at the
+/// start and loses them over a long sentence (owner, 01.11: 94% of such sentences up to 6 words end with "?", 60%
+/// from 13 words). A full stop becomes "?" after a sentence that opens with an unmistakable question ("есть ли",
+/// "почему", "сколько", "как мне", "что думаешь"…, after "а", "ну", "слушай," or "хорошо,"), or ends with ", не так ли."
+/// or ", так ведь.". Not after "почему-то", "так как", "вот как", an indirect question ("посмотри, нет ли") or a request
+/// ("скажи, как мне"), nor ", правильно." (in the owner's history it agrees: "Python отдельно, правильно."); "..." and a
+/// dictation with no full stop stay.
+/// </summary>
+/// <remarks>
+/// Re-decoding the last sentence alone does not help (owner's 500 recordings, 01.11): the model hears the question by
+/// its words, not its tune, and alone it dropped right question marks more often than it found missing ones.
+/// </remarks>
+public static partial class QuestionMarks
 {
-    public static string Fix(string text) => text;
+    private const string SentenceStart = @"(?<=^|[.!?…]\s+)";
+    private const string Lead = @"(?:(?:а|и|ну|слушай|окей|о'кей|хорошо|ладно|кстати)[,\s]+|(?:так|тогда|теперь|вот|получается|короче|в\s+общем|то\s+есть),\s+)*";
+    private const string Question = @"(?:\p{L}+\s+ли|почему|зачем|отчего|разве|неужели|сколько(?!\s+угодно)"
+        + @"|как\s+(?:мне|нам|лучше|быть|так|думаешь|считаешь|ты\s+думаешь|вообще|правильно|это|там|у\s+тебя|у\s+нас|можно|сделать)"
+        + @"|что\s+(?:думаешь|скажешь|ты\s+думаешь|делать|лучше|не\s+так|случилось|там|это\s+такое|такое)"
+        + @"|где\s+(?:тут|там|мне|нам|найти|взять|лучше)|куда\s+(?:мне|нам|лучше|ты))(?![\p{L}-])";
+
+    // The sentence's own full stop: not one inside "github.com", not "...".
+    private const string FullStop = @"(?<!\.)\.(?=\s|$)";
+
+    [GeneratedRegex(SentenceStart + Lead + Question + @"[^!?…]*?" + FullStop, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex Opening();
+
+    [GeneratedRegex(@"(?<=(?:^|[.!?…]\s+)[^.!?…]*\p{L}+\s+\p{L}+[^.!?…]*),\s+(?:не\s+так\s+ли|так\s+ведь|да\s+ведь)" + FullStop,
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex Tag();
+
+    public static string Fix(string text) => Tag().Replace(Opening().Replace(text, Asked), Asked);
+
+    private static string Asked(Match m) => m.Value[..^1] + "?";
 }
