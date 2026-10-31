@@ -566,7 +566,7 @@ public sealed partial class FuzzyTerms
                     // The first sound is heard best: "Vender" is not "Finder"; h/ch ("Hrome", "Chrome") alike.
                     if ((letters || c.Key[0] == key[0] || (c.Key[0] is 'к' or 'х' && key[0] is 'к' or 'х'))
                         && Similarity(key, c.Key, floor) is var score
-                        && (c.Screen is null || (!c.ShortOnly && ScreenAllowed(c, score, cyrillic, foreign, russian))))
+                        && (c.Screen is null || (!c.ShortOnly && ScreenAllowed(c, score, cyrillic, foreign, russian, spoken))))
                     {
                         Hit(c, score);
                     }
@@ -857,11 +857,40 @@ public sealed partial class FuzzyTerms
     // A remembered name from MemoryThreshold: a name seen a week ago is a weaker hint than one on screen.
     // A Russian word stays itself even before a name in a window: a name that sounds exactly like one is that word
     // in Latin letters (owner, 30.10: a Remotion project "Batina Podpiska" turned every "подписка" into "Podpiska").
-    private bool ScreenAllowed(Candidate c, double score, bool cyrillic, Func<bool> foreign, Func<bool> russian) =>
+    // The same for a word missing from the dictionary ("батина"), when the name is that word in Latin (SpelledInLatin).
+    private bool ScreenAllowed(Candidate c, double score, bool cyrillic, Func<bool> foreign, Func<bool> russian, string spoken) =>
         (LettersOf(c.Source).Length >= MinLetters || (c.Screen == Window && score >= 1))
         && (c.Screen == Window || score >= MemoryThreshold)
         && (!cyrillic || (!c.Source.Contains(' ', StringComparison.Ordinal) && score >= CyrillicScreenThreshold
-            && (c.Screen == Window ? !russian() || _termWords.Contains(c.Source) : foreign())));
+            && (_termWords.Contains(c.Source)
+                || (!SpelledInLatin(spoken, c.Source) && (c.Screen == Window ? !russian() : foreign())))));
+
+    // How Russian letters are written in Latin: passports, file names, chats. Not "к" as "c": "крузаде" is heard
+    // "Cruzade", not spelled.
+    private static readonly Dictionary<char, string> LatinSpellings = new()
+    {
+        ['а'] = "a", ['б'] = "b", ['в'] = "(?:v|w)", ['г'] = "g", ['д'] = "d", ['е'] = "(?:e|ye|je)", ['ё'] = "(?:e|yo|jo)",
+        ['ж'] = "(?:zh|j)", ['з'] = "z", ['и'] = "i", ['й'] = "(?:y|i|j)", ['к'] = "k", ['л'] = "l", ['м'] = "m", ['н'] = "n",
+        ['о'] = "o", ['п'] = "p", ['р'] = "r", ['с'] = "s", ['т'] = "t", ['у'] = "u", ['ф'] = "f", ['х'] = "(?:kh|h|x)",
+        ['ц'] = "(?:ts|c|tz)", ['ч'] = "ch", ['ш'] = "sh", ['щ'] = "(?:shch|sch)", ['ъ'] = "", ['ы'] = "(?:y|i)", ['ь'] = "'?",
+        ['э'] = "e", ['ю'] = "(?:yu|iu|ju)", ['я'] = "(?:ya|ia|ja)",
+    };
+
+    /// <summary>
+    /// Is <paramref name="name"/> the spoken word itself written in Latin letters, in any form ("Batina" for "батина",
+    /// "батину")? Then it is a Russian word on screen (a file, a project), not a foreign name heard in Russian.
+    /// </summary>
+    private static bool SpelledInLatin(string spoken, string name)
+    {
+        var stem = spoken.ToLowerInvariant().TrimEnd('а', 'е', 'ё', 'и', 'о', 'у', 'ы', 'э', 'ю', 'я', 'й', 'ь');
+        if (stem.Length < 3 || !stem.All(LatinSpellings.ContainsKey))
+        {
+            return false;
+        }
+
+        var pattern = "^" + string.Concat(stem.Select(ch => LatinSpellings[ch])) + "[aeiouyj']*$";
+        return Regex.IsMatch(name, pattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(50));
+    }
 
     // Not a Russian word in any form, nor shaped like a surname or a town ("Леонов", "Петров": the dictionary has
     // no surnames).
