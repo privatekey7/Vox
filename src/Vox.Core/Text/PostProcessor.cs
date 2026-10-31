@@ -4,7 +4,7 @@ namespace Vox.Core.Text;
 
 /// <summary>
 /// Turns raw model output into the text that is pasted:
-/// &lt;unk&gt; → user dictionary → Claude → mixed alphabets → terms → phonetic terms → model versions → file extensions → key shortcuts → fillers → ITN (if the model needs it)
+/// &lt;unk&gt; → glued "в" → user dictionary → Claude → mixed alphabets → terms → phonetic terms → model versions → file extensions → key shortcuts → fillers → ITN (if the model needs it)
 /// → dashes → currency → sentence spacing
 /// → one leading space.
 /// </summary>
@@ -27,6 +27,7 @@ public sealed class PostProcessor(SpeechModel model)
         }
 
         var text = UnknownToken.Remove(raw);
+        text = GluedPreposition.Split(text, corrections);
         text = corrections is null ? text : UserCorrections.Apply(text, corrections);
         text = ClaudeNames.Apply(text, latinCloud: model.Language == "ru"); // GigaAM hears Claude as "Cloud"
 

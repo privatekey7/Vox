@@ -190,6 +190,9 @@ public static partial class Terms
         LoadPairs().Select(p => p[1]).Where(t => HasLatin(t) || !t.Contains(' ', StringComparison.Ordinal))
             .SelectMany(t => t.Split(' ')).ToHashSet(StringComparer.Ordinal));
 
+    /// <summary>Is this word a spoken source of a term or its case form, in any case ("виспере", "Whisper")?</summary>
+    public static bool IsSource(string word) => Index.Value.Phrases.ContainsKey(word.ToLowerInvariant());
+
     /// <summary>Is this word (exact case) part of a term's spelling ("Docker", "GitHub")?</summary>
     public static bool IsTermForm(string word) => TermWords.Value.Contains(word);
 
@@ -699,4 +702,55 @@ public static class UserCorrections
     /// </summary>
     public static string ApplyAfterTerms(string text, IReadOnlyDictionary<string, string> corrections) =>
         Apply(text, corrections.Where(c => !c.Value.Contains(c.Key, StringComparison.OrdinalIgnoreCase)).ToDictionary());
+}
+
+/// <summary>
+/// "открой вфиспере" → "открой в виспере": "в" before a word on "в", "ф", "v" or "w" is said as one sound, and the
+/// model glues it on, often as "ф" ("вфиспере", "ввокс", "фвиспере"; owner, 01.11). The rest is split off only when it
+/// is a term or a word of the user's dictionary and the whole is no Russian word ("ввод", "вводит" stay). A lone
+/// "ф" before such a word is "в" too ("ф виспере").
+/// </summary>
+public static partial class GluedPreposition
+{
+    [GeneratedRegex(@"(?<![\p{L}\p{Nd}-])(?:(?<p>[вфВФ])(?<rest>\p{L}{4,})|(?<p>[фФ])\s+(?<next>\p{L}+))(?![\p{L}\p{Nd}-])")]
+    private static partial Regex Glued();
+
+    public static string Split(string text, IReadOnlyDictionary<string, string>? corrections = null)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return text;
+        }
+
+        // The user's words with their case forms, built on the first glued word only.
+        var userWords = new Lazy<HashSet<string>>(() =>
+            [.. (corrections ?? new Dictionary<string, string>()).Keys.SelectMany(k => Declension.Forms(k).Select(f => f.Form).Prepend(k))]);
+        bool Known(string word) => Terms.IsSource(word) || userWords.Value.Contains(word.ToLowerInvariant());
+
+        return Glued().Replace(text, m =>
+        {
+            var preposition = char.IsUpper(m.Groups["p"].Value[0]) ? "В" : "в";
+            if (m.Groups["next"].Success)
+            {
+                // Only before a term: "буква ф в слове" stays.
+                return Known(m.Groups["next"].Value) ? preposition + m.Value[1..] : m.Value;
+            }
+
+            var word = m.Value;
+            return !Known(word) && Variants(m.Groups["rest"].Value).FirstOrDefault(Known) is { } rest && !RussianWords.Contains(word)
+                ? preposition + " " + rest
+                : word;
+        });
+    }
+
+    // "фиспере" is "виспере" said after "в", and the other way round: the first sound is the preposition's.
+    private static IEnumerable<string> Variants(string rest)
+    {
+        yield return rest;
+        char? swapped = rest[0] switch { 'ф' => 'в', 'в' => 'ф', _ => null };
+        if (swapped is { } first)
+        {
+            yield return first + rest[1..];
+        }
+    }
 }

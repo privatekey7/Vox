@@ -37,16 +37,20 @@ public class PostProcessorTests
     [InlineData("Открой ф виспере.", " Открой в Whisper.")]
     [InlineData("Открой вWhisper.", " Открой в Whisper.")]
     [InlineData("Залей вгитхаб.", " Залей в GitHub.")] // any glued "в", not only before "в" and "ф"
+    [InlineData("Настрой висиэс.", " Настрой VCS.")] // a term of its own, not "в ECS"
     public void A_glued_preposition_is_split_off_a_term(string raw, string expected) =>
         Assert.Equal(expected, new PostProcessor(ModelCatalog.GigaAm).Process(raw));
 
-    [Fact]
-    public void A_glued_preposition_is_split_off_a_word_of_the_users_dictionary() =>
-        Assert.Equal(" Открой в Fluxar.", new PostProcessor(ModelCatalog.GigaAm)
-            .Process("Открой вфлюксар.", new Dictionary<string, string> { ["флюксар"] = "Fluxar" }));
+    [Theory]
+    [InlineData("Открой вфлюксар.")]
+    [InlineData("Работаю вфлюксаре.")] // a case form
+    public void A_glued_preposition_is_split_off_a_word_of_the_users_dictionary(string raw) =>
+        Assert.Contains("в Fluxar.", new PostProcessor(ModelCatalog.GigaAm)
+            .Process(raw, new Dictionary<string, string> { ["флюксар"] = "Fluxar" }), StringComparison.Ordinal);
 
     [Theory]
     [InlineData("Нажми ввод.")]
+    [InlineData("Это вредит делу.")] // a Russian word, not "в Reddit"
     [InlineData("Это вводит в заблуждение.")]
     [InlineData("Держи вфокусе.")]
     [InlineData("Буква ф в слове.")]
