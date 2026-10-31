@@ -628,14 +628,17 @@ public static class UserCorrections
             return text;
         }
 
-        // Phrases learned from a term the model split ("zena koder" → "Zencoder"): whole-phrase match.
+        // Phrases learned from a term the model split ("zena koder" → "Zencoder"): whole-phrase match. A hyphen and a
+        // space are the same: the model writes one name both ways ("Сан Виспер", "Сан-Виспер"; owner, 31.10).
         // A target with a line break or an invisible character is never pasted, even one already in the database
         // (security audit M5: a pair from someone else's transfer file); the word loop below checks it too.
-        foreach (var (source, correct) in corrections.Where(c => c.Key.Contains(' ', StringComparison.Ordinal) && SafeText.HasNoHiddenChars(c.Value)))
+        foreach (var (source, correct) in corrections.Where(c => c.Key.AsSpan().ContainsAny(' ', '-') && SafeText.HasNoHiddenChars(c.Value)))
         {
-            var pattern = @"(?<![\p{L}\p{Nd}])" + string.Join(@"\s+", source.Split(' ', StringSplitOptions.RemoveEmptyEntries).Select(Regex.Escape))
+            var pattern = @"(?<![\p{L}\p{Nd}])" + string.Join(@"[\s\-]+", source.Split([' ', '-'], StringSplitOptions.RemoveEmptyEntries).Select(Regex.Escape))
                 + @"(?![\p{L}\p{Nd}])";
-            text = Regex.Replace(text, pattern, correct.Replace("$", "$$", StringComparison.Ordinal), RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+            // A hyphenated word gets a sentence's capital as any word below; a phrase is pasted as the user wrote it.
+            var oneWord = !source.Contains(' ', StringComparison.Ordinal);
+            text = Regex.Replace(text, pattern, m => oneWord ? Capitalized(correct, m.Value) : correct, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
         }
 
         // Case forms of each entry: a learned pair is kept as the user fixed it ("керила" → "Кирилла"),
@@ -677,14 +680,23 @@ public static class UserCorrections
 
             var prefix = stripped.Length > 0 ? word[..word.IndexOf(stripped, StringComparison.Ordinal)] : "";
             var suffix = stripped.Length > 0 ? word[(prefix.Length + stripped.Length)..] : "";
-            if (stripped.Length > 0 && char.IsUpper(stripped[0]) && replacement.Length > 0 && char.IsLower(replacement[0]))
-            {
-                replacement = char.ToUpperInvariant(replacement[0]) + replacement[1..];
-            }
-
-            words[i] = prefix + replacement + suffix;
+            words[i] = prefix + Capitalized(replacement, stripped) + suffix;
         }
 
         return string.Join(' ', words);
     }
+
+    // A capital the model wrote (a sentence start) stays: "Мини-ап." → "Miniapp.", as "Вокс." → "Vox.".
+    private static string Capitalized(string replacement, string spoken) =>
+        spoken.Length > 0 && char.IsUpper(spoken[0]) && replacement.Length > 0 && char.IsLower(replacement[0])
+            ? char.ToUpperInvariant(replacement[0]) + replacement[1..]
+            : replacement;
+
+    /// <summary>
+    /// The user's fixes again, after the term lists: a fix learned from the pasted text ("Сан Whisper" →
+    /// "Sunwhisper") holds a term's spelling that the raw dictation does not have yet ("Сан Виспер"). An entry whose
+    /// target keeps its own words ("бублик" → "бублик с маком") is not applied twice.
+    /// </summary>
+    public static string ApplyAfterTerms(string text, IReadOnlyDictionary<string, string> corrections) =>
+        Apply(text, corrections.Where(c => !c.Value.Contains(c.Key, StringComparison.OrdinalIgnoreCase)).ToDictionary());
 }

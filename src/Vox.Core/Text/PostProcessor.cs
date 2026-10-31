@@ -34,6 +34,7 @@ public sealed class PostProcessor(SpeechModel model)
         text = MixedScript.Fix(text);
         text = Terms.Replace(text);
         text = FuzzyTerms.Apply(text, fuzzy, screen);
+        text = corrections is null ? text : UserCorrections.ApplyAfterTerms(text, corrections);
         text = Networks.Fix(text);
         text = ModelVersions.Apply(text);
         text = FileExtensions.Apply(text);

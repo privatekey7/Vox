@@ -26,7 +26,13 @@ public sealed class UserDictionaryTests
         // The user fixes what was pasted: "Виспер" had already become "Whisper" by the term list.
         Assert.Equal("Открой Sunwhisper.", Fix("Открой Сан Виспер.", new() { ["сан whisper"] = "Sunwhisper" }));
 
+    [Theory]
+    [InlineData("Мини-ап.", "Miniapp.")] // a sentence starts with a capital, as for a single word
+    [InlineData("Это мини-ап.", "Это miniapp.")]
+    public void A_hyphenated_entry_keeps_the_capital_of_a_sentence(string raw, string expected) =>
+        Assert.Equal(expected, Fix(raw, new() { ["мини-ап"] = "miniapp" }));
+
     [Fact]
     public void An_entry_that_keeps_its_own_word_is_applied_once() =>
-        Assert.Equal("Пишу в вокс бот.", Fix("Пишу в вокс.", new() { ["вокс"] = "вокс бот" }));
+        Assert.Equal("Купи бублик с маком.", Fix("Купи бублик.", new() { ["бублик"] = "бублик с маком" }));
 }
