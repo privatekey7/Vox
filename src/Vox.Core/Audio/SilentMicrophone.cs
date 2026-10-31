@@ -25,13 +25,23 @@ public static class SilentMicrophone
     /// </summary>
     public static TimeSpan CheckAfter { get; } = TimeSpan.FromMilliseconds(500);
 
-    public static Silence Check(bool hasAudio, bool hasSignal, TimeSpan sincePress) => throw new NotImplementedException();
+    public static Silence Check(bool hasAudio, bool hasSignal, TimeSpan sincePress) =>
+        sincePress < CheckAfter ? Silence.None
+        : !hasAudio ? Silence.NoAudio
+        : !hasSignal ? Silence.OnlyZeros
+        : Silence.None;
 }
 
 /// <summary>What the pill and the sounds say when a dictation comes out empty.</summary>
 public static class EmptyDictation
 {
+    /// <summary>A shorter press is an accidental tap: the pill just goes.</summary>
+    public static TimeSpan ShowFrom { get; } = TimeSpan.FromMilliseconds(500);
+
+    /// <summary>The error sound only for a real attempt: a press under a second is usually a tap too.</summary>
+    public static TimeSpan SoundFrom { get; } = TimeSpan.FromSeconds(1);
+
     public readonly record struct Feedback(bool Show, bool Sound);
 
-    public static Feedback For(TimeSpan press) => throw new NotImplementedException();
+    public static Feedback For(TimeSpan press) => new(press >= ShowFrom, press >= SoundFrom);
 }

@@ -30,9 +30,9 @@ public enum DictationState
 internal sealed class DictationService : IDisposable
 {
     private const int MinRecordMs = 250;
-    private const int ErrorSignalMinMs = 1000; // shorter presses are usually accidental
     private const float MinPeak = 100f / 32768f; // quieter than this is silence
     private const string NoAudio = "no audio"; // why a recording is empty, saved with it
+    private const string OnlyZeros = "only zeros";
     private static readonly TimeSpan Tail = TimeSpan.FromMilliseconds(150);
     private static readonly TimeSpan TitlesTimeout = TimeSpan.FromMilliseconds(50);
     private static readonly TimeSpan WindowTextTimeout = TimeSpan.FromMilliseconds(300); // runs while the model recognises
@@ -53,6 +53,7 @@ internal sealed class DictationService : IDisposable
     private volatile RecordingBuffer? _current;
     private System.Threading.Timer? _microphoneCheck; // while the key is held
     private volatile bool _silenceShown;
+    private volatile bool _silenceSounded;
 
     private readonly FieldWatcher _watcher = new();
     private readonly SelfLearning _learning;
@@ -281,6 +282,7 @@ internal sealed class DictationService : IDisposable
         var buffer = _audio.BeginRecording();
         _current = buffer;
         _silenceShown = false;
+        _silenceSounded = false;
         _microphoneCheck = new System.Threading.Timer(_ => CheckMicrophone(buffer), null, SilentMicrophone.CheckAfter, TimeSpan.FromMilliseconds(200));
         _watcher.BeforeNextDictation();
         _sounds.Start();
@@ -299,16 +301,26 @@ internal sealed class DictationService : IDisposable
             return; // released; the timer is being disposed
         }
 
-        var silent = SilentMicrophone.IsSilent(buffer.HasAudio, Stopwatch.GetElapsedTime(_startTimestamp));
-        if (silent && !_silenceShown && ReferenceEquals(_current, buffer))
+        var silence = SilentMicrophone.Check(buffer.HasAudio, buffer.HasSignal, Stopwatch.GetElapsedTime(_startTimestamp));
+        if (silence != Silence.None && !_silenceShown && ReferenceEquals(_current, buffer))
         {
             _silenceShown = true;
-            Log.Info($"[AUDIO] No audio {SilentMicrophone.CheckAfter.TotalMilliseconds:F0} ms after the press: the microphone is silent, reopening it");
-            _sounds.Error();
+            if (silence == Silence.NoAudio)
+            {
+                Log.Info($"[AUDIO] No audio {SilentMicrophone.CheckAfter.TotalMilliseconds:F0} ms after the press: the microphone is silent, reopening it");
+                _silenceSounded = true;
+                _sounds.Error();
+                _audio.ReopenInBackground();
+            }
+            else
+            {
+                // No sound and no reopen: a microphone with noise suppression may send zeros until the user speaks.
+                Log.Info($"[AUDIO] Only zeros {SilentMicrophone.CheckAfter.TotalMilliseconds:F0} ms after the press: the microphone is muted or stalled");
+            }
+
             StateChanged?.Invoke(DictationState.MicrophoneSilent);
-            _audio.ReopenInBackground();
         }
-        else if (!silent && _silenceShown && ReferenceEquals(_current, buffer))
+        else if (silence == Silence.None && _silenceShown && ReferenceEquals(_current, buffer))
         {
             _silenceShown = false;
             Log.Info("[AUDIO] The microphone sends audio again");
@@ -340,7 +352,7 @@ internal sealed class DictationService : IDisposable
         }
 
         // Window titles are read while the model recognises: ready by the time the text is.
-        _jobs.Add(new Job(buffer, releasedAt, elapsed, _settings.ScreenHints ? Task.Run(ScreenNames) : null, _silenceShown));
+        _jobs.Add(new Job(buffer, releasedAt, elapsed, _settings.ScreenHints ? Task.Run(ScreenNames) : null, _silenceSounded));
     }
 
     public void Dispose()
@@ -420,18 +432,23 @@ internal sealed class DictationService : IDisposable
         {
             Log.Info("[STT] No speech recognized");
             SaveRecording(samples, rate, Model, "", "", why);
-            if (why == NoAudio)
+            var feedback = EmptyDictation.For(job.Elapsed);
+            if (why == NoAudio || (why == OnlyZeros && feedback.Show))
             {
-                if (!job.SilenceShown)
+                if (!job.SilenceSounded && (why == NoAudio || feedback.Sound))
                 {
                     _sounds.Error();
                 }
 
                 Report(DictationState.MicrophoneSilent);
             }
-            else if (ms >= ErrorSignalMinMs)
+            else if (feedback.Show)
             {
-                _sounds.Error();
+                if (feedback.Sound)
+                {
+                    _sounds.Error();
+                }
+
                 Report(DictationState.NotHeard);
             }
             else
@@ -621,6 +638,12 @@ internal sealed class DictationService : IDisposable
         }
 
         var peak = samples.Max(Math.Abs);
+        if (peak == 0)
+        {
+            Log.Info("[STT] Only zeros from the microphone — muted on the headset or a stalled driver");
+            return ("", OnlyZeros);
+        }
+
         if (peak < MinPeak)
         {
             Log.Info($"[STT] Too quiet (peak {peak * 32768:F0} < 100) — check the microphone");
@@ -640,7 +663,11 @@ internal sealed class DictationService : IDisposable
         }
 
         var sw = Stopwatch.StartNew();
-        var text = recognizer.Transcribe(samples, rate); // never under _engineLock: the UI reads Model
+        string text;
+        using (Priority.AboveNormal())
+        {
+            text = recognizer.Transcribe(samples, rate); // never under _engineLock: the UI reads Model
+        }
 
         Log.Info($"[STT] Recognised {samples.Length / (double)rate:F1}s audio (peak {peak * 32768:F0}) in {sw.Elapsed.TotalSeconds:F1}s");
         if (text.Length == 0)
@@ -652,6 +679,6 @@ internal sealed class DictationService : IDisposable
     }
 
     /// <param name="Screen">Names on screen at key-up (<see cref="ScreenNames"/>), null when screen hints are off.</param>
-    /// <param name="SilenceShown">"Микрофон молчит" was already shown and sounded while the key was held.</param>
-    private sealed record Job(RecordingBuffer Buffer, long ReleasedAt, TimeSpan Elapsed, Task<List<ScreenName>>? Screen, bool SilenceShown);
+    /// <param name="SilenceSounded">The error sound for "Микрофон молчит" already played while the key was held.</param>
+    private sealed record Job(RecordingBuffer Buffer, long ReleasedAt, TimeSpan Elapsed, Task<List<ScreenName>>? Screen, bool SilenceSounded);
 }

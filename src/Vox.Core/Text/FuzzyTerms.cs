@@ -511,6 +511,8 @@ public sealed partial class FuzzyTerms
             : vowels is null || c.English ? 1 : Similarity(vowels, c.Vowels);
         bool? notRussian = null; // looked up once, only when a remembered name comes close
         Func<bool> foreign = () => notRussian ??= NotRussian(spoken, letters);
+        bool? russianWord = null; // looked up once, only when a name on screen comes close
+        Func<bool> russian = () => russianWord ??= spoken.Split(' ', '-').Any(RussianWords.Contains);
         // The best score per target; candidates under the floor can neither win nor stand in the way.
         List<(Candidate C, double Score)> hits = [];
         Scan(cyrillic ? _cyrillic : _latin, key, cyrillic);
@@ -564,7 +566,7 @@ public sealed partial class FuzzyTerms
                     // The first sound is heard best: "Vender" is not "Finder"; h/ch ("Hrome", "Chrome") alike.
                     if ((letters || c.Key[0] == key[0] || (c.Key[0] is 'к' or 'х' && key[0] is 'к' or 'х'))
                         && Similarity(key, c.Key, floor) is var score
-                        && (c.Screen is null || (!c.ShortOnly && ScreenAllowed(c, score, cyrillic, foreign))))
+                        && (c.Screen is null || (!c.ShortOnly && ScreenAllowed(c, score, cyrillic, foreign, russian))))
                     {
                         Hit(c, score);
                     }
@@ -853,11 +855,13 @@ public sealed partial class FuzzyTerms
     // Russian at all (owner, 24.10: "крузаде" ~ "cruzade"); remembered names come too close to ordinary words by
     // sound ("курсор" ~ "Coursera", "синтез" ~ "Synthesia"), and a surname is Russian too ("Леонов" ~ "Lenovo").
     // A remembered name from MemoryThreshold: a name seen a week ago is a weaker hint than one on screen.
-    private static bool ScreenAllowed(Candidate c, double score, bool cyrillic, Func<bool> foreign) =>
+    // A Russian word stays itself even before a name in a window: a name that sounds exactly like one is that word
+    // in Latin letters (owner, 30.10: a Remotion project "Batina Podpiska" turned every "подписка" into "Podpiska").
+    private bool ScreenAllowed(Candidate c, double score, bool cyrillic, Func<bool> foreign, Func<bool> russian) =>
         (LettersOf(c.Source).Length >= MinLetters || (c.Screen == Window && score >= 1))
         && (c.Screen == Window || score >= MemoryThreshold)
         && (!cyrillic || (!c.Source.Contains(' ', StringComparison.Ordinal) && score >= CyrillicScreenThreshold
-            && (c.Screen == Window || foreign())));
+            && (c.Screen == Window ? !russian() || _termWords.Contains(c.Source) : foreign())));
 
     // Not a Russian word in any form, nor shaped like a surname or a town ("Леонов", "Петров": the dictionary has
     // no surnames).

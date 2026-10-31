@@ -255,8 +255,9 @@ public class ScreenNamesTests
     [InlineData("Допустим, серия один, батина подписка.")]
     [InlineData("Подписка.")]
     [InlineData("Надпись на обложке: батина подписка.")]
-    public void A_russian_word_written_in_latin_on_screen_stays_russian(string raw) =>
-        Assert.Equal(raw, Fix(raw, OnScreen("Batina Podpiska - Remotion Studio", "podpiska-cover.png - Paint")));
+    [InlineData("Открой ремоушн.", "Открой Remotion.")] // a name said in Russian is still found
+    public void A_russian_word_written_in_latin_on_screen_stays_russian(string raw, string? expected = null) =>
+        Assert.Equal(expected ?? raw, Fix(raw, OnScreen("Podpiska - Remotion Studio", "podpiska-cover.png - Paint")));
 
     // A loop in the owner's test: the model's "Jamper X Change", pasted into a chat, came back as a name.
     [Fact]
