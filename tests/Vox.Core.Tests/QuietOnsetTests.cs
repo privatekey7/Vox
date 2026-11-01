@@ -9,7 +9,6 @@ public sealed class QuietOnsetTests
     [InlineData("Ставь сюда.")]
     [InlineData("Ставьте текст поля.")]
     [InlineData("Не ставь сюда точку.")]
-    [InlineData("Ставить пробел между знаком.")]
     [InlineData("Ставлю на паузу.")]
     [InlineData("Ставим задачу на завтра.")]
     public void A_word_that_may_have_lost_its_first_sound_asks_for_a_second_pass(string raw) =>
@@ -21,6 +20,8 @@ public sealed class QuietOnsetTests
     [InlineData("Поставь будильник.")]
     [InlineData("Расставь стулья.")]
     [InlineData("Ставка выросла.")]
+    // the second pass heard "Вставить пробел" in all 4 takes of a real "Ставить пробел" (owner, 01.11)
+    [InlineData("Ставить пробел между знаком.")]
     [InlineData("")]
     public void Other_text_needs_no_second_pass(string raw) =>
         Assert.False(QuietOnset.NeedsSecondPass(raw));
