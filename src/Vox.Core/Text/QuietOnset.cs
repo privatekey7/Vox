@@ -11,9 +11,11 @@ namespace Vox.Core.Text;
 /// out as "Вставь чайник" (owner, 01.11).
 /// </summary>
 /// <remarks>
-/// Tuned on the owner's takes 01.11 through Vox.Replay (37 test phrases, 15 more, a 34 s dictation): a window of 1 s
-/// before the word and 1.5 s after it with a hint of 1.5 brought back 7 lost "в" of 10 and kept all real "ставь";
-/// 1.75 did the same, 2.0 turned "Ставить пробел" into "Вставить", and so did a window of 0.6 s before and 0.9 s after.
+/// Tuned on the owner's takes 01.11 through Vox.Replay (three rounds of test phrases and a 34 s dictation). A window of
+/// 1 s before the word and 1.5 s after it: 0.6 s and 0.9 s made more false "в". "ставить" is not heard again: the
+/// second pass made a real "Ставить пробел" into "Вставить" in all 4 live takes even at 1.5, and the model hears
+/// "вставить" well by itself. Without it a hint of 1.5 brought back 10 lost "в" of 16, 2.5 brought back 12, 3.0 and
+/// 3.5 brought back 13, all keeping every real "ставь"; 4.0 made "должно остаться, ставь" into "вставь".
 /// </remarks>
 public static partial class QuietOnset
 {
@@ -22,7 +24,6 @@ public static partial class QuietOnset
     {
         ["ставь"] = "вставь",
         ["ставьте"] = "вставьте",
-        ["ставить"] = "вставить",
         ["ставлю"] = "вставлю",
         ["ставим"] = "вставим",
     };
@@ -32,7 +33,7 @@ public static partial class QuietOnset
         [.. Restored.Values.SelectMany(w => new[] { w, char.ToUpperInvariant(w[0]) + w[1..] })];
 
     /// <summary>How strongly the second pass leans to the hint (sherpa-onnx <c>hotwords_score</c>).</summary>
-    public const float HintScore = 1.5f;
+    public const float HintScore = 2.5f;
 
     [GeneratedRegex(@"\p{L}+(?:-\p{L}+)*")]
     private static partial Regex Word();
