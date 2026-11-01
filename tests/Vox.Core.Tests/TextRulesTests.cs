@@ -28,6 +28,21 @@ public class CurrencyTests
     [InlineData("500 рублей")]
     [InlineData("$5")]
     public void SpellOut_leaves_other_text_unchanged(string text) => Assert.Equal(text, Currency.SpellOut(text));
+
+    // 01.11, owner: GigaAM writes "за 22 доллара" as "за$22" (5 times in the history, always glued to the word before).
+    [Theory]
+    [InlineData("То есть за$22, который.", "То есть за $22, который.")]
+    [InlineData("Сожрал около$99.", "Сожрал около $99.")]
+    [InlineData("Подписка€20 в месяц.", "Подписка €20 в месяц.")]
+    [InlineData("Стоит $5.", "Стоит $5.")]
+    [InlineData("$5", "$5")]
+    [InlineData("Выведи echo$PATH.", "Выведи echo$PATH.")] // not a sum
+    public void A_currency_sign_is_split_off_the_word_before(string text, string expected) =>
+        Assert.Equal(expected, Currency.Unglue(text));
+
+    [Fact]
+    public void Gigaam_dictation_gets_the_space() =>
+        Assert.Equal(" То есть за $22, который.", new PostProcessor(Vox.Core.Models.ModelCatalog.GigaAm).Process("То есть за$22, который."));
 }
 
 public class FillersTests

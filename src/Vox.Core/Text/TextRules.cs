@@ -487,6 +487,8 @@ public static partial class Currency
             return number is null ? word : $"{number} {word}";
         });
 
+    public static string Unglue(string text) => text;
+
     private static string RubleWord(string? number)
     {
         if (number is null)
