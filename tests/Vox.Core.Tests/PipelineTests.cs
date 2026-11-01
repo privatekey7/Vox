@@ -60,7 +60,10 @@ public class PostProcessorTests
     [InlineData("Работаю в Оксе.", " Работаю в Vox.")]
     [InlineData("Открой в испере.", " Открой в Whisper.")]
     [InlineData("Смотрю в окно.", " Смотрю в окно.")] // a Russian word
+    [InlineData("Смотрю в лан.", " Смотрю в лан.")] // not "в WLAN": "влан" is WLAN, but a consonant after "в" is no lost "в"
     [InlineData("Открой в Vox.", " Открой в Vox.")]
+    [InlineData("Работаю в исиэс.", " Работаю в ECS.")] // a term of its own, not "в VCS"
+    [InlineData("Это в им тоже.", " Это в им тоже.")] // a Russian word, not "в Vim"
     public void A_word_that_lost_its_в_to_the_preposition_gets_it_back(string raw, string expected) =>
         Assert.Equal(expected, new PostProcessor(ModelCatalog.GigaAm).Process(raw));
 
@@ -75,9 +78,14 @@ public class PostProcessorTests
     [InlineData("Сделай влюмолапс.", " Сделай в Lumalabs.")]
     [InlineData("Открой люмалабс.", " Открой Lumalabs.")]
     [InlineData("А потом сделаем miniapp.", " А потом сделаем miniapp.")] // a lower-case target is a word, not a name
-    [InlineData("Открой Playwright.", " Открой Playwright.")] // a target that is a term misspelt is no name
+    [InlineData("Открой PlayRite.", " Открой Playwright.")] // a target that is a term misspelt is no name: it stays fixed
     public void A_name_from_the_users_dictionary_is_found_by_sound(string raw, string expected) =>
         Assert.Equal(expected, new PostProcessor(ModelCatalog.GigaAm).Process(raw, Names));
+
+    [Fact]
+    public void A_name_both_in_the_dictionary_and_on_screen_is_found() =>
+        Assert.Equal(" Открой Lumalabs.", new PostProcessor(ModelCatalog.GigaAm)
+            .Process("Открой люмалабс.", Names, null, [new ScreenName("Lumalabs", OnScreen: true)]));
 
     [Theory]
     [InlineData("Нажми ввод.")]

@@ -13,6 +13,10 @@ public sealed class PostProcessor(SpeechModel model)
     // Parakeet is multilingual but Vox users dictate mostly in Russian.
     private readonly string _lang = model.Language == "multi" ? "ru" : model.Language;
 
+    private sealed record NameCache(IReadOnlyDictionary<string, string> From, ScreenName[] Names);
+
+    private NameCache? _dictionaryNames;
+
     /// <param name="fuzzy">Receives the phonetic replacements (<see cref="FuzzyTerms"/>) for the log.</param>
     /// <param name="screen">Names in open windows and remembered ones (<see cref="ScreenWords"/>).</param>
     public string Process(
@@ -27,6 +31,7 @@ public sealed class PostProcessor(SpeechModel model)
         }
 
         var text = UnknownToken.Remove(raw);
+        screen = WithDictionaryNames(corrections, screen);
         text = GluedPreposition.Split(text, corrections, screen);
         text = corrections is null ? text : UserCorrections.Apply(text, corrections);
         text = ClaudeNames.Apply(text, latinCloud: model.Language == "ru"); // GigaAM hears Claude as "Cloud"
@@ -56,5 +61,29 @@ public sealed class PostProcessor(SpeechModel model)
 
         text = SentenceSpacing.Normalize(text);
         return Spacing.WithLeadingSpace(text);
+    }
+
+    /// <summary>
+    /// Latin names from the user's dictionary ("люмо лапс → Lumalabs") are searched by sound like remembered screen
+    /// names: the model writes them in ways the dictionary lacks ("люмалабс", owner, 01.11). A target in lower case is a
+    /// word, not a name ("miniapp"), and one that is a term misspelt is not searched: as a name, "Playwrite" from
+    /// "playrite → Playwrite" would no longer become Playwright.
+    /// </summary>
+    private IReadOnlyCollection<ScreenName>? WithDictionaryNames(IReadOnlyDictionary<string, string>? corrections, IReadOnlyCollection<ScreenName>? screen)
+    {
+        if (corrections is null || corrections.Count == 0)
+        {
+            return screen;
+        }
+
+        if (_dictionaryNames is not { } cache || !ReferenceEquals(cache.From, corrections))
+        {
+            cache = new NameCache(corrections, [.. corrections.Values.Distinct(StringComparer.Ordinal)
+                .Where(n => n.Length > 0 && char.IsAsciiLetterUpper(n[0]) && n.All(char.IsAsciiLetter) && FuzzyTerms.Apply(n) == n)
+                .Select(n => new ScreenName(n, OnScreen: false))]);
+            _dictionaryNames = cache;
+        }
+
+        return cache.Names.Length == 0 ? screen : [.. screen ?? [], .. cache.Names];
     }
 }

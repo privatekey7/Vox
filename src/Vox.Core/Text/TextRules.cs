@@ -709,11 +709,13 @@ public static class UserCorrections
 /// model glues it on, often as "ф" ("вфиспере", "ввокс", "фвиспере"; owner, 01.11). The rest is split off only when it
 /// is a term or a word of the user's dictionary, as listed or found by sound or on screen (<see cref="FuzzyTerms"/>:
 /// "вкубернейтис", "влюмалабс" with Lumalabs in a window), and the whole is none of these and no Russian word
-/// ("ввод", "вредит" stay). A lone "ф" before such a word is "в" too ("ф виспере").
+/// ("ввод", "вредит" stay). A lone "ф" before such a word is "в" too ("ф виспере"), and a word after "в" that is
+/// none of these and starts with a vowel gets back the "в" the preposition took ("в Оксе" → "в Воксе"; "в окне",
+/// "в лан" stay).
 /// </summary>
 public static partial class GluedPreposition
 {
-    [GeneratedRegex(@"(?<![\p{L}\p{Nd}-])(?:(?<p>[вфВФ])(?<rest>\p{L}{4,})|(?<p>[фФ])\s+(?<next>\p{L}+))(?![\p{L}\p{Nd}-])")]
+    [GeneratedRegex(@"(?<![\p{L}\p{Nd}-])(?:(?<p>[вфВФ])(?<rest>\p{L}{4,})|(?<p>[вфВФ])\s+(?<next>\p{L}+))(?![\p{L}\p{Nd}-])")]
     private static partial Regex Glued();
 
     /// <param name="screen">Names in open windows and remembered ones, as for <see cref="FuzzyTerms.Apply"/>.</param>
@@ -735,8 +737,18 @@ public static partial class GluedPreposition
             var preposition = char.IsUpper(m.Groups["p"].Value[0]) ? "В" : "в";
             if (m.Groups["next"].Success)
             {
-                // Only before a term: "буква ф в слове" stays.
-                return Known(m.Groups["next"].Value) ? preposition + m.Value[1..] : m.Value;
+                var next = m.Groups["next"].Value;
+                if (m.Groups["p"].Value is "ф" or "Ф")
+                {
+                    // Only before a term: "буква ф в слове" stays.
+                    return Known(next) ? preposition + m.Value[1..] : m.Value;
+                }
+
+                // Only before a vowel: "в лан" is LAN, not "в влан" (WLAN).
+                var whole = "в" + char.ToLowerInvariant(next[0]) + next[1..];
+                return "аеёиоуыэюяАЕЁИОУЫЭЮЯ".Contains(next[0]) && !RussianWords.Contains(next) && Known(whole) && !Known(next)
+                    ? m.Value[..^next.Length] + whole
+                    : m.Value;
             }
 
             var word = m.Value;
