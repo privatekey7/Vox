@@ -508,7 +508,7 @@ public class ScreenNamesTests
 
         var text = string.Join("\n", Directory.GetFiles(Path.Combine(root, "docs"), "*.md", SearchOption.AllDirectories)
             .Append(Path.Combine(root, "CHANGELOG.md")).Append(Path.Combine(root, "README.md")).Select(File.ReadAllText));
-        string[] examples = ["санвиспер", "хап", "ремоушн", "люмалабс"]; // the docs describe these very replacements
+        string[] examples = ["санвиспер", "хап", "ремоушн", "люмалабс", "люмалапс"]; // the docs describe these very replacements
         return [.. Regex.Matches(text, @"[а-яё]+(?:-[а-яё]+)*", RegexOptions.IgnoreCase).Select(m => m.Value).Distinct()
             .Where(w => !examples.Contains(w.ToLowerInvariant()))];
     }
