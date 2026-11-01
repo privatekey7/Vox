@@ -1,3 +1,4 @@
+using System.Globalization;
 using SherpaOnnx;
 using Vox.Core.Audio;
 using Vox.Core.Models;
@@ -20,6 +21,9 @@ public sealed class SpeechRecognizer : ISpeechRecognizer
     public const int SampleRate = 16000;
 
     private readonly OfflineRecognizer _recognizer;
+
+    /// <summary>GigaAM heard again with a hint, for words whose soft first sound it drops (<see cref="QuietOnset"/>).</summary>
+    private readonly OfflineRecognizer? _secondPass;
     private readonly Lock _lock = new();
     private bool _disposed;
 
@@ -57,6 +61,42 @@ public sealed class SpeechRecognizer : ISpeechRecognizer
         using (ModelFiles.OpenVerified(model, modelsRoot, rejectLinks: ModelFiles.IsSharedFolder(modelsRoot)))
         {
             _recognizer = new OfflineRecognizer(config);
+            if (model == ModelCatalog.GigaAm)
+            {
+                _secondPass = CreateSecondPass(config, config.ModelConfig.Tokens);
+            }
+        }
+    }
+
+    /// <summary>
+    /// The same model with beam search and <see cref="QuietOnset.Hotwords"/>: slower (+40% on a short phrase), so it
+    /// runs only on pieces that need it. sherpa-onnx reads the hint and the BPE vocabulary (not in the model archive,
+    /// built from tokens.txt: piece order is merge priority) while it loads, so the files live only until then.
+    /// </summary>
+    private static OfflineRecognizer CreateSecondPass(OfflineRecognizerConfig config, string tokens)
+    {
+        var dir = Directory.CreateTempSubdirectory("vox-hint-").FullName;
+        try
+        {
+            var vocab = Path.Combine(dir, "bpe.vocab");
+            File.WriteAllLines(vocab, File.ReadLines(tokens)
+                .Select(line => line.Split(' '))
+                .Where(parts => parts.Length == 2 && parts[0] != "<unk>")
+                .Select(parts => $"{parts[0]} {-int.Parse(parts[1], CultureInfo.InvariantCulture)}"));
+            var hotwords = Path.Combine(dir, "hotwords.txt");
+            File.WriteAllLines(hotwords, QuietOnset.Hotwords);
+
+            config.DecodingMethod = "modified_beam_search";
+            config.MaxActivePaths = 4;
+            config.HotwordsFile = hotwords;
+            config.HotwordsScore = QuietOnset.HintScore;
+            config.ModelConfig.ModelingUnit = "bpe";
+            config.ModelConfig.BpeVocab = vocab;
+            return new OfflineRecognizer(config);
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
         }
     }
 
@@ -84,12 +124,46 @@ public sealed class SpeechRecognizer : ISpeechRecognizer
             try
             {
                 _recognizer.Decode(streams);
-                return PieceJoiner.Join(streams.Select(s => s.Result.Text ?? ""));
+                var texts = streams.Select(s => s.Result.Text ?? "").ToArray();
+                if (_secondPass != null)
+                {
+                    HearAgain(pieces, sampleRate, texts);
+                }
+
+                return PieceJoiner.Join(texts);
             }
             finally
             {
                 streams.ForEach(s => s.Dispose());
             }
+        }
+    }
+
+    private void HearAgain(IReadOnlyList<ArraySegment<float>> pieces, int sampleRate, string[] texts)
+    {
+        var again = Enumerable.Range(0, texts.Length).Where(i => QuietOnset.NeedsSecondPass(texts[i])).ToList();
+        if (again.Count == 0)
+        {
+            return;
+        }
+
+        var streams = again.Select(i =>
+        {
+            var stream = _secondPass!.CreateStream();
+            stream.AcceptWaveform(sampleRate, pieces[i].ToArray());
+            return stream;
+        }).ToList();
+        try
+        {
+            _secondPass!.Decode(streams);
+            for (var k = 0; k < again.Count; k++)
+            {
+                texts[again[k]] = QuietOnset.Merge(texts[again[k]], streams[k].Result.Text ?? "");
+            }
+        }
+        finally
+        {
+            streams.ForEach(s => s.Dispose());
         }
     }
 
@@ -105,6 +179,7 @@ public sealed class SpeechRecognizer : ISpeechRecognizer
 
             _disposed = true;
             _recognizer.Dispose();
+            _secondPass?.Dispose();
         }
     }
 }
