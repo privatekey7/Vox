@@ -55,6 +55,30 @@ public class PostProcessorTests
         Assert.Contains("в Fluxar.", new PostProcessor(ModelCatalog.GigaAm)
             .Process(raw, new Dictionary<string, string> { ["флюксар"] = "Fluxar" }), StringComparison.Ordinal);
 
+    // 01.11, owner's check: "в Воксе" is also heard as "в Оксе", the word losing its "в".
+    [Theory]
+    [InlineData("Работаю в Оксе.", " Работаю в Vox.")]
+    [InlineData("Открой в испере.", " Открой в Whisper.")]
+    [InlineData("Смотрю в окно.", " Смотрю в окно.")] // a Russian word
+    [InlineData("Открой в Vox.", " Открой в Vox.")]
+    public void A_word_that_lost_its_в_to_the_preposition_gets_it_back(string raw, string expected) =>
+        Assert.Equal(expected, new PostProcessor(ModelCatalog.GigaAm).Process(raw));
+
+    // 01.11, owner's check: Lumalabs is only in the dictionary ("люмо лапс"), and the model writes it as one word.
+    private static readonly Dictionary<string, string> Names = new()
+    {
+        ["люмо лапс"] = "Lumalabs", ["мини-ап"] = "miniapp", ["playrite"] = "Playwrite",
+    };
+
+    [Theory]
+    [InlineData("Сделай влюмалабс.", " Сделай в Lumalabs.")]
+    [InlineData("Сделай влюмолапс.", " Сделай в Lumalabs.")]
+    [InlineData("Открой люмалабс.", " Открой Lumalabs.")]
+    [InlineData("А потом сделаем miniapp.", " А потом сделаем miniapp.")] // a lower-case target is a word, not a name
+    [InlineData("Открой Playwright.", " Открой Playwright.")] // a target that is a term misspelt is no name
+    public void A_name_from_the_users_dictionary_is_found_by_sound(string raw, string expected) =>
+        Assert.Equal(expected, new PostProcessor(ModelCatalog.GigaAm).Process(raw, Names));
+
     [Theory]
     [InlineData("Нажми ввод.")]
     [InlineData("Это вредит делу.")] // a Russian word, not "в Reddit"
