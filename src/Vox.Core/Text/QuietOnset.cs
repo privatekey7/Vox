@@ -37,31 +37,17 @@ public static partial class QuietOnset
     public static bool NeedsSecondPass(string text) =>
         Word().Matches(text).Any(m => Restored.ContainsKey(m.Value.ToLowerInvariant()));
 
-    /// <summary>
-    /// The first pass with each word that lost its sound put back where the second pass heard the full word. When the
-    /// passes do not line up word for word, the first stays as it is.
-    /// </summary>
-    public static string Merge(string first, string second)
-    {
-        var words = Word().Matches(first);
-        var heard = Word().Matches(second);
-        if (words.Count != heard.Count)
-        {
-            return first;
-        }
+    public static IReadOnlyList<HeardWord> Words(IReadOnlyList<string> tokens, IReadOnlyList<float> starts) => throw new NotImplementedException();
 
-        var text = new StringBuilder(first);
-        for (var i = words.Count - 1; i >= 0; i--)
-        {
-            var word = words[i].Value;
-            if (Restored.TryGetValue(word.ToLowerInvariant(), out var full)
-                && heard[i].Value.Equals(full, StringComparison.OrdinalIgnoreCase))
-            {
-                var cased = char.IsUpper(word[0]) ? char.ToUpperInvariant(full[0]) + full[1..] : full;
-                text.Remove(words[i].Index, word.Length).Insert(words[i].Index, cased);
-            }
-        }
+    public static IReadOnlyList<Suspect> Suspects(IReadOnlyList<HeardWord> words) => throw new NotImplementedException();
 
-        return text.ToString();
-    }
+    public static (int From, int To) Window(float start, int sampleRate, int length) => throw new NotImplementedException();
+
+    public static string? HeardFull(string suspect, IReadOnlyList<HeardWord> window, float at) => throw new NotImplementedException();
+
+    public static string Restore(string text, int occurrence, string full) => throw new NotImplementedException();
 }
+
+public sealed record HeardWord(string Text, float Start);
+
+public sealed record Suspect(string Word, int Occurrence, float Start);

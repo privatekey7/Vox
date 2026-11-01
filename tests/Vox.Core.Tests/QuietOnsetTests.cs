@@ -25,32 +25,69 @@ public sealed class QuietOnsetTests
     public void Other_text_needs_no_second_pass(string raw) =>
         Assert.False(QuietOnset.NeedsSecondPass(raw));
 
-    [Theory]
-    [InlineData("Ставь сюда.", "Вставь сюда.", "Вставь сюда.")]
-    [InlineData("Ставьте текст поля.", "Вставьте текст поля.", "Вставьте текст поля.")]
-    [InlineData("Ставь.", "Вставь.", "Вставь.")]
-    [InlineData("Сначала скопируй, потом ставь сюда.", "Сначала скопируй, потом вставь сюда.", "Сначала скопируй, потом вставь сюда.")]
-    // the case of the first pass is kept
-    [InlineData("Ставь сюда.", "вставь сюда.", "Вставь сюда.")]
-    [InlineData("потом ставь", "потом Вставь", "потом вставь")]
-    public void The_second_pass_brings_back_the_lost_sound(string first, string second, string expected) =>
-        Assert.Equal(expected, QuietOnset.Merge(first, second));
+    // GigaAM's tokens for "Я вставлю ссылку, а ты ставь лайк." (owner's take 01.11 15:37:01)
+    private static readonly string[] Tokens =
+        [" Я", " в", "ста", "в", "лю", " с", "сы", "л", "ку", ",", " а", " ты", " ", "ста", "в", "ь", " ", "ла", "й", "к", "."];
+
+    private static readonly float[] Starts =
+        [0.2f, 0.32f, 0.44f, 0.56f, 0.64f, 0.76f, 0.84f, 0.92f, 0.96f, 1.0f, 1.08f, 1.2f, 1.36f, 1.4f, 1.48f, 1.48f, 1.6f, 1.68f, 1.76f, 1.84f, 1.96f];
+
+    [Fact]
+    public void Tokens_become_words_with_the_time_they_start()
+    {
+        var words = QuietOnset.Words(Tokens, Starts);
+
+        Assert.Equal(["Я", "вставлю", "ссылку", "а", "ты", "ставь", "лайк"], words.Select(w => w.Text));
+        Assert.Equal(1.36f, words[5].Start);
+    }
+
+    [Fact]
+    public void Only_words_that_may_have_lost_their_first_sound_are_heard_again()
+    {
+        var suspects = QuietOnset.Suspects(QuietOnset.Words(Tokens, Starts));
+
+        var suspect = Assert.Single(suspects);
+        Assert.Equal(("ставь", 0, 1.36f), (suspect.Word, suspect.Occurrence, suspect.Start));
+    }
+
+    [Fact]
+    public void The_window_holds_the_soft_sound_before_the_word_and_the_word_itself()
+    {
+        Assert.Equal((12_160, 36_160), QuietOnset.Window(1.36f, 16_000, 48_000));
+        // clipped to the recording
+        Assert.Equal((0, 18_240), QuietOnset.Window(0.24f, 16_000, 48_000));
+        Assert.Equal((12_160, 30_000), QuietOnset.Window(1.36f, 16_000, 30_000));
+    }
 
     [Theory]
-    // the second pass agrees with the first
-    [InlineData("Ставь чайник.", "Ставь чайник.", "Ставь чайник.")]
-    // only the lost sound is taken, other words stay as the first pass heard them
-    [InlineData("Ставь сюда.", "Вставь туда.", "Вставь сюда.")]
-    [InlineData("Ставь сюда.", "Вставь сюда!", "Вставь сюда.")]
-    // a different word count: the words cannot be lined up
-    [InlineData("Я вставлю ссылку, а ты ставь лайк.", "Я вставлю ссылку, а ты вс", "Я вставлю ссылку, а ты ставь лайк.")]
-    [InlineData("Ставь сюда.", "Вставь это сюда.", "Ставь сюда.")]
-    // another word in its place is not the lost sound
-    [InlineData("Ставь сюда.", "Доставь сюда.", "Ставь сюда.")]
-    [InlineData("Ставь сюда.", "Вставьте сюда.", "Ставь сюда.")]
-    [InlineData("Ставь сюда.", "", "Ставь сюда.")]
-    public void Anything_else_from_the_second_pass_is_ignored(string first, string second, string expected) =>
-        Assert.Equal(expected, QuietOnset.Merge(first, second));
+    // the window starts at 0.76 s: "ставь" at 1.36 s is at 0.6 s in it
+    [InlineData("ставь", "ссылку", 0.1f, "вставь", 0.55f, "вставь")]
+    [InlineData("ставь", "ссылку", 0.1f, "Вставь", 0.7f, "вставь")]
+    [InlineData("ставьте", "а", 0.3f, "вставьте", 0.6f, "вставьте")]
+    // the window heard the same word, a word too far off, or another word in its place
+    [InlineData("ставь", "ссылку", 0.1f, "ставь", 0.6f, null)]
+    [InlineData("ставь", "ссылку", 0.1f, "вставь", 1.0f, null)]
+    [InlineData("ставь", "ссылку", 0.1f, "доставь", 0.6f, null)]
+    [InlineData("ставь", "ссылку", 0.1f, "вставьте", 0.6f, null)]
+    public void The_full_word_is_taken_only_where_the_window_heard_it(
+        string suspect, string before, float beforeAt, string heard, float heardAt, string? expected) =>
+        Assert.Equal(expected, QuietOnset.HeardFull(suspect, [new(before, beforeAt), new(heard, heardAt)], 0.6f));
+
+    [Fact]
+    public void An_empty_window_restores_nothing() =>
+        Assert.Null(QuietOnset.HeardFull("ставь", [], 0.6f));
+
+    [Theory]
+    [InlineData("Ставь сюда.", 0, "вставь", "Вставь сюда.")]
+    [InlineData("Ставьте текст поля.", 0, "вставьте", "Вставьте текст поля.")]
+    [InlineData("Не ставь сюда, ставь туда.", 1, "вставь", "Не ставь сюда, вставь туда.")]
+    [InlineData("Сначала скопируй, потом ставь сюда.", 0, "вставь", "Сначала скопируй, потом вставь сюда.")]
+    // the occurrence counts only the words that may have lost their sound
+    [InlineData("Я вставлю ссылку, а ты ставь лайк.", 0, "вставь", "Я вставлю ссылку, а ты вставь лайк.")]
+    // an occurrence the text does not have changes nothing
+    [InlineData("Ставь сюда.", 1, "вставь", "Ставь сюда.")]
+    public void The_lost_sound_is_put_back_in_the_text_keeping_its_case(string text, int occurrence, string full, string expected) =>
+        Assert.Equal(expected, QuietOnset.Restore(text, occurrence, full));
 
     [Fact]
     public void The_hint_holds_every_restored_form_in_both_cases()
