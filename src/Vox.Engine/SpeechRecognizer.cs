@@ -70,7 +70,7 @@ public sealed class SpeechRecognizer : ISpeechRecognizer
 
     /// <summary>
     /// The same model with beam search and <see cref="QuietOnset.Hotwords"/>: slower (+40% on a short phrase), so it
-    /// runs only on pieces that need it. sherpa-onnx reads the hint and the BPE vocabulary (not in the model archive,
+    /// hears only short windows around the words that need it. sherpa-onnx reads the hint and the BPE vocabulary (not in the model archive,
     /// built from tokens.txt: piece order is merge priority) while it loads, so the files live only until then.
     /// </summary>
     private static OfflineRecognizer CreateSecondPass(OfflineRecognizerConfig config, string tokens)
@@ -127,7 +127,7 @@ public sealed class SpeechRecognizer : ISpeechRecognizer
                 var texts = streams.Select(s => s.Result.Text ?? "").ToArray();
                 if (_secondPass != null)
                 {
-                    HearAgain(pieces, sampleRate, texts);
+                    HearAgain(pieces, sampleRate, streams, texts);
                 }
 
                 return PieceJoiner.Join(texts);
@@ -139,31 +139,60 @@ public sealed class SpeechRecognizer : ISpeechRecognizer
         }
     }
 
-    private void HearAgain(IReadOnlyList<ArraySegment<float>> pieces, int sampleRate, string[] texts)
+    /// <summary>
+    /// Hears again a window around each word that may have lost its soft first sound and puts the sound back where the
+    /// window heard the full word (<see cref="QuietOnset"/>).
+    /// </summary>
+    private void HearAgain(IReadOnlyList<ArraySegment<float>> pieces, int sampleRate, List<OfflineStream> streams, string[] texts)
     {
-        var again = Enumerable.Range(0, texts.Length).Where(i => QuietOnset.NeedsSecondPass(texts[i])).ToList();
+        var again = new List<(int Piece, Suspect Suspect, int From)>();
+        for (var i = 0; i < texts.Length; i++)
+        {
+            if (!QuietOnset.NeedsSecondPass(texts[i]))
+            {
+                continue;
+            }
+
+            var result = streams[i].Result;
+            var suspects = QuietOnset.Suspects(QuietOnset.Words(result.Tokens, result.Timestamps));
+            if (suspects.Count != QuietOnset.CountSuspects(texts[i]))
+            {
+                continue; // the tokens and the text do not line up
+            }
+
+            again.AddRange(suspects.Select(s => (i, s, QuietOnset.Window(s.Start, sampleRate, pieces[i].Count).From)));
+        }
+
         if (again.Count == 0)
         {
             return;
         }
 
-        var streams = again.Select(i =>
+        var windows = again.Select(a =>
         {
+            var (from, to) = QuietOnset.Window(a.Suspect.Start, sampleRate, pieces[a.Piece].Count);
             var stream = _secondPass!.CreateStream();
-            stream.AcceptWaveform(sampleRate, pieces[i].ToArray());
+            stream.AcceptWaveform(sampleRate, pieces[a.Piece].Slice(from, to - from).ToArray());
             return stream;
         }).ToList();
         try
         {
-            _secondPass!.Decode(streams);
-            for (var k = 0; k < again.Count; k++)
+            _secondPass!.Decode(windows);
+            // Restore never shifts the numbering: a restored word is no longer a suspect, so go from the last one back.
+            for (var k = again.Count - 1; k >= 0; k--)
             {
-                texts[again[k]] = QuietOnset.Merge(texts[again[k]], streams[k].Result.Text ?? "");
+                var (piece, suspect, from) = again[k];
+                var result = windows[k].Result;
+                var full = QuietOnset.HeardFull(suspect.Word, QuietOnset.Words(result.Tokens, result.Timestamps), suspect.Start - (float)from / sampleRate);
+                if (full != null)
+                {
+                    texts[piece] = QuietOnset.Restore(texts[piece], suspect.Occurrence, full);
+                }
             }
         }
         finally
         {
-            streams.ForEach(s => s.Dispose());
+            windows.ForEach(s => s.Dispose());
         }
     }
 

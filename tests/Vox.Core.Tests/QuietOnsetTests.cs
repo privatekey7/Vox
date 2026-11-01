@@ -41,6 +41,13 @@ public sealed class QuietOnsetTests
         Assert.Equal(1.36f, words[5].Start);
     }
 
+    [Theory]
+    [InlineData("Не ставь сюда, ставь туда.", 2)]
+    [InlineData("Я вставлю ссылку, а ты ставь лайк.", 1)]
+    [InlineData("Поставь будильник.", 0)]
+    public void Suspect_words_are_counted_in_the_text(string text, int count) =>
+        Assert.Equal(count, QuietOnset.CountSuspects(text));
+
     [Fact]
     public void Only_words_that_may_have_lost_their_first_sound_are_heard_again()
     {
@@ -53,14 +60,14 @@ public sealed class QuietOnsetTests
     [Fact]
     public void The_window_holds_the_soft_sound_before_the_word_and_the_word_itself()
     {
-        Assert.Equal((12_160, 36_160), QuietOnset.Window(1.36f, 16_000, 48_000));
+        Assert.Equal((5_760, 45_760), QuietOnset.Window(1.36f, 16_000, 48_000));
         // clipped to the recording
-        Assert.Equal((0, 18_240), QuietOnset.Window(0.24f, 16_000, 48_000));
-        Assert.Equal((12_160, 30_000), QuietOnset.Window(1.36f, 16_000, 30_000));
+        Assert.Equal((0, 27_840), QuietOnset.Window(0.24f, 16_000, 48_000));
+        Assert.Equal((5_760, 30_000), QuietOnset.Window(1.36f, 16_000, 30_000));
     }
 
     [Theory]
-    // the window starts at 0.76 s: "ставь" at 1.36 s is at 0.6 s in it
+    // the first pass put "ставь" at 0.6 s into the window
     [InlineData("ставь", "ссылку", 0.1f, "вставь", 0.55f, "вставь")]
     [InlineData("ставь", "ссылку", 0.1f, "Вставь", 0.7f, "вставь")]
     [InlineData("ставьте", "а", 0.3f, "вставьте", 0.6f, "вставьте")]
