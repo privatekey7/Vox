@@ -5,7 +5,7 @@ namespace Vox.Core.Text;
 /// <summary>
 /// Turns raw model output into the text that is pasted:
 /// &lt;unk&gt; → glued "в" → user dictionary → Claude → mixed alphabets → terms → phonetic terms → model versions → file extensions → key shortcuts → fillers → ITN (if the model needs it)
-/// → dashes → currency → question marks → sentence spacing
+/// → dashes → currency sign spacing → ruble sign → question marks → sentence spacing
 /// → one leading space.
 /// </summary>
 public sealed class PostProcessor(SpeechModel model)
@@ -52,6 +52,7 @@ public sealed class PostProcessor(SpeechModel model)
         }
 
         text = Dashes.Normalize(text);
+        text = Currency.Unglue(text);
         if (_lang == "ru")
         {
             text = Currency.SpellOut(text);

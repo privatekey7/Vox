@@ -487,7 +487,11 @@ public static partial class Currency
             return number is null ? word : $"{number} {word}";
         });
 
-    public static string Unglue(string text) => text;
+    // "за$22" → "за $22": GigaAM glues a sum in dollars to the word before (owner, 01.11). Only before a number: "$PATH" stays.
+    [GeneratedRegex(@"(?<=\p{L})(?=[$€£]\d)")]
+    private static partial Regex GluedSign();
+
+    public static string Unglue(string text) => GluedSign().Replace(text, " ");
 
     private static string RubleWord(string? number)
     {
