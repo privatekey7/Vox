@@ -17,7 +17,7 @@ jobs:
     name: secret scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # the whole history, not just the last commit
           persist-credentials: false
@@ -40,10 +40,10 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: "10.0.x"
       # The tests and the replay tool, not the WPF app: on Linux the app's Windows-made lock file
@@ -68,10 +68,10 @@ jobs:
     outputs:
       sha256: ${{ steps.sha256.outputs.sha256 }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: "10.0.x"
       # win-x64 and self-contained come from Vox.App.csproj. Passing `-r win-x64` here would push the
@@ -124,7 +124,7 @@ jobs:
       - name: Upload unsigned installer for signing
         id: unsigned
         if: startsWith(github.ref, 'refs/tags/v') && vars.SIGNPATH_ORGANIZATION_ID != ''
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: vox-setup-unsigned-${{ github.sha }}
           path: installer/vox-setup.exe
@@ -168,7 +168,7 @@ jobs:
             ''
             'Check a downloaded file: `(Get-FileHash .\vox-setup.exe -Algorithm SHA256).Hash`'
           ) | Add-Content $env:GITHUB_STEP_SUMMARY
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: vox-setup-${{ github.sha }}
           path: |
@@ -189,7 +189,7 @@ jobs:
       id-token: write # Sigstore signing certificate
       attestations: write # store the attestation in the repository
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: vox-setup-${{ github.sha }}
           path: installer
