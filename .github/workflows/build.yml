@@ -17,7 +17,7 @@ jobs:
     name: secret scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # the whole history, not just the last commit
           persist-credentials: false
@@ -40,7 +40,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - uses: actions/setup-dotnet@v5
@@ -68,7 +68,7 @@ jobs:
     outputs:
       sha256: ${{ steps.sha256.outputs.sha256 }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - uses: actions/setup-dotnet@v5
