@@ -220,9 +220,11 @@ public static partial class Fillers
 
     private static readonly string[] English = ["um", "umm", "uh", "uhh", "er", "err", "ah", "ahh", "hmm", "hm", "mm", "mmm"];
 
-    // \b does not work with Cyrillic hyphens, so word edges are explicit lookarounds.
+    // \b does not work with Cyrillic hyphens, so word edges are explicit lookarounds. A "..." that ends the dictation right
+    // after a hesitation is the hesitation's and goes with it: "давай добавим э-э-э..." → "давай добавим" (owner deleted
+    // it by hand); mid-text it ends a sentence ("месте, э-э... Конфиденциально") and stays.
     private static readonly Regex Pattern = new(
-        "(?<![а-яёa-z-])(?:" + Russian + "|" + string.Join('|', English.OrderByDescending(w => w.Length).Select(Regex.Escape)) + ")(?![а-яёa-z-])",
+        "(?<![а-яёa-z-])(?:" + Russian + "|" + string.Join('|', English.OrderByDescending(w => w.Length).Select(Regex.Escape)) + @")(?![а-яёa-z-])(?:(?:\.{3}|…)(?=\s*$))?",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
     private const string Marker = "\u2063";
@@ -234,8 +236,34 @@ public static partial class Fillers
     [GeneratedRegex(@"[,;]\s*[,;]")] private static partial Regex DoubledComma();
     [GeneratedRegex(@"\s[,;]\s")] private static partial Regex LoneComma();
     [GeneratedRegex(@"[,;]\s*([.!?…]|$)")] private static partial Regex CommaBeforeEnd();
-    [GeneratedRegex(@"^\s*(?:ну|вот|то есть|кстати|короче|в общем|значит|наверное|кажется|видимо)\s*,", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"^\s*(?:ну|вот|то есть|кстати|короче|в общем|значит|наверное|кажется|видимо|допустим|точнее|например|скажем так|может|возможно|конечно|в принципе|по-моему|грубо говоря)\s*,", RegexOptions.IgnoreCase)]
     private static partial Regex IntroWord();
+
+    // An introductory word before the hesitation keeps its comma: "Так, напомню, а-а, у нас" (owner, 03.11).
+    // "То есть, э-э, соберём" stays "То есть соберём": no comma after "то есть" opening a sentence.
+    [GeneratedRegex(@"(?:^|[\s,])(?:во-первых|во-вторых|в-третьих|короче|кстати|наверное|отлично|понял|напомню|точнее|допустим|например|в общем|в принципе|конечно|кажется|видимо|возможно)\s*$", RegexOptions.IgnoreCase)]
+    private static partial Regex IntroBefore();
+
+    // A word that starts a new part of the phrase: "ролик, а-а, я посмотрю", "подумаем, а-а, как эту песенку"; only when
+    // the part before has a verb or opens with "если", "пока"…: "А в итоге, э-э, я нажал" stays "А в итоге я нажал".
+    private static readonly string[] ClauseStarts = ["я", "ты", "мы", "вы", "он", "она", "они", "как", "почему", "зачем", "куда", "откуда", "а"];
+
+    [GeneratedRegex(@"[^.!?…,;:]*$")] private static partial Regex LastPart();
+    [GeneratedRegex(@"^\s*(?:(?:а|и|но|ну)\s+)?(?:если|когда|пока|хотя|раз|чтобы)(?![\p{L}-])", RegexOptions.IgnoreCase)] private static partial Regex OpensClause();
+    [GeneratedRegex(@"^\p{L}{2,}(?:ем|ём|им|ешь|ёшь|ишь|ет|ёт|ит|ут|ют|ят|ете|ёте|ите|аю|яю|ею)(?:сь|ся)?$")] private static partial Regex PresentVerbLike();
+    [GeneratedRegex(@"^\s*(?:хотя|как)\s+бы(?![\p{L}-])", RegexOptions.IgnoreCase)] private static partial Regex ParticleBy();
+    [GeneratedRegex(@"[\p{L}-]+")] private static partial Regex AnyWord();
+
+    private static bool HasVerb(string part) =>
+        OpensClause().IsMatch(part) || AnyWord().Matches(part).Select(w => w.Value.ToLowerInvariant())
+            .Any(w => w != "есть" && (VerbLike().IsMatch(w) || PresentVerbLike().IsMatch(w)));
+
+    // ...but not right after a word that cannot end a part of the phrase: "что, а-а, мы сделали" → "что мы сделали".
+    private static readonly string[] Joiners =
+    [
+        "что", "чтобы", "если", "когда", "и", "а", "но", "или", "как", "где", "потому", "хотя", "же", "ли", "бы", "не",
+        "в", "во", "на", "с", "со", "у", "к", "по", "от", "до", "из", "за", "о", "об", "про", "для", "без", "при", "через",
+    ];
     [GeneratedRegex(@"(?<=[.!?…])\s*(?:\.{3}|…)(?=\s|$)")] private static partial Regex EllipsisAfterEnd();
     [GeneratedRegex(@"(?:^|[.!?…])\s*(?<word>[\p{L}']+)\s*$")] private static partial Regex WordBefore();
     [GeneratedRegex(@"(?<word>[\p{L}']+)\s*$")] private static partial Regex LastWord();
@@ -284,11 +312,12 @@ public static partial class Fillers
     /// The comma stays where the phrase needs it without the hesitation: before an introductory word
     /// ("словарь, э-э, ну, не факт"), after "Так" opening a sentence, after "слушай" or "смотри" anywhere
     /// ("Так, смотри, а-а, появились"), before "если", "когда", "но", "то есть"… and between two verbs
-    /// ("записывал, а-а, появились").
+    /// ("записывал, а-а, появились"); after "во-первых", "напомню" and other introductory words, and before a new part
+    /// of the phrase ("ролик, а-а, я посмотрю", "подумаем, а-а, как"), owner's history 04.11.
     /// </summary>
     private static bool KeepsComma(string before, string after)
     {
-        if (IntroWord().IsMatch(after) || ThatIs().IsMatch(after))
+        if (IntroWord().IsMatch(after) || ThatIs().IsMatch(after) || IntroBefore().IsMatch(before))
         {
             return true;
         }
@@ -296,8 +325,11 @@ public static partial class Fillers
         var next = FirstWord().Match(after).Groups["word"].Value.ToLowerInvariant();
         var opening = WordBefore().Match(before).Groups["word"].Value.ToLowerInvariant();
         var previous = LastWord().Match(before).Groups["word"].Value.ToLowerInvariant();
-        return OpeningWords.Contains(opening) || Appeals.Contains(previous) || Conjunctions.Contains(next)
-            || (VerbLike().IsMatch(previous) && VerbLike().IsMatch(next));
+        // "хотя бы", "как бы" are particles: "планирую, а-а, хотя бы 200" → "планирую хотя бы 200".
+        var particle = ParticleBy().IsMatch(after);
+        return OpeningWords.Contains(opening) || Appeals.Contains(previous) || (Conjunctions.Contains(next) && !particle)
+            || (VerbLike().IsMatch(previous) && VerbLike().IsMatch(next))
+            || (ClauseStarts.Contains(next) && !particle && !Joiners.Contains(previous) && HasVerb(LastPart().Match(before).Value));
     }
 
     public static string Remove(string text)
