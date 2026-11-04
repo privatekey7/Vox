@@ -18,13 +18,13 @@ public static partial class ClaudeNames
 
     private const string Lead =
         @"(?<![\p{L}\p{Nd}-])(?<!(?:" + Before + @")\s+)" +
-        @"(?:(?<in>клаудн|клауден|клаудан|клаудин)\s+(?:хром[а-я]*|chrome)" +
+        @"(?:(?<in>клаудн|клауден|клаудан|клаудин|клоден|клодин|клоудин)\s*(?:хром[а-я]*|chrome)" +
         @"|(?<code>клоудкоз[а-я]*|клоудкод[а-я]*|клаудкод[а-я]*|клотко[а-я]*)|";
 
     // GigaAM's Latin spellings of "Claude in Chrome" (owner's live test): "Clouding chrome", "Clodenchom"; and in the
-    // owner's history (03.11): "Cloding Hrome", "Cloden Chrom".
+    // owner's history (03.11): "Cloding Hrome", "Cloden Chrom"; owner's check 04.11: glued "Cloudenchrom", "Hrom".
     private const string LatinLead = Lead +
-        @"(?<in>clouding|clouden|cloudin|cloding|clodin|cloden)\s+(?:chrome|chrom|hrome|home|хром[а-я]*)|(?<in>clodenchom|cloudinchrome)|";
+        @"(?<in>clouding|clouden|cloudin|cloding|clodin|cloden)\s*(?:chrome|chrom|hrome|hrom|home|хром[а-я]*)|(?<in>clodenchom)|";
 
     private const string Tail =
         @"(?:а|у|ом|е|ы)?(?![\p{L}\p{Nd}-])(?!\s+(?:" + After + @")(?![\p{L}]))" +

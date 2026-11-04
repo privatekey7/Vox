@@ -123,6 +123,10 @@ public class FillersTests
     // Owner (02.11, 04.11): the "..." of a hesitation the owner went on from is the hesitation's; he deleted it by hand.
     [InlineData("Так, и давай добавим э-э-э...", "Так, и давай добавим")]
     [InlineData("Я замечал, что есть такой момент, э-э-э...", "Я замечал, что есть такой момент")]
+    // Owner's check 04.11: the model wrote the hesitation as a sentence of its own, "добавим.." was left.
+    [InlineData("Так и добавим. Э-э-э.", "Так и добавим.")]
+    [InlineData("Так и добавим. Э-э-э?", "Так и добавим.")]
+    [InlineData("Что?! Э-э, ладно", "Что?! Ладно")]
     public void Remove_strips_hesitation_sounds_only(string text, string expected) =>
         Assert.Equal(expected, Fillers.Remove(text));
 }

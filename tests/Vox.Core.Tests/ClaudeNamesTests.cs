@@ -27,6 +27,11 @@ public sealed class ClaudeNamesTests
     [InlineData("используй браузер Cloding Hrome.", "используй браузер Claude in Chrome.")]
     [InlineData("зайди через Cloding Chrome и", "зайди через Claude in Chrome и")]
     [InlineData("в Telegram через Cloden Chrom и поищи", "в Telegram через Claude in Chrome и поищи")]
+    // Owner's check 04.11: glued, "Hrom", and in Cyrillic.
+    [InlineData("Зайди через Cloudenchrom и проверь.", "Зайди через Claude in Chrome и проверь.")]
+    [InlineData("Зайди через Clouding Hrom и проверь.", "Зайди через Claude in Chrome и проверь.")]
+    [InlineData("Клоден Хром.", "Claude in Chrome.")]
+    [InlineData("через клоденхром", "через Claude in Chrome")]
     [InlineData("Открой Cloud& chrome.", "Открой Claude in Chrome.")]
     [InlineData("Cloud Opus четыре и пять.", "Claude Opus 4.5.")]
     public void Russian_model_cloud_is_claude(string raw, string expected) => Assert.Equal(expected, Ru(raw));

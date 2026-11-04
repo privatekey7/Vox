@@ -264,7 +264,8 @@ public static partial class Fillers
         "что", "чтобы", "если", "когда", "и", "а", "но", "или", "как", "где", "потому", "хотя", "же", "ли", "бы", "не",
         "в", "во", "на", "с", "со", "у", "к", "по", "от", "до", "из", "за", "о", "об", "про", "для", "без", "при", "через",
     ];
-    [GeneratedRegex(@"(?<=[.!?…])\s*(?:\.{3}|…)(?=\s|$)")] private static partial Regex EllipsisAfterEnd();
+    // What a hesitation sentence leaves after a sentence end: "Угу. А-а-а... Как бы", "добавим. Э-э-э." (owner, 04.11).
+    [GeneratedRegex(@"(?<=[.!?…])(?:\s*(?:\.{3}|…)|\s+[.!?]+)(?=\s|$)")] private static partial Regex EllipsisAfterEnd();
     [GeneratedRegex(@"(?:^|[.!?…])\s*(?<word>[\p{L}']+)\s*$")] private static partial Regex WordBefore();
     [GeneratedRegex(@"(?<word>[\p{L}']+)\s*$")] private static partial Regex LastWord();
     [GeneratedRegex(@"^\s*(?<word>[\p{L}']+)")] private static partial Regex FirstWord();
