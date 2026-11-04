@@ -404,10 +404,30 @@ public static partial class MixedScript
         ['я'] = "ya",
     };
 
+    // Latin letters drawn exactly like Cyrillic ones: "бaза" with a Latin "a" is "база".
+    private static readonly Dictionary<char, char> Twins = new()
+    {
+        ['a'] = 'а', ['c'] = 'с', ['e'] = 'е', ['k'] = 'к', ['o'] = 'о', ['p'] = 'р', ['x'] = 'х', ['y'] = 'у',
+        ['A'] = 'А', ['B'] = 'В', ['C'] = 'С', ['E'] = 'Е', ['H'] = 'Н', ['K'] = 'К', ['M'] = 'М', ['O'] = 'О',
+        ['P'] = 'Р', ['T'] = 'Т', ['X'] = 'Х', ['Y'] = 'У',
+    };
+
+    // A Latin prefix the model glues to a Russian word: "Geofайлах" is "геофайлах".
+    private static readonly Dictionary<string, string> Prefixes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["geo"] = "гео", ["auto"] = "авто", ["foto"] = "фото", ["photo"] = "фото", ["video"] = "видео",
+        ["audio"] = "аудио", ["micro"] = "микро", ["macro"] = "макро", ["mega"] = "мега", ["giga"] = "гига",
+        ["cyber"] = "кибер", ["crypto"] = "крипто", ["nano"] = "нано", ["eco"] = "эко", ["bio"] = "био",
+        ["tele"] = "теле", ["radio"] = "радио", ["media"] = "медиа", ["multi"] = "мульти", ["mini"] = "мини",
+        ["super"] = "супер", ["ultra"] = "ультра", ["anti"] = "анти", ["neo"] = "нео", ["mono"] = "моно",
+        ["stereo"] = "стерео", ["aero"] = "аэро", ["astro"] = "астро", ["hydro"] = "гидро", ["electro"] = "электро",
+        ["meta"] = "мета", ["info"] = "инфо", ["techno"] = "техно",
+    };
+
     public static string Fix(string text) => Word().Replace(text, m =>
     {
         var word = m.Value;
-        if (!word.Any(IsCyrillic) || !word.Any(c => c is >= 'a' and <= 'z' or >= 'A' and <= 'Z'))
+        if (!word.Any(IsCyrillic) || !word.Any(IsLatin))
         {
             return word;
         }
@@ -426,8 +446,40 @@ public static partial class MixedScript
             }
         }
 
-        return word;
+        return Prefixed(word, IsSentenceStart(text, m.Index)) ?? Twinned(word) ?? word;
     });
+
+    private static bool IsLatin(char c) => c is >= 'a' and <= 'z' or >= 'A' and <= 'Z';
+
+    private static string? Prefixed(string word, bool sentenceStart)
+    {
+        var (latin, prefix) = Prefixes.FirstOrDefault(p => word.StartsWith(p.Key, StringComparison.OrdinalIgnoreCase));
+        var tail = latin is null ? null : word[latin.Length..];
+        if (tail is null || tail.Length < 3 || Cyrillic(tail) is not { } russian)
+        {
+            return null;
+        }
+
+        var result = prefix + russian;
+        return sentenceStart ? char.ToUpperInvariant(result[0]) + result[1..] : result;
+    }
+
+    private static string? Twinned(string word)
+    {
+        var latin = word.Count(IsLatin);
+        if (word.Count(IsCyrillic) <= latin || !word.Where(IsLatin).All(Twins.ContainsKey))
+        {
+            return null;
+        }
+
+        return string.Concat(word.Select(c => Twins.TryGetValue(c, out var twin) ? twin : c));
+    }
+
+    private static bool IsSentenceStart(string text, int index)
+    {
+        var before = text.AsSpan(0, index).TrimEnd();
+        return before.IsEmpty || ".!?…".Contains(before[^1]);
+    }
 
     private static bool IsCyrillic(char c) => c is >= 'а' and <= 'я' or >= 'А' and <= 'Я' or 'ё' or 'Ё';
 

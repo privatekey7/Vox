@@ -363,7 +363,7 @@ public class ScreenNamesTests
     [InlineData("Запусти VM Studio.", "Запусти LM Studio.")]
     [InlineData("Картинки в меджорни и мид джорни.", "Картинки в Midjourney и Midjourney.")]
     [InlineData("Подключи MCR сервер и настрой MCB сервера.", "Подключи MCP-сервер и настрой MCP-сервера.")]
-    [InlineData("Новые индoint-ы, Dockerе и GitHubе, бaза.", "Новые эндпоинт-ы, Docker и GitHubе, бaза.")] // an unknown mix stays
+    [InlineData("Новые индoint-ы, Dockerе и GitHubе, бaза.", "Новые эндпоинт-ы, Docker и GitHubе, база.")] // an unknown mix stays, a Latin twin letter is read
     [InlineData("Пишу в lode Code и лод код.", "Пишу в Claude Code и Claude Code.")]
     [InlineData("Запиши в ОБС, смонтируй в да винчи резолв.", "Запиши в OBS, смонтируй в DaVinci Resolve.")]
     [InlineData("Подключись к Сити арбитру.", "Подключись к сети Arbitrum.")]

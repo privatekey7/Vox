@@ -332,3 +332,29 @@ public class QuestionMarksTests
     public void Gigaam_dictation_gets_the_question_mark() =>
         Assert.Equal(" Есть ли доступ к этой видеокарте?", new PostProcessor(Vox.Core.Models.ModelCatalog.GigaAm).Process("Есть ли доступ к этой видеокарте."));
 }
+
+/// <summary>Owner's log 04.11: GigaAM wrote "Geofайлах"; history has "дескoп" and "бaза" with a Latin letter.</summary>
+public class MixedScriptTests
+{
+    [Theory]
+    [InlineData("Мне кажется, его нет в Geofайлах.", "Мне кажется, его нет в геофайлах.")]
+    [InlineData("Geofайлы скачались.", "Геофайлы скачались.")]
+    [InlineData("Это бывает. Videoкурс готов.", "Это бывает. Видеокурс готов.")]
+    [InlineData("Купи AUTOзапчасти и microнаушники.", "Купи автозапчасти и микронаушники.")]
+    [InlineData("Где cryptoкошелёк?", "Где криптокошелёк?")]
+    [InlineData("Открой дескoп.", "Открой дескоп.")]
+    [InlineData("Вся бaза на месте.", "Вся база на месте.")]
+    [InlineData("Сделай ПОРТ и CЕТЬ.", "Сделай ПОРТ и СЕТЬ.")]
+    public void Mixed_word_is_read_in_one_alphabet(string raw, string expected) => Assert.Equal(expected, MixedScript.Fix(raw));
+
+    [Theory]
+    [InlineData("Модели LMки.")]
+    [InlineData("Нужен geoа.")] // too short a tail to be a word
+    [InlineData("Это вI.")] // "I" has no Cyrillic twin
+    [InlineData("Купи PCы.")] // more Latin than Cyrillic: a Latin word with an ending
+    [InlineData("Это Bluetootу.")]
+    [InlineData("Это geolocation и Geoside.")]
+    [InlineData("Это OKей.")] // as many Latin letters as Cyrillic
+    [InlineData("Это бриксat.")] // "t" has no Cyrillic twin
+    public void Other_mixes_stay(string raw) => Assert.Equal(raw, MixedScript.Fix(raw));
+}
