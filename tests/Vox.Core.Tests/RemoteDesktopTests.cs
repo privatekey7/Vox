@@ -22,6 +22,26 @@ public sealed class RemoteDesktopTests
     [Theory]
     [InlineData("rustdesk")]
     [InlineData("RustDesk")]
+    [InlineData("AnyDesk")]
+    [InlineData("mstsc")]
+    [InlineData("TeamViewer")]
+    public void A_remote_desktop_window_takes_the_keyboard_hook_back(string process)
+    {
+        // Vox started before RustDesk (after a reboot): RustDesk's hook ran first and kept the hotkey (owner, 08.11).
+        Assert.True(Hotkeys.GrabsKeyboard(process));
+    }
+
+    [Theory]
+    [InlineData("claude")]
+    [InlineData("chrome")]
+    [InlineData("explorer")]
+    [InlineData("?")]
+    public void Other_windows_leave_the_hook_alone(string process) =>
+        Assert.False(Hotkeys.GrabsKeyboard(process));
+
+    [Theory]
+    [InlineData("rustdesk")]
+    [InlineData("RustDesk")]
     public void A_paste_into_RustDesk_waits_for_its_clipboard_sync(string process)
     {
         // RustDesk sends the clipboard every 333 ms (CLIPBOARD_INTERVAL) but Ctrl+V at once: Ctrl+V reached

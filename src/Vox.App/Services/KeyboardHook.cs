@@ -36,10 +36,20 @@ internal sealed class KeyboardHook : IDisposable
     private long _lastEventTick = Environment.TickCount64;
     private readonly Timer _watchdog;
 
+    // A remote desktop window came to the front: its client may install its own hook as it takes the keyboard,
+    // so Vox's goes back on top a moment later (Hotkeys.GrabsKeyboard).
+    private static readonly TimeSpan RetakeAfter = TimeSpan.FromMilliseconds(300);
+    private readonly Native.WinEventProc _foregroundProc; // kept alive: the OS holds only a pointer
+    private readonly Timer _retake;
+    private nint _foregroundHook;
+    private nint _foregroundWindow;
+
     public KeyboardHook(int hotkeyVirtualKey)
     {
         _hotkeyVk = hotkeyVirtualKey;
         _proc = Callback;
+        _foregroundProc = ForegroundChanged;
+        _retake = new Timer(_ => RetakeIfGrabbed());
         var started = new ManualResetEventSlim();
         _thread = new Thread(() => Run(started)) { IsBackground = true, Name = "VoxKeyboardHook" };
         _thread.Start();
@@ -63,6 +73,7 @@ internal sealed class KeyboardHook : IDisposable
     public void Dispose()
     {
         _watchdog.Dispose();
+        _retake.Dispose();
         Native.PostThreadMessageW(_threadId, Native.WM_QUIT, 0, 0);
         _thread.Join(TimeSpan.FromSeconds(2));
         _events.CompleteAdding();
@@ -72,18 +83,45 @@ internal sealed class KeyboardHook : IDisposable
     {
         _threadId = Native.GetCurrentThreadId();
         Install();
+        _foregroundHook = Native.SetWinEventHook(Native.EVENT_SYSTEM_FOREGROUND, Native.EVENT_SYSTEM_FOREGROUND, 0,
+            _foregroundProc, 0, 0, Native.WINEVENT_OUTOFCONTEXT | Native.WINEVENT_SKIPOWNPROCESS);
         started.Set();
         while (Native.GetMessageW(out var msg, 0, 0, 0) > 0)
         {
             // Low-level hooks are dispatched by this message loop; the watchdog may ask to reinstall.
             if (msg.message == Native.WM_APP)
             {
+                if (_hotkeyDown)
+                {
+                    // Reinstalling now could lose the key-up and leave a recording running: once it is released.
+                    _retake.Change(RetakeAfter, Timeout.InfiniteTimeSpan);
+                    continue;
+                }
+
                 Native.UnhookWindowsHookEx(_hook);
                 Install();
             }
         }
 
+        Native.UnhookWinEvent(_foregroundHook);
         Native.UnhookWindowsHookEx(_hook);
+    }
+
+    // Runs on the hook thread, so it only notes the window: the process lookup would delay key events.
+    private void ForegroundChanged(nint hook, uint eventType, nint hwnd, int idObject, int idChild, uint thread, uint time)
+    {
+        Volatile.Write(ref _foregroundWindow, hwnd);
+        _retake.Change(RetakeAfter, Timeout.InfiniteTimeSpan);
+    }
+
+    private void RetakeIfGrabbed()
+    {
+        var process = Native.WindowProcessName(Volatile.Read(ref _foregroundWindow));
+        if (Hotkeys.GrabsKeyboard(process))
+        {
+            Log.Info($"[HOOK] {process} in front: installing the hook again, above its own");
+            Native.PostThreadMessageW(_threadId, Native.WM_APP, 0, 0);
+        }
     }
 
     private void Install()

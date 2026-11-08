@@ -272,6 +272,19 @@ public static class Hotkeys
     /// </summary>
     public static bool IsFromRemoteControl(nint extraInfo) => extraInfo == RustDeskInputMarker;
 
+    private static readonly HashSet<string> KeyboardGrabbers = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "rustdesk", "anydesk", "mstsc", "teamviewer",
+    };
+
+    /// <summary>
+    /// A remote desktop client that sends the keyboard to the other computer through its own low-level hook. Windows
+    /// calls the newest hook first, so one installed after Vox's kept the hotkey from it (Vox started first after a
+    /// reboot, owner 08.11): Vox installs its hook again when such a window comes to the front.
+    /// </summary>
+    /// <param name="process">The process name, as the log shows it ("rustdesk").</param>
+    public static bool GrabsKeyboard(string process) => KeyboardGrabbers.Contains(process);
+
     /// <summary>
     /// Ctrl+S, the user's "remember this fix" (owner, 23.10). Only Ctrl: Ctrl+Shift+S, Ctrl+Alt+S
     /// (AltGr is Ctrl+Alt) and Win combinations are other shortcuts.
