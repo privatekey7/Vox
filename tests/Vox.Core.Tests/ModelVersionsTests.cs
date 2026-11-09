@@ -33,6 +33,12 @@ public sealed class ModelVersionsTests
     [InlineData("клод опус пять пять", "Claude Opus 5.5")]
     // Owner's live dictation (GigaAM).
     [InlineData("на опусе версии 5.5", "на Opus 5.5")]
+    // Owner's log 09.11: the model glues a preposition to "опус" ("сравнить с Опус 5.5" → "сравнить Сопус 5 и пять").
+    [InlineData("сравнить Сопус 5 и пять", "сравнить с Opus 5.5")]
+    [InlineData("сравнить сопус пять и пять", "сравнить с Opus 5.5")]
+    [InlineData("Сопус 4.5 работает", "С Opus 4.5 работает")]
+    [InlineData("перейти копусу 4.5", "перейти к Opus 4.5")]
+    [InlineData("работать вопусе 4.5", "работать в Opus 4.5")]
     [InlineData("GPT версии 5", "GPT-5")]
     [InlineData("GPT Mage 2.5", "GPT Image 2.5")]
     [InlineData("GTA Шесть", "GTA 6")]
@@ -48,6 +54,9 @@ public sealed class ModelVersionsTests
     [InlineData("дипсик в 3 раза быстрее", "DeepSeek в 3 раза быстрее")] // "в" is a preposition
     [InlineData("клод восемнадцать плюс", "Claude восемнадцать плюс")] // regression (owner's log): not a version
     [InlineData("клод 4 тоже", "Claude 4 тоже")]
+    [InlineData("сравнить Сопус без версии", "сравнить Сопус без версии")] // glued only before a version
+    [InlineData("сопус 66", "сопус 66")]
+    [InlineData("скопус 5 и пять", "скопус 5 и пять")]
     public void Ordinary_words_and_prepositions_stay(string spoken, string expected) =>
         Assert.Equal(expected, ModelVersions.Apply(Terms.Replace(spoken)));
 
@@ -77,6 +86,7 @@ public sealed class ModelVersionsTests
     [InlineData("Claude опуск пять и пять.", " Claude Opus 5.5.")]
     [InlineData("Клодопус 5,5 лучше.", " Claude Opus 5.5 лучше.")]
     [InlineData("Опуск 5 и пять.", " Opus 5.5.")]
+    [InlineData("Ну, если, например, сравнить Сопус 5 и пять.", " Ну, если, например, сравнить с Opus 5.5.")]
     [InlineData("Цена 5,5 рубля.", " Цена 5,5 рубля.")] // an ordinary number stays
     [InlineData("Фронтент и фронтанд.", " Фронтенд и фронтенд.")]
     [InlineData("Это Frount End.", " Это фронтенд.")] // the model's Latin capital is not kept mid-sentence
