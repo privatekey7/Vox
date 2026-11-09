@@ -101,6 +101,12 @@ public sealed partial class TermsDictionaryTests
     [InlineData("Зайди в биуз и включи эксэмпи.", "Зайди в BIOS и включи XMP.")]
     [InlineData("Проверь PIN до сервера.", "Проверь пинг до сервера.")]
     [InlineData("Колонка от Джибель и от GBL.", "Колонка от JBL и от JBL.")]
+    // Owner's log 09.11: the plugin Frontend Design in Latin; said in Russian it stays "фронтенд-дизайн".
+    [InlineData("Это и есть плагин Fronten Design.", "Это и есть плагин Frontend Design.")]
+    [InlineData("Скиллы, типа Agent Skills, Frount and design и Grill Me.", "Скиллы, типа Agent Skills, Frontend Design и Grill Me.")]
+    [InlineData("Смотри, если попробовать Skill Fronten Design.", "Смотри, если попробовать Skill Frontend Design.")]
+    [InlineData("Поставь frontend-design.", "Поставь Frontend Design.")]
+    [InlineData("Допустим, фронтенд дизайн сайта.", "Допустим, фронтенд-дизайн сайта.")]
     [InlineData("Это коммент в коде, а не коммит; пин до утра.", "Это коммент в коде, а не коммит; пин до утра.")]
     public void Recorded_model_spellings_of_terms(string raw, string expected)
     {
