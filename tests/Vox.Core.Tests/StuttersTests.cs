@@ -17,7 +17,9 @@ public class StuttersTests
     [InlineData("Су-шустрая модель.", "Шустрая модель.")]
     [InlineData("Это за-жаркий день.", "Это жаркий день.")]
     [InlineData("Сделай э-э-это сейчас.", "Сделай это сейчас.")]
-    [InlineData("Дай мне, мне тоже.", "Дай мне тоже.")]
+    [InlineData("Мне, мне кажется, да.", "Мне кажется, да.")]
+    [InlineData("Это так. Ну, ну вот.", "Это так. Ну вот.")]
+    [InlineData("Дай мне мне тоже.", "Дай мне тоже.")]
     [InlineData("Я думаю, что что-то сломалось.", "Я думаю, что что-то сломалось.")]
     [InlineData("Он сказал, что что он придёт.", "Он сказал, что он придёт.")]
     [InlineData("Но, но это не так.", "Но это не так.")]
@@ -38,6 +40,8 @@ public class StuttersTests
     [InlineData("Вот, вот, смотри. Да, да, так, так.")] // repeats said on purpose
     [InlineData("Сделал, сделал и было, было.")]
     [InlineData("Это C плюс плюс.")]
+    [InlineData("Подскажи мне, мне кажется, ты прав.")] // mid-sentence a comma parts two clauses
+    [InlineData("Нужен аккаунт Про, Про который.")] // a name, not a preposition
     [InlineData("В-ноль и й-базе.")]
     [InlineData("Пол-яблока, кое-что, из-под стола.")]
     public void Other_words_stay(string raw) => Assert.Equal(raw, Stutters.Remove(raw));

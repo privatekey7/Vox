@@ -4,7 +4,7 @@ namespace Vox.Core.Text;
 
 /// <summary>
 /// Turns raw model output into the text that is pasted:
-/// &lt;unk&gt; → glued "в" → user dictionary → Claude → mixed alphabets → terms → phonetic terms → model versions → file extensions → key shortcuts → fillers → ITN (if the model needs it)
+/// &lt;unk&gt; → glued "в" → user dictionary → Claude → mixed alphabets → terms → phonetic terms → model versions → file extensions → key shortcuts → stutters → fillers → ITN (if the model needs it)
 /// → dashes → currency sign spacing → ruble sign → "and" as "и" → question marks → sentence spacing
 /// → one leading space.
 /// </summary>
@@ -45,6 +45,7 @@ public sealed class PostProcessor(SpeechModel model)
         text = ModelVersions.Apply(text);
         text = FileExtensions.Apply(text);
         text = KeyCombos.Apply(text);
+        text = Stutters.Remove(text);
         text = Fillers.Remove(text);
         if (model.NeedsItn)
         {
