@@ -5,7 +5,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageVersion Include="org.k2fsa.sherpa.onnx" Version="1.13.8" />
-    <PackageVersion Include="Microsoft.Data.Sqlite.Core" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.Data.Sqlite.Core" Version="10.0.14" />
     <!-- Explicit: the transitive 2.1.11 has GHSA-2m69-gcr7-jv3q. -->
     <PackageVersion Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.5" />
     <PackageVersion Include="NAudio.Wasapi" Version="3.1.0" />
