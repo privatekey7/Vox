@@ -5,7 +5,8 @@ namespace Vox.Core.Text;
 /// <summary>
 /// AI model names with versions, after <see cref="Terms"/>: "Claude Opus четыре и пять" → "Claude Opus 4.5",
 /// "GPT пять" → "GPT-5", "Gemini 2,5 про." → "Gemini 2.5 Pro.", "DeepSeek эр один" → "DeepSeek R1".
-/// Works on number words (Parakeet before ITN) and digits (GigaAM) alike.
+/// Works on number words (Parakeet before ITN) and digits (GigaAM) alike. A preposition glued to the name is split
+/// off: "сравнить Сопус 5 и пять" → "сравнить с Opus 5.5".
 /// </summary>
 public static partial class ModelVersions
 {
@@ -75,7 +76,8 @@ public static partial class ModelVersions
         var number = @"\d+|" + string.Join('|', Numbers.Keys.OrderByDescending(k => k.Length));
         var digit = @"\d(?!\d)|" + string.Join('|', Numbers.Where(n => n.Value < 10).Select(n => n.Key).OrderByDescending(k => k.Length));
         return new Regex(
-            $@"(?<![\p{{L}}\p{{Nd}}-])(?<name>{names})(?:\s+верси(?:и|я|ю|ей))?(?:\s+|-|(?=\d))(?:(?<pre>{prefixes})\s*)?(?<major>{number})" +
+            // A preposition the model glues to a name starting with a vowel: "Сопус 5 и пять" is "с Опус 5 и пять".
+            $@"(?<![\p{{L}}\p{{Nd}}-])(?:(?<glued>[свкСВК])(?=[аеиоуэАЕИОУЭ]))?(?<name>{names})(?:\s+верси(?:и|я|ю|ей))?(?:\s+|-|(?=\d))(?:(?<pre>{prefixes})\s*)?(?<major>{number})" +
             // "четыре и пять", "4.5", "4,5" — or "два пять" (owner's corpus): a single digit after a space.
             $@"(?:(?:\s+и\s+|\s*(?:\.|точка)\s*|,)(?<minor>{number})|\s+(?<minor>{digit}))?(?![\p{{L}}\p{{Nd}}])" +
             $@"(?:\s*(?<suffix>{suffixes})(?![\p{{L}}\p{{Nd}}]))?",
@@ -115,10 +117,23 @@ public static partial class ModelVersions
             return m.Value;
         }
 
-        var result = brand.Name + brand.Join + prefix + Number(m.Groups["major"].Value)
+        var result = Glued(m, text) + brand.Name + brand.Join + prefix + Number(m.Groups["major"].Value)
             + (minor.Success ? "." + Number(minor.Value) : "");
         var versionEnd = minor.Success ? minor.Index + minor.Length : m.Groups["major"].Index + m.Groups["major"].Length;
         return suffix is not null ? result + suffix : result + text[versionEnd..(m.Index + m.Length)];
+    }
+
+    // The glued preposition on its own, a capital only at a sentence start: "сравнить Сопус 5.5" → "сравнить с Opus 5.5".
+    private static string Glued(Match m, string text)
+    {
+        if (!m.Groups["glued"].Success)
+        {
+            return "";
+        }
+
+        var before = text.AsSpan(0, m.Index).TrimEnd();
+        var preposition = m.Groups["glued"].Value;
+        return (before.IsEmpty || ".!?…".Contains(before[^1]) ? preposition.ToUpperInvariant() : preposition.ToLowerInvariant()) + " ";
     }
 
     private static bool EndsPhrase(string text, int from)
