@@ -306,6 +306,15 @@ public sealed partial class FuzzyTerms
     /// <summary>Ordinary English words only ("Visual Studio"): a term on screen is still a name (<see cref="ScreenWords.Extract"/>).</summary>
     public static bool IsEnglishName(string words) => words.Split(' ').All(Default.Value.IsEnglish);
 
+    /// <summary>A frequent English word that is no term: "rock", "dragons"; not "Python" (a term) or "vox" (rare).</summary>
+    public static bool IsPlainEnglish(string word)
+    {
+        var fuzzy = Default.Value;
+        return !fuzzy._termWords.Contains(word) && fuzzy._english.TryGetValue(word.ToLowerInvariant(), out var level) && level <= PlainLevel;
+    }
+
+    private const int PlainLevel = 35; // SCOWL: 10-35 are the words in small dictionaries
+
     public bool IsKnown(string word) => _termWords.Contains(word) || word.Split(' ').All(IsEnglish);
 
     /// <summary>Is this an ordinary English word ("water"; "well-known": every part)?</summary>

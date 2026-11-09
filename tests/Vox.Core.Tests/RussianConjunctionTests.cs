@@ -16,6 +16,7 @@ public class RussianConjunctionTests
     [InlineData("Вот он снова пишет and and вместо i.", "Вот он снова пишет и вместо и.")]
     [InlineData("Я сказал Python and C#.", "Я сказал Python и C#.")]
     [InlineData("Сравни Python and Rust.", "Сравни Python и Rust.")]
+    [InlineData("Надо чётко сказать: Python and& C#.", "Надо чётко сказать: Python и C#.")]
     [InlineData("Поставь Node.js and React на сервер.", "Поставь Node.js и React на сервер.")]
     [InlineData("Это Tom and Jerry.", "Это Tom и Jerry.")]
     [InlineData("Сравни Handy, and, and Vox.", "Сравни Handy и Vox.")]
