@@ -39,6 +39,7 @@ public static partial class Terms
             for (var n = Math.Min(maxWords, words.Count - i); n >= 1 && matched == 0; n--)
             {
                 if (Phrase(text, words, i, n) is { } key && Lookup(phrases, key, text, words[i + n - 1]) is { } entry
+                    && (!HasLatin(key) || LatinFits(text, key, words[i].Index, words[i + n - 1].Index + words[i + n - 1].Length))
                     && Replacement(entry, words[i].Value, StartsSentence(text, words[i].Index)) is { } replacement)
                 {
                     result.Append(text, copied, words[i].Index - copied).Append(replacement);
@@ -88,6 +89,23 @@ public static partial class Terms
         }
 
         return end == at ? 0 : end - index;
+    }
+
+    // A Latin source stays in an address or a file name ("github.com", "docker-compose.yml"). A common English word
+    // ("go", "unity") is a term in Russian speech, not in English: "Пиши на go", but "Let's go home". A phrase of
+    // them ("clod cod") is the model's spelling of the term in any speech.
+    private static bool LatinFits(string text, string key, int start, int end) =>
+        !(start > 0 && text[start - 1] is '.' or '/' or '\\' or '@' or '_' or '-')
+        && !(end < text.Length && (text[end] is '/' or '\\' or '@' or '_'
+            || (text[end] is '.' or '-' && end + 1 < text.Length && char.IsLetterOrDigit(text[end + 1]))))
+        && (key.Contains(' ', StringComparison.Ordinal) || !FuzzyTerms.IsCommonEnglish(key) || CyrillicSentence(text, start));
+
+    private static bool CyrillicSentence(string text, int index)
+    {
+        var start = text.LastIndexOfAny(['.', '!', '?', '…'], Math.Max(index - 1, 0)) + 1;
+        var end = text.IndexOfAny(['.', '!', '?', '…'], index);
+        return text.AsSpan(start, (end < 0 ? text.Length : end) - start).ContainsAnyInRange('а', 'я')
+            || text.AsSpan(start, (end < 0 ? text.Length : end) - start).ContainsAnyInRange('А', 'Я');
     }
 
     // Words i..i+n-1 as a lookup key, or null when they are not separated by whitespace only.
@@ -173,6 +191,25 @@ public static partial class Terms
             {
                 phrases[key] = entry;
             }
+        }
+
+        // A Latin term is its own source in any case and with a space for a hyphen: Parakeet writes "sherpa onnx",
+        // "docker" (owner's test, 10.11). Not a term in lower case: it would take the speaker's capital ("ENV" → "env").
+        var written = new Dictionary<string, string>();
+        foreach (var target in pairs.Select(p => p[1]).Distinct().Where(t => HasLatin(t) && t.Any(char.IsUpper)))
+        {
+            foreach (var key in new[] { target.ToLowerInvariant(), target.ToLowerInvariant().Replace('-', ' ') }.Distinct())
+            {
+                if (key.Length >= 3 && !phrases.ContainsKey(key) && !written.TryAdd(key, target) && written[key] != target)
+                {
+                    written[key] = ""; // two terms written alike: keep neither
+                }
+            }
+        }
+
+        foreach (var (key, target) in written.Where(w => w.Value.Length > 0))
+        {
+            phrases[key] = new Entry(target, key.Split(' ')[^1], null);
         }
 
         // A phrase is also said with hyphens: "клод-код", "клод-кода" (owner's log).

@@ -313,6 +313,10 @@ public sealed partial class FuzzyTerms
         return !fuzzy._termWords.Contains(word) && fuzzy._english.TryGetValue(word.ToLowerInvariant(), out var level) && level <= PlainLevel;
     }
 
+    /// <summary>A frequent English word, a term's word too: "go", "unity", "code"; not "docker" or "github".</summary>
+    public static bool IsCommonEnglish(string word) =>
+        Default.Value._english.TryGetValue(word.ToLowerInvariant(), out var level) && level <= PlainLevel;
+
     private const int PlainLevel = 35; // SCOWL: 10-35 are the words in small dictionaries
 
     public bool IsKnown(string word) => _termWords.Contains(word) || word.Split(' ').All(IsEnglish);
