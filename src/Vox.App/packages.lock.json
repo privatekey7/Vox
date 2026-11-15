@@ -13,11 +13,11 @@
       },
       "NAudio.Wasapi": {
         "type": "Direct",
-        "requested": "[3.1.0, )",
-        "resolved": "3.1.0",
-        "contentHash": "iTG+oBJaiID344yz84PrTiVF98av5SsuOUu7ICskcUd6f5ShHDMskG9sE4XUM05Vdlwy88bMQDDC3e+85Mv8yw==",
+        "requested": "[3.3.0, )",
+        "resolved": "3.3.0",
+        "contentHash": "wUFqmyrTHde79yzt68g/akvtVG9KDnOVFJ0Aawr07zlbwcGOQo/IWO/NTw9YJTuESl9WGgncZitx/Q7JWQaaBA==",
         "dependencies": {
-          "NAudio.Core": "3.1.0"
+          "NAudio.Core": "3.3.0"
         }
       },
       "H.GeneratedIcons.System.Drawing": {
@@ -136,8 +136,8 @@
       "NAudio.Core": {
         "type": "CentralTransitive",
         "requested": "[3.1.0, )",
-        "resolved": "3.1.0",
-        "contentHash": "8Hrd3Uqb2wEB64eZYF+0vl9xBadeSn6JnFDsHuGrw87ucJ+pB7u5NzVpHl8OlCNvIvH+sD9b2h4JOqXBuZGYwg==",
+        "resolved": "3.3.0",
+        "contentHash": "xU3f1/5jBTfdjauhcPbjo0O1Ow+PVTPnjMo0KbV7twkWRcoY3GnVmA3mbUXxAePtJ2eUbWgteHWfFjOAvGovLg==",
         "dependencies": {
           "System.Numerics.Tensors": "9.0.0"
         }
