@@ -3,7 +3,9 @@ namespace Vox.Core.Text;
 /// <summary>
 /// Learns from the user's own fixes: compares a text field right after a dictation was pasted with
 /// the same field later. If inside the dictation exactly one word was replaced by one similar-looking
-/// word ("кубернетис" → "Kubernetes"), that pair is a correction worth remembering.
+/// word ("кубернетис" → "Kubernetes"), that pair is a correction worth remembering. So is a term the model
+/// split in two or three words ("Zena Koder" → "Zencoder") and a hyphenated word written as separate words
+/// ("фронтенд-дизайн" → "Frontend Design").
 /// </summary>
 /// <remarks>
 /// Deliberately strict — learning a wrong pair is worse than missing one: several changed words,
@@ -63,25 +65,34 @@ public static class CorrectionDetector
             return (null, "not a word replacement");
         }
 
-        // The user went on typing right after (or before) the fixed word: "PPFI." → "Pipify. Дальше".
+        // The fix is one word. A hyphenated word may also become as many words as it has parts, each word like
+        // its part ("фронтенд-дизайн" → "Frontend Design"). A word unlike its part, or one after a comma or a
+        // full stop, is text the user typed on: it never gets into the pair.
+        var wrong = Phrase(old, os, oe);
+        var parts = oe - os == 1 ? wrong.Split('-') : [];
+        bool IsSplit(int from) => parts.Length is > 1 and <= MaxSplitWords && from >= ns && from + parts.Length <= ne
+            && parts.Zip(Phrase(now, from, from + parts.Length).Split(' ')).All(p => p.Second == Clean(p.Second) && LookAlike(p.First, p.Second));
+        int Width(int from) => IsSplit(from) ? parts.Length : 1;
+
+        // The user went on typing right after (or before) the fix: "PPFI." → "Pipify. Дальше".
         if (ne - ns > 1 && oe - 1 == last)
         {
-            ne = ns + 1;
+            ne = ns + Width(ns);
         }
         else if (ne - ns > 1 && os == first)
         {
-            ns = ne - 1;
+            ns = ne - Width(ne - parts.Length);
         }
 
-        if (ne - ns != 1)
+        if (ne - ns != Width(ns))
         {
             return (null, "not a word replacement");
         }
 
-        var wrong = string.Join(' ', old.Skip(os).Take(oe - os).Select(w => w.Text)).Trim(WordPunct.ToCharArray());
-        var correct = now[ns].Text.Trim(WordPunct.ToCharArray());
+        var correct = Phrase(now, ns, ne);
         (wrong, correct) = ChangedPart(wrong, correct);
-        if (wrong.Length == 0 || correct.Length == 0 || string.Equals(wrong, correct, StringComparison.OrdinalIgnoreCase))
+        if (wrong.Length == 0 || correct.Length == 0 || string.Equals(wrong, correct, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(wrong.Replace('-', ' '), correct, StringComparison.OrdinalIgnoreCase)) // "по-моему" → "по моему"
         {
             return (null, "only punctuation or case changed");
         }
@@ -143,6 +154,12 @@ public static class CorrectionDetector
 
     private static string Clip(string s) => s.Length > 40 ? s[..40] + "…" : s;
 
+    private static string Clean(string word) => word.Trim(WordPunct.ToCharArray());
+
+    // The words [from, to) as the pair keeps them: one space between, no punctuation around.
+    private static string Phrase(List<Word> words, int from, int to) =>
+        Clean(string.Join(' ', words.Skip(from).Take(to - from).Select(w => w.Text)));
+
     private static (List<Word> Old, List<Word> Now, List<Change> Changes, int First, int Last)? Changes(
         string before, string after, string inserted)
     {
@@ -183,11 +200,12 @@ public static class CorrectionDetector
         return (old, now, changes, first, last);
     }
 
-    // A hyphenated word with one part fixed: the pair is that part ("ЛМ-полировки" → "LLM-полировки" is "ЛМ" → "LLM").
+    // A hyphenated word with one part fixed: the pair is that part ("ЛМ-полировки" → "LLM-полировки" is "ЛМ" → "LLM",
+    // and so is "LLM полировки" with a space).
     private static (string Wrong, string Correct) ChangedPart(string wrong, string correct)
     {
         var a = wrong.Split('-');
-        var b = correct.Split('-');
+        var b = correct.Split('-', ' ');
         if (a.Length < 2 || a.Length != b.Length)
         {
             return (wrong, correct);
