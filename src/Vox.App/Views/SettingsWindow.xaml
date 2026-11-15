@@ -311,7 +311,11 @@
             </Grid>
           </StackPanel>
         </Border>
-        <TextBlock x:Name="VersionText" Style="{StaticResource Vox.Caption}" Margin="4,16,0,0"/>
+        <StackPanel Orientation="Horizontal" Margin="4,16,0,0">
+          <TextBlock x:Name="VersionText" Style="{StaticResource Vox.Caption}" VerticalAlignment="Center"/>
+          <Button Content="Лицензии" Style="{StaticResource Vox.LinkButton}" VerticalAlignment="Center" Margin="16,0,0,0"
+                  ToolTip="Лицензии Vox и того, из чего он собран" Click="OnOpenLicenses"/>
+        </StackPanel>
       </StackPanel>
     </ScrollViewer>
   </Grid>

@@ -20,4 +20,13 @@
     <EmbeddedResource Include="Text\Data\ru_RU.dic.gz" LogicalName="Vox.Core.ru_RU.dic.gz" />
     <EmbeddedResource Include="Text\Data\ru_RU.aff.gz" LogicalName="Vox.Core.ru_RU.aff.gz" />
   </ItemGroup>
+  <!-- License notices: copied to licenses\ next to every program that uses Vox.Core, so the installer
+       ships them with Vox.exe (Vox.Core.Licenses, Settings → «Помощь» → «Лицензии»). The files are the
+       repository's own, as .txt so that they open in Notepad. Vox.App adds the .NET ones when publishing. -->
+  <ItemGroup>
+    <Content Include="..\..\LICENSE" Link="licenses\Vox-LICENSE.txt" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\THIRD-PARTY-NOTICES.txt" Link="licenses\THIRD-PARTY-NOTICES.txt" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Text\Data\*.LICENSE.md" Link="licenses\%(Filename).txt" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\Vox.App\Assets\Fonts\OFL-GolosText.txt" Link="licenses\OFL-GolosText.txt" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

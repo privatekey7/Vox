@@ -614,6 +614,22 @@ public partial class SettingsWindow : Window
 
     private void OnOpenModels(object sender, RoutedEventArgs e) => OpenFolder(App.Paths.Models);
 
+    // The notices are installed next to Vox.exe (Vox.Core.Licenses); the folder, not one file: each license is its own file.
+    private void OnOpenLicenses(object sender, RoutedEventArgs e)
+    {
+        var folder = Licenses.Folder(AppContext.BaseDirectory);
+        if (Directory.Exists(folder))
+        {
+            Process.Start(new ProcessStartInfo { FileName = folder, UseShellExecute = true });
+        }
+        else
+        {
+            Log.Info("[HELP] The licenses folder is missing next to Vox.exe");
+            MessageBox.Show(this, "Папка с лицензиями не нашлась. Установите Vox заново, и она появится.", "Vox",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+    }
+
     private static void OpenFolder(string path)
     {
         Directory.CreateDirectory(path);

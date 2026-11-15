@@ -158,6 +158,8 @@ Type: filesandordirs; Name: "{app}\_internal"
 Type: files; Name: "{app}\vox.exe"
 
 [Files]
+; publish\licenses\ comes with it: the notices of everything Vox is built with (THIRD-PARTY-NOTICES.txt,
+; filled by `dotnet publish`), opened from Settings → «Помощь» → «Лицензии».
 Source: "{#SourcePath}\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]

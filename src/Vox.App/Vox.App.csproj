@@ -29,4 +29,19 @@
     <Resource Include="..\..\assets\brand\vox-icon-light.png" Link="Assets\vox-icon-light.png" />
     <Resource Include="Assets\Fonts\*.ttf" />
   </ItemGroup>
+  <!-- Vox is published with the .NET runtime inside: its license and notices join licenses\ (the rest
+       comes from Vox.Core.csproj), taken from the very runtime packs being published. A pack without the
+       file fails the publish instead of shipping Vox without the notice. -->
+  <Target Name="AddDotNetLicenses" AfterTargets="ComputeResolvedFilesToPublishList">
+    <ItemGroup>
+      <_DotNetNotice Include="@(ResolvedRuntimePack->'%(PackageDirectory)\LICENSE.TXT')" Condition="'%(ResolvedRuntimePack.FrameworkName)' == 'Microsoft.NETCore.App'" RelativePath="licenses\dotnet-LICENSE.txt" />
+      <_DotNetNotice Include="@(ResolvedRuntimePack->'%(PackageDirectory)\THIRD-PARTY-NOTICES.TXT')" Condition="'%(ResolvedRuntimePack.FrameworkName)' == 'Microsoft.NETCore.App'" RelativePath="licenses\dotnet-THIRD-PARTY-NOTICES.txt" />
+      <_DotNetNotice Include="@(ResolvedRuntimePack->'%(PackageDirectory)\LICENSE')" Condition="'%(ResolvedRuntimePack.FrameworkName)' == 'Microsoft.WindowsDesktop.App'" RelativePath="licenses\dotnet-windowsdesktop-LICENSE.txt" />
+    </ItemGroup>
+    <Error Condition="'@(_DotNetNotice->Count())' != '3'" Text="Expected the .NET and Windows Desktop runtime packs with their license files, found @(_DotNetNotice->Count()) of 3." />
+    <Error Condition="!Exists('%(_DotNetNotice.FullPath)')" Text="The .NET license file %(_DotNetNotice.FullPath) is missing: licenses\ would ship without it." />
+    <ItemGroup>
+      <ResolvedFileToPublish Include="@(_DotNetNotice)" CopyToPublishDirectory="PreserveNewest" />
+    </ItemGroup>
+  </Target>
 </Project>
