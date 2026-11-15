@@ -197,7 +197,6 @@ Vox learns corrections in most apps: Notepad, Word, browsers, Telegram, Notepad+
 
 **New in 2.1.** Vox tells you when a new version is out (you can turn the check off in the settings). Licenses of third-party components are shown in Settings → Help. Models are downloaded from the `models-1` release of this repository.
 
-<!-- Interface screenshots. Uncomment once real window screenshots are in docs/readme/:
 <table>
 <tr>
 <td width="50%" align="center"><img src="docs/readme/ui-pill.png" alt="The recording pill at the bottom of the screen"><br><sub>Recording pill</sub></td>
@@ -208,7 +207,6 @@ Vox learns corrections in most apps: Notepad, Word, browsers, Telegram, Notepad+
 <td align="center"><img src="docs/readme/ui-history.png" alt="Vox settings, the History page, dark theme"><br><sub>History</sub></td>
 </tr>
 </table>
--->
 
 ### Tray menu
 
