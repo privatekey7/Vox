@@ -36,3 +36,6 @@ __pycache__/
 # --- Owner's local files (personal dictations: never commit) ---
 /*.zip
 /.holdout/
+
+# Agent worktrees
+.claude/worktrees/

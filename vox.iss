@@ -11,7 +11,7 @@
 ; Vox 2.0 keeps the AppId of 1.x, so it installs over the Python version as an upgrade.
 
 #define MyAppName "Vox"
-#define MyAppVersion "2.0.0"
+#define MyAppVersion "2.1.0"
 #define MyAppPublisher "Vox"
 #define MyAppExeName "Vox.exe"
 

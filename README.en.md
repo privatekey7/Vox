@@ -350,7 +350,7 @@ Decisions and design: `docs/adr/`, `docs/design/v2/` (in Russian). Version 1.x (
 
 ### Third-party data and fonts
 
-Vox's code is under the MIT license. Some files have licenses of their own:
+Vox's code is under the MIT license. Some files have licenses of their own. The full list with every package is in [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt); in the installed app it opens from Settings → Help → Licenses.
 
 | File | What it is | License |
 |---|---|---|

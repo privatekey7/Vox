@@ -121,7 +121,7 @@
         "type": "Project",
         "dependencies": {
           "Microsoft.Data.Sqlite.Core": "[10.0.14, )",
-          "Vox.Core": "[2.0.0, )",
+          "Vox.Core": "[2.1.0, )",
           "org.k2fsa.sherpa.onnx": "[2.0.1, )"
         }
       },
