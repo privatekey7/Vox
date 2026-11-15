@@ -26,6 +26,7 @@ Every team member must use multi-factor authentication for GitHub and SignPath.
 ## Privacy policy
 
 Vox recognises speech on the computer: audio and text never leave it. The program connects to the
-network only to download a speech model (from GitHub Releases of
-[k2-fsa/sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx/releases)). No telemetry, no accounts.
+network only to download a speech model (from GitHub Releases of this repository, the
+["Speech models (mirror)"](https://github.com/privatekey7/Vox/releases/tag/models-1) release).
+No telemetry, no accounts.
 Full policy: [docs/privacy.md](privacy.md).

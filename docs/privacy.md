@@ -2,7 +2,7 @@
 
 [English below](#vox-privacy-policy)
 
-Обновлено 25 октября 2026 года.
+Обновлено 15 ноября 2026 года.
 
 Vox распознаёт речь на вашем компьютере. Голос, тексты диктовок и настройки никуда не отправляются.
 В Vox нет аккаунтов, рекламы и телеметрии.
@@ -33,8 +33,9 @@ Vox распознаёт речь на вашем компьютере. Голо
 ## Сеть
 
 Vox выходит в интернет только чтобы скачать модель распознавания: при первом запуске и при смене языка
-или модели. Модели скачиваются с GitHub (проект [k2-fsa/sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx/releases)),
-каждый файл сверяется с контрольной суммой. Больше Vox ничего не скачивает и не отправляет.
+или модели. Модели скачиваются с GitHub, из [релизов Vox](https://github.com/privatekey7/vox/releases)
+(релиз «Speech models (mirror)»), каждый файл сверяется с контрольной суммой. Больше Vox ничего не
+скачивает и не отправляет.
 
 ## Перенос и удаление
 
@@ -52,7 +53,7 @@ Vox выходит в интернет только чтобы скачать м
 
 # Vox privacy policy
 
-Last updated October 25, 2026.
+Last updated November 15, 2026.
 
 Vox recognises speech on your computer. Your voice, dictated texts and settings are never sent anywhere.
 Vox has no accounts, no ads and no telemetry.
@@ -83,8 +84,9 @@ Vox has no accounts, no ads and no telemetry.
 ## Network
 
 Vox connects to the internet only to download a speech model: on first start and when you change the
-language or model. Models come from GitHub ([k2-fsa/sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx/releases)),
-and every file is checked against its checksum. Vox downloads and sends nothing else.
+language or model. Models come from GitHub, from the [Vox releases](https://github.com/privatekey7/vox/releases)
+(the "Speech models (mirror)" release), and every file is checked against its checksum. Vox downloads
+and sends nothing else.
 
 ## Transfer and deletion
 
