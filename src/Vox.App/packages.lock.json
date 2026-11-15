@@ -136,7 +136,7 @@
       },
       "NAudio.Core": {
         "type": "CentralTransitive",
-        "requested": "[3.1.0, )",
+        "requested": "[3.3.0, )",
         "resolved": "3.3.0",
         "contentHash": "xU3f1/5jBTfdjauhcPbjo0O1Ow+PVTPnjMo0KbV7twkWRcoY3GnVmA3mbUXxAePtJ2eUbWgteHWfFjOAvGovLg==",
         "dependencies": {
