@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: "Вопросы и новости в Telegram / Questions and news"
+    url: https://t.me/privatekey_ai
+    about: "Спросить, как что-то сделать, и узнать о новых версиях: @privatekey_ai"
+  - name: "Уязвимость / Security vulnerability"
+    url: https://github.com/privatekey7/Vox/security/advisories/new
+    about: "Сообщите приватно, не через публичный issue. Подробности в SECURITY.md"

@@ -1,0 +1,37 @@
+name: "Идея / Feature request"
+description: "Чего не хватает в Vox / What Vox is missing"
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Расскажите, что вам мешает или чего не хватает. Готовое решение придумывать не обязательно.
+
+        Если Vox пишет слово неправильно, сначала попробуйте Настройки → Словарь: замену можно добавить самому.
+  - type: textarea
+    id: problem
+    attributes:
+      label: "Задача / Problem"
+      description: "Что вы хотели сделать и что помешало."
+      placeholder: "Диктую в ... и каждый раз приходится ..."
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: "Как это могло бы работать / How it could work"
+      description: "Как вы это себе представляете. Можно коротко."
+  - type: textarea
+    id: examples
+    attributes:
+      label: "Примеры / Examples"
+      description: "Для словаря и распознавания: что вы говорите и что Vox должен написать."
+      placeholder: "говорю «...», должно быть «...»"
+  - type: dropdown
+    id: model
+    attributes:
+      label: "Язык речи / Speech model"
+      options:
+        - "Русский (GigaAM v3)"
+        - "English и другие европейские (Parakeet TDT v3)"
+        - "Не важно / Does not matter"

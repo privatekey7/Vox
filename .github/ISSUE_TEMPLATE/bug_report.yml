@@ -1,0 +1,84 @@
+name: "Ошибка / Bug report"
+description: "Vox работает не так, как должен / Vox does not work as it should"
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Спасибо, что пишете. Чем точнее описание, тем быстрее найдётся причина.
+
+        > **Не прикладывайте файл `vox.log` целиком и базу `vox_data.db`.** В них могут быть тексты ваших диктовок, а этот раздел виден всем. Скопируйте из лога только нужные строки и уберите из них личное.
+        >
+        > **Do not attach the whole `vox.log` or the `vox_data.db` file.** They can contain the texts of your dictations, and issues are public. Paste only the lines that matter.
+
+        Нашли уязвимость? Не пишите сюда, смотрите [SECURITY.md](https://github.com/privatekey7/Vox/blob/main/SECURITY.md).
+  - type: input
+    id: version
+    attributes:
+      label: "Версия Vox / Vox version"
+      description: "Написана внизу раздела Настройки → Помощь. Например: 2.1.0"
+      placeholder: "2.1.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: windows
+    attributes:
+      label: "Windows"
+      options:
+        - "Windows 11"
+        - "Windows 10"
+    validations:
+      required: true
+  - type: dropdown
+    id: model
+    attributes:
+      label: "Язык речи / Speech model"
+      description: "Настройки → Основное → Язык речи"
+      options:
+        - "Русский (GigaAM v3)"
+        - "English и другие европейские (Parakeet TDT v3)"
+    validations:
+      required: true
+  - type: input
+    id: app
+    attributes:
+      label: "В какой программе / In which app"
+      description: "Куда вы диктовали: браузер, Telegram, Word, редактор кода. Если ошибка не связана с окном, оставьте пустым."
+      placeholder: "Telegram Desktop"
+  - type: textarea
+    id: steps
+    attributes:
+      label: "Шаги / Steps to reproduce"
+      description: "Что вы делали, по шагам. Если дело в распознавании, напишите, что вы сказали."
+      placeholder: |
+        1. Открыл Блокнот
+        2. Зажал правый Ctrl и сказал «...»
+        3. Отпустил клавишу
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: "Что получилось / What happened"
+      description: "Что написал Vox или что было на плашке внизу экрана."
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: "Что должно было получиться / What you expected"
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: "Строки из лога / Log lines"
+      description: "Настройки → Помощь → Открыть логи. Скопируйте только строки за время ошибки, не весь файл. Проверьте, что в них нет личных текстов."
+      render: text
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: "Личные данные / Personal data"
+      options:
+        - label: "Я не прикладываю лог целиком и базу, в тексте выше нет личного / No whole log, no database, nothing personal above"
+          required: true
