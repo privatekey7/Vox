@@ -28,7 +28,7 @@ public sealed record UpdateCheck(UpdateStatus Status, Version? Latest = null, st
 }
 
 /// <summary>
-/// Learns whether a newer Vox is out (docs/adr/037): one anonymous GET to GitHub for the latest release, and a
+/// Learns whether a newer Vox is out (docs/adr/038): one anonymous GET to GitHub for the latest release, and a
 /// comparison of its tag with this build. Nothing is downloaded or installed, and nothing about the user is
 /// sent. Any failure is <see cref="UpdateStatus.Unknown"/>, never an exception: Vox works offline.
 /// </summary>

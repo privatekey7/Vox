@@ -5,7 +5,7 @@ using Vox.Core.Updates;
 namespace Vox.App.Services;
 
 /// <summary>
-/// Asks GitHub once a day whether a newer Vox is out (docs/adr/037) and remembers the answer for the tray and
+/// Asks GitHub once a day whether a newer Vox is out (docs/adr/038) and remembers the answer for the tray and
 /// the settings. It only learns a version number: nothing is downloaded or installed. Lives on the UI thread;
 /// the request itself runs on the thread pool, so no network ever holds the UI or the start.
 /// </summary>

@@ -282,7 +282,7 @@
             <Button Content="Удалить мои данные…" Style="{StaticResource Vox.SecondaryButton}" HorizontalAlignment="Left" Margin="0,16,0,0" Click="OnDeletePersonalData"/>
           </StackPanel>
         </Border>
-        <!-- docs/adr/037: Vox only learns the number of a new version and opens its page; no download, no install. -->
+        <!-- docs/adr/038: Vox only learns the number of a new version and opens its page; no download, no install. -->
         <Border Style="{StaticResource Vox.Card}" Padding="20" Margin="0,12,0,0">
           <StackPanel>
             <TextBlock Text="Обновления" Style="{StaticResource Vox.Question}" Margin="0,0,0,8"/>

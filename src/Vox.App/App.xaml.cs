@@ -275,7 +275,7 @@ public partial class App : Application
     }
 
     /// <summary>
-    /// "A new version is out" (docs/adr/037): GitHub is asked for the latest release's tag a little after the
+    /// "A new version is out" (docs/adr/038): GitHub is asked for the latest release's tag a little after the
     /// start and then once a day. Vox only tells the user and opens the release page: no download, no install.
     /// </summary>
     private void StartUpdates()

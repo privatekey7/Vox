@@ -5,7 +5,7 @@ using Vox.Core.Updates;
 namespace Vox.Core.Tests;
 
 /// <summary>
-/// "A new version is out" (docs/adr/037): one GET to GitHub, no download, no install. No test here goes to
+/// "A new version is out" (docs/adr/038): one GET to GitHub, no download, no install. No test here goes to
 /// the network: GitHub is a stub handler.
 /// </summary>
 public sealed class UpdateCheckerTests : IDisposable

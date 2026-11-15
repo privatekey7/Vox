@@ -203,7 +203,7 @@ public sealed class Settings
     }
 
     /// <summary>
-    /// Ask GitHub once a day whether a newer Vox is out (<see cref="Updates.UpdateChecker"/>, docs/adr/037). On by
+    /// Ask GitHub once a day whether a newer Vox is out (<see cref="Updates.UpdateChecker"/>, docs/adr/038). On by
     /// default, also for a config.json written before this setting existed.
     /// </summary>
     public bool CheckUpdates
