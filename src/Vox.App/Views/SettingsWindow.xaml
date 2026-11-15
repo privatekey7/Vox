@@ -282,6 +282,30 @@
             <Button Content="Удалить мои данные…" Style="{StaticResource Vox.SecondaryButton}" HorizontalAlignment="Left" Margin="0,16,0,0" Click="OnDeletePersonalData"/>
           </StackPanel>
         </Border>
+        <!-- docs/adr/037: Vox only learns the number of a new version and opens its page; no download, no install. -->
+        <Border Style="{StaticResource Vox.Card}" Padding="20" Margin="0,12,0,0">
+          <StackPanel>
+            <TextBlock Text="Обновления" Style="{StaticResource Vox.Question}" Margin="0,0,0,8"/>
+            <TextBlock x:Name="UpdateVersionText" Style="{StaticResource Vox.Body}"/>
+            <TextBlock x:Name="UpdateResultText" Style="{StaticResource Vox.Caption}" Margin="0,4,0,0" Visibility="Collapsed"/>
+            <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+              <Button x:Name="UpdateCheckButton" Content="Проверить" Style="{StaticResource Vox.SecondaryButton}" Click="OnCheckUpdate"/>
+              <Button x:Name="UpdateOpenButton" Content="Открыть страницу загрузки" Style="{StaticResource Vox.PrimaryButton}" Margin="10,0,0,0"
+                      Visibility="Collapsed" Click="OnOpenUpdatePage"/>
+            </StackPanel>
+            <Grid Margin="0,16,0,0">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
+                <TextBlock Text="Проверять обновления" Style="{StaticResource Vox.Body}"/>
+                <TextBlock Text="Раз в день Vox узнаёт на GitHub номер новой версии. О вас он ничего не отправляет и сам ничего не скачивает." Style="{StaticResource Vox.Caption}"/>
+              </StackPanel>
+              <CheckBox x:Name="UpdatesToggle" Grid.Column="1" Style="{StaticResource Vox.Toggle}" Click="OnToggle"/>
+            </Grid>
+          </StackPanel>
+        </Border>
         <Button x:Name="DeveloperButton" Content="Для разработчика" Style="{StaticResource Vox.LinkButton}" HorizontalAlignment="Left" Margin="4,16,0,0" Click="OnShowDeveloper"/>
         <Border x:Name="DeveloperCard" Style="{StaticResource Vox.Card}" Margin="0,8,0,0" Visibility="Collapsed">
           <StackPanel>

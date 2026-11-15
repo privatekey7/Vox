@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net.Http;
 using System.Windows;
 using System.Windows.Threading;
@@ -8,6 +9,7 @@ using Vox.Core;
 using Vox.Core.Diagnostics;
 using Vox.Core.Models;
 using Vox.Core.Storage;
+using Vox.Core.Updates;
 
 namespace Vox.App;
 
@@ -27,6 +29,7 @@ public partial class App : Application
     private TrayController? _tray;
     private RecordingPill? _pill;
     private SettingsWindow? _settingsWindow;
+    private UpdateWatcher? _updates;
 
     internal static AppPaths Paths { get; } = AppPaths.Default;
 
@@ -41,6 +44,8 @@ public partial class App : Application
     internal VoxDatabase Database => _db!;
 
     internal Sounds SoundPlayer => _sounds!;
+
+    internal UpdateWatcher Updates => _updates!;
 
     internal static new App Current => (App)Application.Current;
 
@@ -132,6 +137,7 @@ public partial class App : Application
 
             _tray = new TrayController(this);
             _tray.ShowStarted(); // the model is loaded: dictation works from now on
+            StartUpdates();
         }
         catch (Exception ex)
         {
@@ -164,6 +170,8 @@ public partial class App : Application
     /// <summary>Stops everything that holds or writes Vox's files (the model, the database). Safe to call twice.</summary>
     private void StopServices()
     {
+        _updates?.Dispose(); // first: it writes config.json and talks to the tray
+        _updates = null;
         _tray?.Dispose();
         _tray = null;
         _hook?.Dispose();
@@ -264,6 +272,50 @@ public partial class App : Application
         _hook?.SetHotkey(Hotkeys.VirtualKey(name));
         _tray?.Refresh();
         Log.Info($"[SETTINGS] Hotkey changed to {Hotkeys.Display(name)}");
+    }
+
+    /// <summary>
+    /// "A new version is out" (docs/adr/037): GitHub is asked for the latest release's tag a little after the
+    /// start and then once a day. Vox only tells the user and opens the release page: no download, no install.
+    /// </summary>
+    private void StartUpdates()
+    {
+        var version = typeof(App).Assembly.GetName().Version ?? new Version(0, 0, 0);
+        _updates = new UpdateWatcher(Settings, Http, new Version(version.Major, version.Minor, Math.Max(version.Build, 0)));
+        _updates.Checked += check => _tray?.SetUpdate(check);
+        _updates.Announce += check => _tray?.ShowUpdate(check);
+        _updates.Apply();
+    }
+
+    /// <summary>Settings → «Проверять обновления».</summary>
+    internal void SetCheckUpdates(bool on)
+    {
+        Settings.CheckUpdates = on;
+        Settings.Save();
+        Log.Info($"[SETTINGS] Update checks {(on ? "on" : "off")}");
+        _updates?.Apply();
+    }
+
+    /// <summary>
+    /// Opens a release page of Vox in the browser. Only an address that <see cref="UpdateChecker.IsReleasePage"/>
+    /// accepts is passed to the shell: nothing an answer from the network says can start another program.
+    /// </summary>
+    internal static void OpenReleasePage(Uri? page)
+    {
+        if (!UpdateChecker.IsReleasePage(page))
+        {
+            Log.Info("[UPDATE] Not a release page of Vox, not opened");
+            return;
+        }
+
+        try
+        {
+            Process.Start(new ProcessStartInfo { FileName = page.OriginalString, UseShellExecute = true });
+        }
+        catch (Exception e) when (e is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            Log.Error("[UPDATE] Could not open the release page", e); // no browser set up
+        }
     }
 
     internal bool CanUndoLearned => _dictation?.CanUndoLearned == true;

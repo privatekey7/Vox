@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
@@ -47,8 +48,9 @@ public sealed class Settings
     private readonly JsonObject _json;
 
     // Tied to this computer: another PC has other microphones. Texts in the log are this PC's developer's
-    // choice: a transfer file must not turn them on elsewhere.
-    private static readonly string[] LocalKeys = ["microphone", "log_texts"];
+    // choice: a transfer file must not turn them on elsewhere. Whether this PC asks GitHub for a new version,
+    // and what it already checked and announced, is its own too.
+    private static readonly string[] LocalKeys = ["microphone", "log_texts", "check_updates", "update_notified", "update_checked"];
 
     private Settings(string path, JsonObject json)
     {
@@ -198,6 +200,30 @@ public sealed class Settings
     {
         get => GetBool("restore_clipboard", true);
         set => _json["restore_clipboard"] = value;
+    }
+
+    /// <summary>
+    /// Ask GitHub once a day whether a newer Vox is out (<see cref="Updates.UpdateChecker"/>, docs/adr/037). On by
+    /// default, also for a config.json written before this setting existed.
+    /// </summary>
+    public bool CheckUpdates
+    {
+        get => GetBool("check_updates", true);
+        set => _json["check_updates"] = value;
+    }
+
+    /// <summary>The version the tray already announced ("2.1.0"): one notice per version.</summary>
+    public string? UpdateNotified
+    {
+        get => GetString("update_notified");
+        set => _json["update_notified"] = value;
+    }
+
+    /// <summary>When GitHub last answered a check: the next one is a day later, however often Vox restarts.</summary>
+    public DateTimeOffset? UpdateChecked
+    {
+        get => DateTimeOffset.TryParse(GetString("update_checked"), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var at) ? at : null;
+        set => _json["update_checked"] = value?.ToString("O", CultureInfo.InvariantCulture);
     }
 
     public static Settings Load(string path)

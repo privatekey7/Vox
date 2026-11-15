@@ -7,6 +7,7 @@ using Vox.App.Services;
 using Vox.Core;
 using Vox.Core.Models;
 using Vox.Core.Storage;
+using Vox.Core.Updates;
 
 namespace Vox.App.Views;
 
@@ -18,6 +19,7 @@ public partial class SettingsWindow : Window
     private readonly DispatcherTimer _micMeter = new() { Interval = TimeSpan.FromMilliseconds(500) };
     private bool _loading = true;
     private float _micPeak;
+    private Uri? _updatePage;
 
     public SettingsWindow()
     {
@@ -37,10 +39,13 @@ public partial class SettingsWindow : Window
             _micPeak = 0;
         };
         _micMeter.Start();
+        var updates = _app.Updates; // the daily check may find a new version while the window is open
+        updates.Checked += OnUpdateChecked;
         Closed += (_, _) =>
         {
             _app.Audio.Level -= onLevel;
             _micMeter.Stop();
+            updates.Checked -= OnUpdateChecked;
         };
 
         ShowHowTo();
@@ -121,6 +126,13 @@ public partial class SettingsWindow : Window
         ScreenToggle.IsChecked = _app.Settings.ScreenHints;
         ScreenTextToggle.IsChecked = _app.Settings.ScreenText;
         ScreenTextToggle.IsEnabled = _app.Settings.ScreenHints; // the window is read as part of screen hints
+
+        UpdatesToggle.IsChecked = _app.Settings.CheckUpdates;
+        UpdateVersionText.Text = $"Ваша версия: {_app.Updates.CurrentVersion}";
+        if (_app.Updates.Last is { } last)
+        {
+            OnUpdateChecked(last); // found by the daily check before the window opened
+        }
     }
 
     private void OnHotkeyChanged(object sender, SelectionChangedEventArgs e)
@@ -231,6 +243,10 @@ public partial class SettingsWindow : Window
         else if (sender == ScreenTextToggle)
         {
             _app.Settings.ScreenText = ScreenTextToggle.IsChecked == true;
+        }
+        else if (sender == UpdatesToggle)
+        {
+            _app.SetCheckUpdates(UpdatesToggle.IsChecked == true);
         }
         else if (sender == RecordingsToggle)
         {
@@ -609,6 +625,53 @@ public partial class SettingsWindow : Window
 
         return note;
     }
+
+    // «Проверить»: asks GitHub now, also with «Проверять обновления» off (the user asked).
+    private async void OnCheckUpdate(object sender, RoutedEventArgs e)
+    {
+        UpdateCheckButton.IsEnabled = false;
+        UpdateOpenButton.Visibility = Visibility.Collapsed;
+        UpdateResultText.Text = "Проверяю…";
+        UpdateResultText.Visibility = Visibility.Visible;
+        try
+        {
+            var check = await _app.Updates.CheckNowAsync();
+            ShowUpdate(check);
+            _app.Updates.MarkAnnounced(check); // seen here: the tray does not repeat it
+        }
+        catch (OperationCanceledException)
+        {
+            // Vox is closing.
+        }
+        finally
+        {
+            UpdateCheckButton.IsEnabled = true;
+        }
+    }
+
+    // The daily check says nothing unless a new version is out: no "no internet" the user did not ask about.
+    private void OnUpdateChecked(UpdateCheck check)
+    {
+        if (check.Status == UpdateStatus.Available)
+        {
+            ShowUpdate(check);
+        }
+    }
+
+    private void ShowUpdate(UpdateCheck check)
+    {
+        _updatePage = check.Page;
+        UpdateResultText.Text = check.Status switch
+        {
+            UpdateStatus.Available => $"Вышла Vox {check.Latest?.ToString(3)}",
+            UpdateStatus.UpToDate => "У вас последняя версия",
+            _ => "Не получилось проверить. Нужен интернет.",
+        };
+        UpdateResultText.Visibility = Visibility.Visible;
+        UpdateOpenButton.Visibility = _updatePage is null ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    private void OnOpenUpdatePage(object sender, RoutedEventArgs e) => App.OpenReleasePage(_updatePage);
 
     private void OnOpenLogs(object sender, RoutedEventArgs e) => OpenFolder(App.Paths.Logs);
 

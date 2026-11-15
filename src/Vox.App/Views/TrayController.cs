@@ -4,6 +4,7 @@ using System.Windows.Media.Imaging;
 using H.NotifyIcon;
 using Vox.App.Services;
 using Vox.Core;
+using Vox.Core.Updates;
 
 namespace Vox.App.Views;
 
@@ -14,6 +15,9 @@ internal sealed class TrayController : IDisposable
     private readonly TaskbarIcon _icon;
     private readonly MenuItem _status;
     private readonly MenuItem _undoLearned;
+    private readonly MenuItem _update;
+    private Uri? _updatePage;
+    private bool _updateNotice; // the notification on screen is the "new version" one: a click opens its page
     private bool _recording;
 
     public TrayController(App app)
@@ -22,6 +26,9 @@ internal sealed class TrayController : IDisposable
         _status = new MenuItem { IsEnabled = false };
         var menu = new ContextMenu();
         menu.Items.Add(_status);
+        _update = Item("", "", () => App.OpenReleasePage(_updatePage));
+        _update.Visibility = Visibility.Collapsed; // shown once a newer version is known
+        menu.Items.Add(_update);
         menu.Items.Add(new Separator());
         menu.Items.Add(Item("Скопировать последнюю диктовку", "", CopyLast));
         menu.Items.Add(Item("История", "", () => _app.ShowSettings("history")));
@@ -39,6 +46,13 @@ internal sealed class TrayController : IDisposable
             NoLeftClickDelay = true,
         };
         _icon.TrayLeftMouseUp += (_, _) => _app.ShowSettings();
+        _icon.TrayBalloonTipClicked += (_, _) =>
+        {
+            if (_updateNotice)
+            {
+                App.OpenReleasePage(_updatePage);
+            }
+        };
         Refresh();
         UpdateIcon();
         _icon.ForceCreate(false); // false: no Efficiency Mode — the hotkey must react instantly
@@ -65,11 +79,43 @@ internal sealed class TrayController : IDisposable
     {
         try
         {
+            _updateNotice = false;
             _icon.ShowNotification("Vox запущен", $"Зажмите {Hotkeys.Display(_app.Settings.Hotkey)} и говорите");
         }
         catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception)
         {
             Log.Error("[TRAY] Start notification failed", e); // cosmetic: never fail startup over it
+        }
+    }
+
+    /// <summary>A newer Vox is out: a line in the menu that opens its page. It stays until Vox restarts.</summary>
+    public void SetUpdate(UpdateCheck check)
+    {
+        if (check is { Status: UpdateStatus.Available, Latest: { } latest, Page: { } page })
+        {
+            _updatePage = page;
+            _update.Header = $"Вышла Vox {latest.ToString(3)}";
+            _update.Visibility = Visibility.Visible;
+        }
+    }
+
+    /// <summary>"Вышла Vox X.Y.Z", once per version (<see cref="UpdateSchedule.ShouldNotify"/>). A click opens the release page.</summary>
+    public void ShowUpdate(UpdateCheck check)
+    {
+        if (check is not { Status: UpdateStatus.Available, Latest: { } latest })
+        {
+            return;
+        }
+
+        SetUpdate(check);
+        try
+        {
+            _updateNotice = true;
+            _icon.ShowNotification($"Вышла Vox {latest.ToString(3)}", "Нажмите, чтобы открыть страницу загрузки");
+        }
+        catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            Log.Error("[TRAY] Update notification failed", e); // the menu line and the settings card still show it
         }
     }
 

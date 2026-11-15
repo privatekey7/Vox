@@ -97,6 +97,8 @@ public sealed class UpdateCheckerTests : IDisposable
     [InlineData("{\"tag_name\": [\"v2.1.0\"]}")]
     [InlineData("{\"tag_name\": \"v2.1.0\", \"draft\": \"no\"}")]
     [InlineData("{\"tag_name\": \"v2.1.0\"")] // cut
+    [InlineData("{\"tag_name\": \"v2.1.0\\uD800\"}")] // half of a surrogate pair: not a string .NET can read
+    [InlineData("{\"tag_name\": \"\\uDC00\"}")]
     public async Task Garbage_in_the_answer_is_ignored(string body)
     {
         var check = await Check(body);
