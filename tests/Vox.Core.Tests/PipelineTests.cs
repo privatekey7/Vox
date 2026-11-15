@@ -114,6 +114,20 @@ public class ModelCatalogTests
         Assert.All(ModelCatalog.All, m => Assert.EndsWith(m.ExtractedDir + ".tar.bz2", m.Url.AbsolutePath, StringComparison.Ordinal));
 
     [Fact]
+    public void App_models_are_downloaded_from_the_Vox_mirror_release()
+    {
+        // Regression (07.11.2026): the Parakeet archive in the release of another project was replaced
+        // under the same name. It stopped matching its pin and new users could not download the model.
+        // The app's models come from a release Vox owns, where an archive is never replaced (D037).
+        Assert.All(ModelCatalog.All, m =>
+        {
+            Assert.Equal("https", m.Url.Scheme);
+            Assert.Equal("github.com", m.Url.Host);
+            Assert.StartsWith("/privatekey7/Vox/releases/download/models-", m.Url.AbsolutePath, StringComparison.Ordinal);
+        });
+    }
+
+    [Fact]
     public void Find_returns_null_for_unknown_ids() => Assert.Null(ModelCatalog.Find("vosk-ru-small"));
 }
 
