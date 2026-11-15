@@ -32,10 +32,20 @@ Vox распознаёт речь на вашем компьютере. Голо
 
 ## Сеть
 
-Vox выходит в интернет только чтобы скачать модель распознавания: при первом запуске и при смене языка
+Vox выходит в интернет в двух случаях: чтобы скачать модель распознавания и чтобы узнать, не вышла ли
+новая версия.
+
+Модель скачивается при первом запуске и при смене языка
 или модели. Модели скачиваются с GitHub, из [релизов Vox](https://github.com/privatekey7/vox/releases)
-(релиз «Speech models (mirror)»), каждый файл сверяется с контрольной суммой. Больше Vox ничего не
-скачивает и не отправляет.
+(релиз «Speech models (mirror)»), каждый файл сверяется с контрольной суммой.
+
+Новая версия: раз в день Vox спрашивает у GitHub (`api.github.com`) номер последней версии Vox. В запросе
+есть только название и версия программы (`Vox/2.1.0`). Ни голоса, ни текстов, ни настроек, ни номера
+компьютера в нём нет. GitHub, как любой сайт, видит ваш IP-адрес. Если вышла новая версия, Vox показывает
+уведомление и по вашему нажатию открывает страницу загрузки в браузере. Сам он ничего не скачивает и не
+устанавливает. Проверку можно выключить: «Настройки» → «Помощь» → «Обновления» → «Проверять обновления».
+
+Больше Vox ничего не скачивает и не отправляет.
 
 ## Перенос и удаление
 
@@ -83,10 +93,20 @@ Vox has no accounts, no ads and no telemetry.
 
 ## Network
 
-Vox connects to the internet only to download a speech model: on first start and when you change the
+Vox connects to the internet in two cases: to download a speech model and to learn whether a new version
+is out.
+
+A model is downloaded on first start and when you change the
 language or model. Models come from GitHub, from the [Vox releases](https://github.com/privatekey7/vox/releases)
-(the "Speech models (mirror)" release), and every file is checked against its checksum. Vox downloads
-and sends nothing else.
+(the "Speech models (mirror)" release), and every file is checked against its checksum.
+
+New version: once a day Vox asks GitHub (`api.github.com`) for the number of the latest Vox version. The
+request carries only the program's name and version (`Vox/2.1.0`): no voice, no texts, no settings and no
+computer identifier. GitHub, like any website, sees your IP address. If a new version is out, Vox shows a
+notification and, when you click it, opens the download page in your browser. Vox itself downloads and
+installs nothing. You can turn the check off: "Settings" → "Help" → "Updates" → "Check for updates".
+
+Vox downloads and sends nothing else.
 
 ## Transfer and deletion
 
