@@ -28,8 +28,9 @@ public sealed record SpeechModel(
     double MaxPieceSeconds = 12);
 
 /// <summary>
-/// A file Vox trusts only with exactly this size and SHA-256 (lowercase hex). The values come from the
-/// GitHub release digests of k2-fsa/sherpa-onnx <c>asr-models</c>, checked by downloading once (D036).
+/// A file Vox trusts only with exactly this size and SHA-256 (lowercase hex). The file pins are those of
+/// the models Vox 2.0 shipped with (D036). The archive pins of the app's models are the digests of the
+/// assets in the Vox mirror release, checked by downloading them (D037).
 /// </summary>
 /// <param name="Path">The archive's file name, or a model file relative to <see cref="SpeechModel.ExtractedDir"/>.</param>
 public sealed record PinnedFile(string Path, long Size, string Sha256);
@@ -43,6 +44,13 @@ public enum ModelKind
 /// <summary>The two models of Vox 2.0 (D030): GigaAM v3 for Russian, Parakeet v3 for the rest.</summary>
 public static class ModelCatalog
 {
+    /// <summary>
+    /// The release in the Vox repository that holds the app's model archives (D037). Assets of a release
+    /// are never replaced: a new model or a new version of one goes into a new release (models-2).
+    /// </summary>
+    private const string VoxMirror = "https://github.com/privatekey7/Vox/releases/download/models-1/";
+
+    /// <summary>The release of another project: its assets can be replaced under the same name, so only tools use it.</summary>
     private const string SherpaReleases = "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/";
 
     public static readonly SpeechModel GigaAm = new(
@@ -50,7 +58,7 @@ public static class ModelCatalog
         DisplayName: "Русский",
         Language: "ru",
         DownloadMb: 162,
-        Url: new Uri(SherpaReleases + "sherpa-onnx-nemo-transducer-punct-giga-am-v3-russian-2025-12-16.tar.bz2"),
+        Url: new Uri(VoxMirror + "sherpa-onnx-nemo-transducer-punct-giga-am-v3-russian-2025-12-16.tar.bz2"),
         Archive: new("sherpa-onnx-nemo-transducer-punct-giga-am-v3-russian-2025-12-16.tar.bz2", 170_197_019,
             "f9620a0099019c6afcee26525ef9ed3297fa50dd5691c1902af0c948fc1a470b"),
         Files:
@@ -74,9 +82,10 @@ public static class ModelCatalog
         DisplayName: "English и другие европейские",
         Language: "multi",
         DownloadMb: 465,
-        Url: new Uri(SherpaReleases + "sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8.tar.bz2"),
-        Archive: new("sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8.tar.bz2", 487_170_055,
-            "5793d0fd397c5778d2cf2126994d58e9d56b1be7c04d13c7a15bb1b4eafb16bf"),
+        Url: new Uri(VoxMirror + "sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8.tar.bz2"),
+        // Packed again for the mirror from the files of Vox 2.0, so the archive pin differs and the file pins do not.
+        Archive: new("sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8.tar.bz2", 486_806_089,
+            "3525d7cdffbe48bb38bb0eb49132f5f05922cf48d3955d060de2d1ff0ab14119"),
         Files:
         [
             new("encoder.int8.onnx", 652_184_281, "acfc2b4456377e15d04f0243af540b7fe7c992f8d898d751cf134c3a55fd2247"),
