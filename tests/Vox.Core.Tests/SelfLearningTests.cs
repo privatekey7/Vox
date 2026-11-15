@@ -86,6 +86,22 @@ public sealed class SelfLearningTests : IDisposable
         Assert.Equal(new Dictionary<string, string> { ["флюксар"] = "Fluxor" }, _db.Corrections());
     }
 
+    // Owner (15.11): the pair "фронтенд-дизайн" → "Frontend" was in the dictionary. Fixed again, it is replaced, and
+    // the next dictation comes out as fixed, with a hyphen or a space, in any case form the model wrote.
+    [Theory]
+    [InlineData("Это фронтенд-дизайн.", " Это Frontend Design.")]
+    [InlineData("Это фронтенд дизайн.", " Это Frontend Design.")]
+    [InlineData("Фронтенд-дизайн готов.", " Frontend Design готов.")]
+    public void A_hyphenated_word_fixed_into_two_words_is_used_in_the_next_dictation(string raw, string expected)
+    {
+        _learning.Learn("фронтенд-дизайн", "Frontend");
+        var pair = CorrectionDetector.Detect("Нужен фронтенд-дизайн.", "Нужен Frontend Design.", "Нужен фронтенд-дизайн.", _learning.IsTarget, confirmed: true);
+
+        Assert.Equal((LearnResult.Learned, "фронтенд-дизайн", "Frontend Design"), _learning.Learn(pair!.Value.Wrong, pair.Value.Correct));
+        Assert.Equal(new Dictionary<string, string> { ["фронтенд-дизайн"] = "Frontend Design" }, _db.Corrections());
+        Assert.Equal(expected, new PostProcessor(Vox.Core.Models.ModelCatalog.GigaAm).Process(raw, _db.Corrections()));
+    }
+
     [Fact]
     public void Undo_brings_back_the_previous_target()
     {

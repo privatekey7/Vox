@@ -130,6 +130,90 @@ public class CorrectionDetectorTests
         Assert.Equal("the words are not alike (0.40); 1 change: \"треде\" → \"tray\"",
             CorrectionDetector.Describe("Свернуть в треде и выйти.", "Свернуть в tray и выйти.", "Свернуть в треде и выйти."));
 
+    // Regression (owner, 15.11): "фронтенд-дизайн" fixed to "Frontend Design" was learned as "Frontend" alone:
+    // the second word was taken for text typed on. A hyphenated word may become as many words as it has parts.
+    [Theory]
+    [InlineData("Нужен фронтенд-дизайн.", "Нужен Frontend Design.")] // the last word of the dictation
+    [InlineData("Нужен фронтенд-дизайн сегодня.", "Нужен Frontend Design сегодня.")] // in the middle
+    [InlineData("фронтенд-дизайн готов.", "Frontend Design готов.")] // the first word
+    [InlineData("фронтенд-дизайн", "Frontend Design")] // the whole dictation
+    public void A_hyphenated_word_fixed_into_two_words_is_learned_whole(string before, string after) =>
+        Assert.Equal(("фронтенд-дизайн", "Frontend Design"), CorrectionDetector.Detect(before, after, before));
+
+    [Fact]
+    public void A_word_of_three_parts_fixed_into_three_words_is_learned_whole() =>
+        Assert.Equal(("фулл-стек-девелопер", "Full Stack Developer"),
+            CorrectionDetector.Detect("Нужен фулл-стек-девелопер.", "Нужен Full Stack Developer.", "Нужен фулл-стек-девелопер."));
+
+    [Theory]
+    [InlineData("Нужен фронтенд-дизайн.", "Нужен Frontend Design. Дальше текст", false)] // typed on after the fix
+    [InlineData("Нужен фронтенд-дизайн", "Нужен Frontend Design и ещё", false)] // the same without a full stop
+    [InlineData("фронтенд-дизайн готов.", "Сегодня Frontend Design готов.", false)] // typed before the fix
+    [InlineData("Нужен фронтенд-дизайн.", "Нужен Frontend Design. Дальше текст", true)] // Ctrl+S
+    public void A_split_fix_does_not_take_the_text_typed_around_it(string before, string after, bool confirmed) =>
+        Assert.Equal(("фронтенд-дизайн", "Frontend Design"), CorrectionDetector.Detect(before, after, before, confirmed: confirmed));
+
+    // The guard that must stay: the second word is part of the fix only when it sounds like the second part.
+    [Theory]
+    [InlineData("Нужен фронтенд-дизайн.", "Нужен Frontend. Дальше текст", false)]
+    [InlineData("Нужен фронтенд-дизайн", "Нужен Frontend дальше", false)]
+    [InlineData("Нужен фронтенд-дизайн.", "Нужен Frontend. Дальше текст", true)] // Ctrl+S keeps the guard
+    [InlineData("Нужен фронтенд-дизайн.", "Нужен Frontend. Дизайн потом", false)] // a new sentence, though the word is the same
+    [InlineData("Нужен фронтенд-дизайн.", "Нужен Frontend, дизайн потом", false)]
+    [InlineData("фронтенд-дизайн готов.", "Сегодня Frontend готов.", false)] // typed before the fix
+    public void Text_typed_next_to_a_fixed_hyphenated_word_is_not_part_of_the_pair(string before, string after, bool confirmed) =>
+        Assert.Equal(("фронтенд-дизайн", "Frontend"), CorrectionDetector.Detect(before, after, before, confirmed: confirmed));
+
+    [Theory]
+    [InlineData("Настрой кубернетис", "Настрой Kubernetes сервер")] // typed on after the fix
+    [InlineData("Настрой кубернетис.", "Настрой Kubernetes. Дальше текст")]
+    [InlineData("кубернетис готов.", "Сегодня Kubernetes готов.")] // typed before the fix
+    public void A_word_without_a_hyphen_never_takes_the_text_typed_around_it(string before, string after) =>
+        Assert.Equal(("кубернетис", "Kubernetes"), CorrectionDetector.Detect(before, after, before));
+
+    [Theory]
+    [InlineData("Нужен фронтенд-дизайн сегодня.", "Нужен Frontend сайта сегодня.")] // the second word is not the second part
+    [InlineData("Нужен фулл-стек-веб-девелопер.", "Нужен Full Stack Web Developer.")] // four parts: over the limit
+    [InlineData("Нужен фулл-стек-девелопер.", "Нужен Full Stack.")] // fewer words than parts
+    [InlineData("Нужен фулл-стек-девелопер сегодня.", "Нужен Full Stack сегодня.")]
+    [InlineData("фулл-стек-девелопер готов.", "Full Stack готов.")]
+    [InlineData("Открой веб-сайт билдер сегодня.", "Открой Web Sitebuilder сегодня.")] // two words into two: not one word split
+    public void A_split_that_does_not_match_the_parts_is_not_learned(string before, string after) =>
+        Assert.Null(CorrectionDetector.Detect(before, after, before));
+
+    // "Full" stood in the field before the dictation: a word outside the changed place is never part of the pair.
+    [Fact]
+    public void A_split_does_not_reach_for_a_word_outside_the_change() =>
+        Assert.Null(CorrectionDetector.Detect("Full фулл-стек-девелопер готов.", "Full Stack Developer готов.", "фулл-стек-девелопер готов."));
+
+    // Nor is the untouched word after the change, though it sounds like the second part.
+    [Fact]
+    public void A_split_does_not_reach_for_the_word_after_the_change() =>
+        Assert.Equal(("фронтенд-дизайн", "Frontend"),
+            CorrectionDetector.Detect("Нужен фронтенд-дизайн дизайна.", "Нужен Frontend дизайна.", "Нужен фронтенд-дизайн дизайна."));
+
+    // The owner's case as it was made: fixed and confirmed with Ctrl+S.
+    [Fact]
+    public void A_split_fix_confirmed_with_ctrl_s_is_learned_whole() =>
+        Assert.Equal(("фронтенд-дизайн", "Frontend Design"),
+            CorrectionDetector.Detect("Нужен фронтенд-дизайн.", "Нужен Frontend Design.", "Нужен фронтенд-дизайн.", confirmed: true));
+
+    // A hyphen turned into a space is punctuation, like "по-моему" → "по моему": the user's own wording.
+    [Theory]
+    [InlineData("Нужен фронтенд-дизайн.", "Нужен фронтенд дизайн.")]
+    [InlineData("Нужен фронтенд-дизайн сегодня.", "Нужен фронтенд дизайн сегодня.")]
+    [InlineData("Нужен фронтенд-дизайн сегодня.", "Нужен Фронтенд Дизайн сегодня.")]
+    public void A_hyphen_replaced_by_a_space_is_not_learned(string before, string after)
+    {
+        Assert.Null(CorrectionDetector.Detect(before, after, before));
+        Assert.Null(CorrectionDetector.Detect(before, after, before, confirmed: true));
+    }
+
+    [Fact]
+    public void Only_the_changed_part_is_the_pair_when_the_hyphen_became_a_space() =>
+        Assert.Equal(("ЛМ", "LLM"),
+            CorrectionDetector.Detect("Нужна ЛМ-полировка текста.", "Нужна LLM полировка текста.", "Нужна ЛМ-полировка текста."));
+
     // Security audit L3: what the user typed over the dictation (a card number, an address) stays out of the log.
     [Fact]
     public void Without_texts_the_log_gets_the_reason_and_the_count_but_no_words()

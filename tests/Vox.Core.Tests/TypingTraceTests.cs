@@ -60,6 +60,27 @@ public class TypingTraceTests
     public void An_edit_of_another_word_does_not_vouch_for_the_fix() =>
         Assert.False(Typed(After, "Задача: Настр кубернетис сегодня.", "Задача: Настрой кубернетис сегодня.", After));
 
+    // A fix into two words ("фронтенд-дизайн" → "Frontend Design") is typed when a half-done state was seen.
+    [Fact]
+    public void A_fix_into_two_words_is_typed_when_seen_half_done_and_not_when_swapped_in_one_step()
+    {
+        const string before = "Нужен фронтенд-дизайн.";
+        const string after = "Нужен Frontend Design.";
+        var (_, correct) = CorrectionDetector.Detect(before, after, before) ?? throw new InvalidOperationException("not a fix");
+        var typed = new TypingTrace(before, before);
+        foreach (var s in new[] { "Нужен .", "Нужен Front.", "Нужен Frontend.", "Нужен Frontend Des.", after })
+        {
+            typed.Add(s);
+        }
+
+        var swapped = new TypingTrace(before, before);
+        swapped.Add(after);
+
+        Assert.Equal("Frontend Design", correct);
+        Assert.True(typed.ShowsTyping(after, correct));
+        Assert.False(swapped.ShowsTyping(after, correct));
+    }
+
     // A whole word pasted over the selection is one step too: not automatic, Ctrl+S remembers it (FieldWatcher).
     [Fact]
     public void A_pasted_word_is_not_typed() => Assert.False(Typed(After, After));
